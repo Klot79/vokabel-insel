@@ -44,7 +44,7 @@ export async function confirmBox(text, yes = "Ja", no = "Abbrechen", danger = fa
 
 // Bild eines Wortes: hochgeladenes Bild oder Emoji
 export function pic(w, cls = "") {
-  if (w.img) return `<img src="${esc(w.img)}" alt="" class="${cls}">`;
+  if (w.img) return `<img src="${esc(w.img)}" alt="" class="${cls}" loading="lazy" decoding="async"${w.credit ? ` title="${esc(w.credit)}"` : ""}>`;
   if (w.emoji) return `<span aria-hidden="true">${esc(w.emoji)}</span>`;
   return `<span aria-hidden="true" style="font-size:.5em;opacity:.5">🖼️</span>`;
 }

@@ -142,7 +142,7 @@ function home(back) {
         const open = unlocked.includes(l);
         return `<button class="island ${open ? "" : "locked"}" data-id="${esc(l.id)}" aria-label="${esc(l.title)}${open ? "" : " (gesperrt)"}">
           ${l === cur ? `<span class="ship" style="left:-6px;top:10px">⛵</span>` : ""}
-          <span class="land">${esc(l.icon || "🏝️")}</span>
+          <span class="land">${l.iconImg ? `<img src="${esc(l.iconImg)}" alt="" loading="lazy">` : esc(l.icon || "🏝️")}</span>
           ${open ? "" : `<span class="lock">🔒</span>`}
           ${open && st.due ? `<span class="due">${st.due} 🔁</span>` : ""}
           <span class="label">${esc(l.title)} ${LANG_FLAG[l.lang] || ""}</span>
@@ -215,7 +215,7 @@ function islandView(l, back) {
   render(`<div class="wrap">
     ${topbar()}
     <div class="panel stack">
-      <div class="row"><span style="font-size:3rem">${esc(l.icon || "🏝️")}</span>
+      <div class="row">${l.iconImg ? `<span class="wpic" style="width:72px;height:72px"><img src="${esc(l.iconImg)}" alt=""></span>` : `<span style="font-size:3rem">${esc(l.icon || "🏝️")}</span>`}
         <div class="stack" style="gap:2px;margin-right:auto"><h2 style="font-size:1.8rem">${esc(l.title)}</h2>
         <span class="muted">${st.total} Wörter · Français → ${LANG_FLAG[l.lang] || ""}</span></div>
         <span style="font-size:2rem">${"⭐".repeat(st.stars)}${"☆".repeat(3 - st.stars)}</span></div>

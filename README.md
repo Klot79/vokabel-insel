@@ -27,7 +27,9 @@ Die Kinder brauchen kein Benutzerkonto, sie melden sich mit Klassencode, Namen u
 - **Lektionen anlegen** in wenigen Minuten:
   - 📷 **Foto vom Vokabelblatt** (auch direkt mit der iPad-Kamera), die Texterkennung liest die Wörter aus
   - 📄 **PDF** (mit Text oder eingescannt), **Word** (.docx), **Excel** (.xlsx/.xls/.ods), **CSV/TXT** oder Text einfügen
-  - 🖼 **Bilder** (JPG, PNG, WebP, GIF, SVG, HEIC in Safari): mehrere auf einmal hochladen, Zuordnung per Dateiname (z. B. `chat.jpg` → *le chat*), alternativ Emoji
+  - 🖼 **Bilder** (JPG, PNG, WebP, GIF, SVG, HEIC in Safari) in guter Auflösung (bis 1200 Pixel): mehrere auf einmal hochladen, Zuordnung per Dateiname (z. B. `chat.jpg` → *le chat*)
+  - 🔍 **Bildsuche**: lizenzfreie Zeichnungen oder Fotos (Creative Commons, über Openverse) direkt in der App finden – einzeln oder mit „Fehlende Bilder suchen“ für alle Wörter ohne Bild
+  - 🏝️ **Inselbild** für jede Lektion: eigenes Bild hochladen, suchen oder Emoji
 - Lektionen **für alle oder nur für bestimmte Kinder** freigeben (z. B. FR→PT für portugiesischsprachige Kinder)
 - **Bild-PIN-Karten** zum Ausdrucken, Sicherung als Datei
 
@@ -93,6 +95,8 @@ Jetzt läuft die App, aber noch im Demo-Modus. Für die Klassenübersicht folgt 
    Dann **Commit changes**. Der *anon*-Schlüssel darf öffentlich sein, er ist dafür gedacht.
 5. Nach ca. 1 Minute die App neu laden. Der gelbe „Demo-Modus“-Hinweis ist dann weg.
 
+6. **Bildspeicher (für Bilder in hoher Auflösung):** Im **SQL Editor** zusätzlich den Inhalt von `supabase/setup-bilder.sql` einfügen und **Run** klicken. Ohne diesen Schritt funktioniert alles, die Bilder werden aber verkleinert gespeichert. Ob der Bildspeicher läuft, zeigt die App unter **Einstellungen → Speicherort**.
+
 > Hinweis: Kostenlose Supabase-Projekte werden nach 7 Tagen **ohne jede Nutzung** pausiert (z. B. in den Ferien). Dann im Supabase-Dashboard auf **Restore** klicken; die Daten bleiben erhalten.
 
 ### Schritt 3: Klasse anlegen
@@ -134,4 +138,5 @@ js/speech.js          Vorlesen & Spracherkennung
 js/store.js           Speicher (Supabase oder Gerät)
 js/demo.js            Beispielklasse DEMO
 supabase/setup.sql    Datenbank einrichten
+supabase/setup-bilder.sql  Bildspeicher einrichten (hohe Auflösung)
 ```

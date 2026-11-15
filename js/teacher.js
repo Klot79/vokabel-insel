@@ -1,8 +1,54 @@
 import { Store, Device, isCloud } from "./store.js";
 import { esc, uid, sha, pinHash, randomPin, LANG_FLAG, LANG_NAME } from "./util.js";
 import { render, $, $$, toast, modal, confirmBox, pic, avatarHtml, fmtMin, relDay } from "./ui.js";
-import { lessonStats, weekSummary, currentStreak, emptyProgress, todayStr, DAY, wstate } from "./srs.js";
-import { fileToLines, splitLines, linesToPairs, imageToDataUrl, matchImages } from "./import.js";
+import { lessonStats, weekSummary, currentStreak, emptyProgress, todayStr, DAY, wstate, stripArticle, norm } from "./srs.js";
+import { fileToLines, splitLines, linesToPairs, prepareImage, matchImages, searchOpenverse, fetchImageBlob } from "./import.js";
+
+// ---- Bilder speichern (hohe Auflösung, wenn der Online-Bildspeicher eingerichtet ist) ----
+async function storeImageFile(fileOrBlob) {
+  const blob = await prepareImage(fileOrBlob, 1200);
+  return Store.uploadImage(blob);
+}
+async function storeImageHit(hit) {
+  const blob = await fetchImageBlob(hit);
+  if (!blob) return hit.url; // Browser darf das Bild nicht laden → direkt verlinken
+  try { return await storeImageFile(blob); } catch { return hit.url; }
+}
+function warnIfNoStorage() {
+  if (isCloud && !Store.imageStorageOk) toast("Hinweis: Der Bildspeicher ist noch nicht eingerichtet – Bilder werden verkleinert gespeichert. Siehe Einstellungen.", 5000);
+}
+
+// Suchfenster für lizenzfreie Bilder. Ergebnis: {url, credit, link} | "skip" | "stop" | null
+function searchImage(query, { title = "Bild suchen", alt = [], series = false } = {}) {
+  return modal(`<h2>${esc(title)}</h2>
+    <div class="row" style="flex-wrap:nowrap"><input class="input" id="sq" value="${esc(query)}" aria-label="Suchbegriff"><button class="btn blue small" id="sgo">Suchen</button></div>
+    <div class="row small" style="gap:8px">${alt.filter(Boolean).map(a => `<button class="pill" data-q="${esc(a)}" style="border:0;cursor:pointer">${esc(a)}</button>`).join("")}
+      <span style="margin-left:auto" class="row"><label class="check"><input type="radio" name="sc" value="illustration" checked> Zeichnungen</label><label class="check"><input type="radio" name="sc" value="photograph"> Fotos</label></span></div>
+    <div id="sres" class="img-grid"><p class="muted">Suche läuft …</p></div>
+    <p class="small muted" style="margin:0">Lizenzfreie Bilder (Creative Commons) über Openverse. Deutsche oder englische Suchwörter finden meist mehr als französische.</p>
+    <div class="row" style="justify-content:flex-end">${series ? `<button class="btn ghost small" data-close="stop">Fertig</button><button class="btn ghost small" data-close="skip">Überspringen ➜</button>` : `<button class="btn ghost small" data-close="">Abbrechen</button>`}</div>`, {
+    onMount: (m, close) => {
+      const run = async () => {
+        const q = m.querySelector("#sq").value.trim(); if (!q) return;
+        const cat = m.querySelector("input[name=sc]:checked").value;
+        const box = m.querySelector("#sres"); box.innerHTML = `<p class="muted">Suche läuft …</p>`;
+        try {
+          const hits = await searchOpenverse(q, cat);
+          box.innerHTML = hits.length ? hits.map((h, i) => `<button class="img-hit" data-i="${i}" title="${esc(h.credit)}"><img src="${esc(h.thumb)}" alt="" loading="lazy"></button>`).join("")
+            : `<p class="muted">Nichts gefunden. Versuche ein anderes Wort (z. B. auf Englisch) oder „Fotos“.</p>`;
+          box.querySelectorAll(".img-hit").forEach(b => b.onclick = () => close(hits[+b.dataset.i]));
+          box.querySelectorAll("img").forEach(img => img.onerror = () => img.closest(".img-hit")?.remove());
+        } catch (e) { box.innerHTML = `<p class="feedback no" style="font-size:1rem">${esc(e.message)}</p>`; }
+      };
+      m.querySelector("#sgo").onclick = run;
+      m.querySelector("#sq").onkeydown = e => { if (e.key === "Enter") run(); };
+      m.querySelectorAll("input[name=sc]").forEach(r => r.onchange = run);
+      m.querySelectorAll("[data-q]").forEach(b => b.onclick = () => { m.querySelector("#sq").value = b.dataset.q; run(); });
+      run();
+    },
+  });
+}
+const searchTerm = s => stripArticle(norm(String(s || "").split(/[\/;]/)[0]));
 import { say } from "./speech.js";
 
 const T = { cls: null, tab: "overview", students: [], lessons: [], progs: {}, back: null };
@@ -206,7 +252,7 @@ function lessonsTab(el) {
     <div class="row between"><h2>Lektionen (Inseln)</h2><button class="btn green small" id="new">＋ Neue Lektion</button></div>
     <p class="small muted" style="margin:0">Die Reihenfolge bestimmt die Inseln auf der Weltkarte. Die nächste Insel öffnet sich, sobald ein Kind auf der vorherigen einen Stern hat.</p>
     <div class="lesson-list">${T.lessons.map((l, i) => `<div class="lesson-row">
-      <span class="ic">${esc(l.icon || "🏝️")}</span>
+      <span class="ic">${l.iconImg ? `<span class="wpic"><img src="${esc(l.iconImg)}" alt=""></span>` : esc(l.icon || "🏝️")}</span>
       <div><b>${esc(l.title)}</b> <span class="pill">FR → ${LANG_FLAG[l.lang] || ""} ${LANG_NAME[l.lang] || ""}</span><br><span class="small muted">${l.words?.length || 0} Wörter · ${l.assigned === "all" || !l.assigned ? "alle Kinder" : `${l.assigned.length} Kinder`}</span></div>
       <div class="row" style="gap:6px"><button class="btn ghost small" data-up="${i}" ${i === 0 ? "disabled" : ""} aria-label="nach oben">↑</button><button class="btn ghost small" data-down="${i}" ${i === T.lessons.length - 1 ? "disabled" : ""} aria-label="nach unten">↓</button><button class="btn blue small" data-edit="${esc(l.id)}">Bearbeiten</button></div>
     </div>`).join("") || `<p class="muted">Noch keine Lektionen. Lege die erste an – z. B. aus einem Foto deines Vokabelblatts.</p>`}</div></div>`;
@@ -233,7 +279,15 @@ function editLesson(L) {
       <div class="grid2">
         <div class="field"><label for="lt">Titel</label><input class="input" id="lt" value="${esc(L.title)}" placeholder="z. B. Les animaux"></div>
         <div class="row" style="align-items:end">
-          <div class="field" style="width:90px"><label for="li">Symbol</label><input class="input" id="li" value="${esc(L.icon)}" maxlength="4" style="text-align:center;font-size:1.4rem"></div>
+          <div class="field"><label for="li">Inselbild</label>
+            <div class="row" style="gap:6px;flex-wrap:nowrap">
+              <button class="wpic" id="iconPic" title="Eigenes Bild für die Insel hochladen" style="width:56px;height:56px">${L.iconImg ? `<img src="${esc(L.iconImg)}" alt="">` : esc(L.icon || "🏝️")}</button>
+              <input class="input" id="li" value="${esc(L.icon)}" maxlength="4" style="width:64px;text-align:center;font-size:1.3rem" aria-label="Emoji, falls kein Bild">
+              <button class="btn ghost small" id="iconSearch" title="Bild suchen">🔍</button>
+              ${L.iconImg ? `<button class="btn ghost small" id="iconDel" title="Bild entfernen">✕</button>` : ""}
+            </div>
+            <input type="file" id="iconFile" class="hidden" accept="image/*,.heic,.svg">
+          </div>
           <div class="field" style="flex:1;min-width:160px"><label for="ll">Sprachen</label><select class="input" id="ll"><option value="de" ${L.lang === "de" ? "selected" : ""}>Französisch → Deutsch</option><option value="pt" ${L.lang === "pt" ? "selected" : ""}>Französisch → Portugiesisch</option></select></div>
         </div>
       </div>
@@ -261,8 +315,8 @@ function editLesson(L) {
 
     <div class="t-panel">
       <div class="row between"><h2>Wörter (${L.words.length})</h2>
-        <div class="row" style="gap:6px"><label class="btn ghost small" for="imgs">🖼 Bilder hochladen</label><input type="file" id="imgs" class="hidden" multiple accept="image/*,.heic,.svg"><button class="btn blue small" id="add">＋ Wort</button></div></div>
-      <p class="small muted" style="margin:0">Tipp: Benenne Bilder wie das Wort (z. B. <i>chat.jpg</i> oder <i>Katze.png</i>), dann ordnet die App sie automatisch zu. Ohne Bild kannst du ein Emoji eintragen.</p>
+        <div class="row" style="gap:6px"><button class="btn ghost small" id="findMissing">🔍 Fehlende Bilder suchen</button><label class="btn ghost small" for="imgs">🖼 Bilder hochladen</label><input type="file" id="imgs" class="hidden" multiple accept="image/*,.heic,.svg"><button class="btn blue small" id="add">＋ Wort</button></div></div>
+      <p class="small muted" style="margin:0">Tipp: Benenne Bilder wie das Wort (z. B. <i>chat.jpg</i> oder <i>Katze.png</i>), dann ordnet die App sie automatisch zu. Bilder werden in guter Auflösung (bis 1200 Pixel) gespeichert. Ein Klick auf ein Bild ersetzt es, 🔍 sucht ein lizenzfreies Bild.</p>
       <div class="tbl-wrap"><table class="tbl words-tbl"><thead><tr><th>Bild</th><th>Französisch</th><th>${LANG_NAME[L.lang]}</th><th>Emoji</th><th>Beispielsatz (optional)</th><th></th></tr></thead>
       <tbody>${L.words.map((w, i) => `<tr data-i="${i}">
         <td><button class="wpic" data-pic="${i}" title="Bild ändern">${pic(w)}</button></td>
@@ -270,7 +324,7 @@ function editLesson(L) {
         <td><input class="input" data-f="tr" value="${esc(w.tr)}" aria-label="Übersetzung"></td>
         <td><input class="input" data-f="emoji" value="${esc(w.emoji || "")}" style="width:64px;text-align:center" aria-label="Emoji"></td>
         <td><input class="input" data-f="ex" value="${esc(w.ex || "")}" aria-label="Beispielsatz"></td>
-        <td class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn ghost small" data-say="${i}" aria-label="Anhören">🔊</button>${w.img ? `<button class="btn ghost small" data-noimg="${i}" title="Bild entfernen">🚫🖼</button>` : ""}<button class="btn ghost small" data-rm="${i}" aria-label="Löschen">✕</button></td>
+        <td class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn ghost small" data-find="${i}" aria-label="Bild suchen" title="Bild suchen">🔍</button><button class="btn ghost small" data-say="${i}" aria-label="Anhören">🔊</button>${w.img ? `<button class="btn ghost small" data-noimg="${i}" title="Bild entfernen">🚫🖼</button>` : ""}<button class="btn ghost small" data-rm="${i}" aria-label="Löschen">✕</button></td>
       </tr>`).join("") || `<tr><td colspan="6" class="muted">Noch keine Wörter. Importiere eine Liste oder füge Wörter einzeln hinzu.</td></tr>`}</tbody></table></div>
       <input type="file" id="onepic" class="hidden" accept="image/*,.heic,.svg">
     </div></div>`;
@@ -302,8 +356,9 @@ function editLesson(L) {
     };
   };
 
-  const handleListFile = async f => {
+  const handleListFile = async (f, input) => {
     if (!f) return;
+    if (input) input.value = ""; // gleiche Datei kann danach nochmal gewählt werden
     syncInputs();
     const box = $("#imp");
     box.innerHTML = `<p class="muted" id="st">Lese „${esc(f.name)}“ …</p>`;
@@ -317,8 +372,40 @@ function editLesson(L) {
     $("#cancel").onclick = () => { T.tab = "lessons"; showTab(); };
     $$("input[name=as]").forEach(r => r.onchange = () => $("#kids").classList.toggle("hidden", r.value === "all" && r.checked));
     $("#ll").onchange = () => { syncInputs(); draw(); };
-    $("#lf").onchange = e => handleListFile(e.target.files[0]);
-    $("#lcam").onchange = e => handleListFile(e.target.files[0]);
+    $("#lf").onchange = e => handleListFile(e.target.files[0], e.target);
+    $("#lcam").onchange = e => handleListFile(e.target.files[0], e.target);
+    // Inselbild
+    $("#iconPic").onclick = () => { syncInputs(); $("#iconFile").click(); };
+    $("#iconFile").onchange = async e => {
+      const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+      toast("Bild wird gespeichert …");
+      try { L.iconImg = await storeImageFile(f); warnIfNoStorage(); draw(); } catch (err) { toast(err.message, 6000); }
+    };
+    $("#iconSearch").onclick = async () => {
+      syncInputs();
+      const hit = await searchImage(L.title || "island", { title: "Bild für die Insel suchen", alt: ["island", "treasure map", L.title] });
+      if (hit && hit.url) { toast("Bild wird gespeichert …"); L.iconImg = await storeImageHit(hit); L.iconCredit = hit.credit; warnIfNoStorage(); draw(); }
+    };
+    $("#iconDel") && ($("#iconDel").onclick = () => { syncInputs(); delete L.iconImg; delete L.iconCredit; draw(); });
+    // Bildsuche pro Wort
+    const findFor = async (w, opts = {}) => {
+      const hit = await searchImage(searchTerm(w.tr) || searchTerm(w.fr), { title: opts.title || `Bild für „${w.fr}“`, alt: [searchTerm(w.tr), searchTerm(w.fr)], series: opts.series });
+      if (hit && hit.url) { toast("Bild wird gespeichert …"); w.img = await storeImageHit(hit); w.credit = hit.credit; w.creditUrl = hit.link; }
+      return hit;
+    };
+    $$("[data-find]").forEach(b => b.onclick = async () => { syncInputs(); await findFor(L.words[+b.dataset.find]); warnIfNoStorage(); draw(); });
+    $("#findMissing").onclick = async () => {
+      syncInputs();
+      const missing = L.words.filter(w => w.fr && !w.img);
+      if (!missing.length) return toast("Alle Wörter haben schon ein Bild. 👍");
+      let n = 0;
+      for (let i = 0; i < missing.length; i++) {
+        const r = await findFor(missing[i], { series: true, title: `Bild ${i + 1} von ${missing.length}: „${missing[i].fr}“ (${missing[i].tr || "?"})` });
+        if (!r || r === "stop") break;
+        if (r && r.url) n++;
+      }
+      warnIfNoStorage(); draw(); toast(`${n} Bilder hinzugefügt. Speichern nicht vergessen!`);
+    };
     const drop = $("#drop");
     drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
     drop.ondragleave = () => drop.classList.remove("over");
@@ -331,14 +418,17 @@ function editLesson(L) {
     let picFor = null;
     $$("[data-pic]").forEach(b => b.onclick = () => { syncInputs(); picFor = +b.dataset.pic; $("#onepic").click(); });
     $("#onepic").onchange = async e => {
-      const f = e.target.files[0]; if (!f || picFor == null) return;
-      try { L.words[picFor].img = await imageToDataUrl(f); draw(); } catch (err) { toast(err.message); }
+      const f = e.target.files[0]; e.target.value = ""; if (!f || picFor == null) return;
+      toast("Bild wird gespeichert …");
+      try { L.words[picFor].img = await storeImageFile(f); delete L.words[picFor].credit; warnIfNoStorage(); draw(); } catch (err) { toast(err.message, 6000); }
     };
     $("#imgs").onchange = async e => {
       syncInputs();
-      const files = [...e.target.files]; if (!files.length) return;
+      const files = [...e.target.files]; e.target.value = ""; if (!files.length) return;
       const { matched, unmatched } = matchImages(files, L.words);
-      for (const m of matched) { try { m.w.img = await imageToDataUrl(m.f); } catch (err) { toast(err.message); } }
+      let k = 0;
+      for (const m of matched) { toast(`Bild ${++k} von ${matched.length} wird gespeichert …`, 8000); try { m.w.img = await storeImageFile(m.f); } catch (err) { toast(err.message, 6000); } }
+      warnIfNoStorage();
       draw();
       if (unmatched.length) {
         await assignUnmatched(unmatched, L); draw();
@@ -366,7 +456,8 @@ function editLesson(L) {
 }
 
 async function assignUnmatched(files, L) {
-  const urls = await Promise.all(files.map(f => imageToDataUrl(f).catch(() => null)));
+  const urls = [];
+  for (const f of files) urls.push(await storeImageFile(f).catch(() => null));
   await modal(`<h2>Bilder zuordnen</h2><p class="small muted" style="margin:0">Diese Bilder konnte ich nicht automatisch zuordnen. Wähle das passende Wort.</p>
     <div class="stack">${files.map((f, i) => urls[i] ? `<div class="row" style="flex-wrap:nowrap"><img src="${urls[i]}" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:10px"><select class="input" data-u="${i}"><option value="">– nicht verwenden –</option>${L.words.map((w, k) => `<option value="${k}">${esc(w.fr)} (${esc(w.tr)})</option>`).join("")}</select></div>` : `<div class="small">„${esc(f.name)}“ konnte nicht geöffnet werden.</div>`).join("")}</div>
     <button class="btn green" id="ok">Übernehmen</button>`, {
@@ -449,12 +540,18 @@ function settings(el) {
       <div class="row"><button class="btn blue small" id="exp">⬇ Sicherung herunterladen</button><label class="btn ghost small" for="impf">⬆ Sicherung einspielen</label><input type="file" id="impf" class="hidden" accept=".json"></div>
       <h2 style="margin-top:8px">Speicherort</h2>
       <p class="small" style="margin:0">${isCloud ? "✅ Online-Datenbank (Supabase) ist verbunden. Alle Geräte sehen dieselben Daten." : "⚠️ Demo-Modus: Daten liegen nur auf diesem Gerät. Für die Klassenübersicht Supabase einrichten (README, Schritt 2)."}</p>
+      ${isCloud ? `<p class="small" style="margin:0" id="bucketState">Bildspeicher: wird geprüft …</p>` : ""}
     </div>
   </div>`;
   $("#sv").onclick = async () => {
     T.cls = { ...T.cls, name: $("#cn").value.trim() || T.cls.name, goal: { title: $("#gt").value.trim() || "Klassenziel", target: Math.max(10, +$("#gn").value || 300) }, allOpen: $("#ao").checked };
     await Store.put("class", "main", T.cls); toast("Gespeichert ✔");
   };
+  if ($("#bucketState")) Store.checkImageStorage().then(ok => {
+    const el = $("#bucketState"); if (!el) return;
+    el.innerHTML = ok ? "✅ Bildspeicher eingerichtet: Bilder werden in hoher Auflösung gespeichert."
+      : "⚠️ Bildspeicher noch nicht eingerichtet: Bilder werden verkleinert gespeichert. Zum Einrichten in Supabase im SQL Editor die Datei <b>supabase/setup-bilder.sql</b> ausführen.";
+  });
   $("#cp").onclick = async () => { try { await navigator.clipboard.writeText(link); toast("Link kopiert."); } catch { $("#lnk").select(); toast("Bitte den markierten Link kopieren."); } };
   $("#pinsv").onclick = async () => {
     const p = $("#np1").value.trim(); if (!/^\d{4,}$/.test(p)) return toast("Die PIN braucht mindestens 4 Ziffern.");

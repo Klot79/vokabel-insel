@@ -21,8 +21,21 @@ function loadScript(src) {
 
 const ext = f => (f.name.split(".").pop() || "").toLowerCase();
 
+// Datei sofort komplett einlesen. Liegt sie nur in iCloud/OneDrive/Google Drive oder ist
+// sie gesperrt, scheitert das mit "NotReadableError" – dann eine verständliche Meldung.
+export async function readFileNow(file) {
+  try {
+    const buf = await file.arrayBuffer();
+    if (!buf.byteLength) throw new Error("leer");
+    return new File([buf], file.name, { type: file.type || "" });
+  } catch (e) {
+    throw new Error(`Die Datei „${file.name}“ konnte nicht gelesen werden. Meistens liegt sie nur in der Cloud (iCloud, OneDrive, Google Drive) und ist noch nicht auf dem Gerät, oder sie ist in einem anderen Programm geöffnet. Lösung: Datei zuerst auf den Schreibtisch kopieren (bzw. in der Dateien-App „Laden“ antippen) und dann nochmal auswählen.`);
+  }
+}
+
 // ---------- Datei → Textzeilen ----------
 export async function fileToLines(file, lang, onStatus = () => {}) {
+  file = await readFileNow(file);
   const e = ext(file);
   if (["txt", "csv", "tsv"].includes(e) || file.type.startsWith("text/")) return splitLines(await file.text());
   if (["xlsx", "xls", "ods"].includes(e)) {
@@ -56,7 +69,12 @@ async function pdfToLines(file, lang, onStatus) {
   await loadScript(LIBS.pdfjs);
   const pdfjs = window.pdfjsLib;
   pdfjs.GlobalWorkerOptions.workerSrc = LIBS.pdfWorker;
-  const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+  let pdf;
+  try { pdf = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise; }
+  catch (e) {
+    if (e?.name === "PasswordException") throw new Error("Das PDF ist mit einem Passwort geschützt. Bitte ohne Passwort speichern oder ein Foto davon machen.");
+    throw new Error("Das PDF konnte nicht geöffnet werden (beschädigt oder ungewöhnliches Format). Tipp: Ein Foto oder Bildschirmfoto der Seite funktioniert immer.");
+  }
   const pages = Math.min(pdf.numPages, 6);
   let lines = [];
   // 1) PDF mit echtem Text: direkt auslesen (genauer als OCR)
@@ -154,26 +172,51 @@ export function imageToCanvas(file, max = 320) {
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
-      const r = Math.min(1, max / Math.max(img.width, img.height));
+      const w0 = img.naturalWidth || img.width || 800, h0 = img.naturalHeight || img.height || 800; // SVG ohne Größe
+      const r = Math.min(max / Math.max(w0, h0), /svg/.test(file.type) ? 4 : 1);
       const c = document.createElement("canvas");
-      c.width = Math.max(1, Math.round(img.width * r)); c.height = Math.max(1, Math.round(img.height * r));
+      c.width = Math.max(1, Math.round(w0 * r)); c.height = Math.max(1, Math.round(h0 * r));
       const ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
       ctx.drawImage(img, 0, 0, c.width, c.height);
       URL.revokeObjectURL(url); res(c);
     };
-    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error(`„${file.name}“ kann dieser Browser nicht öffnen${/hei[cf]$/i.test(file.name) ? " (HEIC geht nur in Safari – oder vorher als JPG speichern)" : ""}.`)); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error(`„${file.name || "Bild"}“ kann dieser Browser nicht öffnen${/hei[cf]$/i.test(file.name || "") ? " (HEIC geht nur in Safari – oder vorher als JPG speichern)" : ""}.`)); };
     img.src = url;
   });
 }
 
-export async function imageToDataUrl(file, max = 320) {
-  if (ext(file) === "svg" || file.type === "image/svg+xml") {
-    const txt = await file.text();
-    if (txt.length > 150000) throw new Error("SVG ist zu groß.");
-    return "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(txt)));
+// Bild verkleinern (lange Seite max. `max` Pixel) und als JPEG-Blob liefern
+export async function prepareImage(fileOrBlob, max = 1200) {
+  if (fileOrBlob.name) fileOrBlob = await readFileNow(fileOrBlob);
+  const c = await imageToCanvas(fileOrBlob, max);
+  return await new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error("Bild konnte nicht umgewandelt werden.")), "image/jpeg", 0.86));
+}
+
+// ---------- Bildsuche (lizenzfreie Bilder über Openverse) ----------
+export async function searchOpenverse(q, category = "illustration") {
+  const url = `https://api.openverse.org/v1/images/?q=${encodeURIComponent(q)}&page_size=20&mature=false${category ? "&category=" + category : ""}`;
+  const r = await fetch(url);
+  if (r.status === 429) throw new Error("Zu viele Suchen in kurzer Zeit. Bitte eine Minute warten.");
+  if (!r.ok) throw new Error("Die Bildsuche ist gerade nicht erreichbar.");
+  const d = await r.json();
+  return (d.results || []).map(x => ({
+    url: x.url, thumb: x.thumbnail || x.url,
+    credit: `${x.title || "Bild"} – ${x.creator || "unbekannt"} (${String(x.license || "").toUpperCase()} ${x.license_version || ""})`.trim(),
+    link: x.foreign_landing_url || x.url,
+  }));
+}
+
+// Gefundenes Bild herunterladen; klappt das wegen Browser-Sperren nicht, Vorschaubild versuchen
+export async function fetchImageBlob(hit) {
+  for (const u of [hit.url, hit.thumb]) {
+    try {
+      const r = await fetch(u, { mode: "cors" });
+      if (!r.ok) continue;
+      const b = await r.blob();
+      if (b.type.startsWith("image/")) return b;
+    } catch {}
   }
-  const c = await imageToCanvas(file, max);
-  return c.toDataURL("image/jpeg", 0.82);
+  return null;
 }
 
 const key = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")

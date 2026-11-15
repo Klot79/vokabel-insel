@@ -5,6 +5,22 @@ const cfg = window.VOKABEL_CONFIG || {};
 export const isCloud = !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY);
 
 const LS_PREFIX = "vi:";
+const BUCKET = "vokabel-bilder";
+
+function shrinkBlob(blob, max) {
+  return new Promise(resolve => {
+    const url = URL.createObjectURL(blob), img = new Image();
+    img.onload = () => {
+      const r = Math.min(1, max / Math.max(img.naturalWidth || max, img.naturalHeight || max));
+      const c = document.createElement("canvas");
+      c.width = Math.round((img.naturalWidth || max) * r); c.height = Math.round((img.naturalHeight || max) * r);
+      const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url); c.toBlob(b => resolve(b || blob), "image/jpeg", 0.82);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(blob); };
+    img.src = url;
+  });
+}
 
 function lsKey(code, kind, id) { return `${LS_PREFIX}${code}|${kind}|${id}`; }
 
@@ -85,6 +101,40 @@ export const Store = {
   },
   async del(kind, id) { await backend.del(this.code, kind, id); },
 
+  // Bild speichern: online im Supabase-Speicher (volle Auflösung), sonst als Daten-URL
+  async uploadImage(blob) {
+    if (isCloud && !this._noBucket) {
+      const base = cfg.SUPABASE_URL.replace(/\/$/, "");
+      const path = `${this.code}/${uid("img-")}.jpg`;
+      try {
+        const res = await fetch(`${base}/storage/v1/object/${BUCKET}/${path}`, {
+          method: "POST",
+          headers: { apikey: cfg.SUPABASE_ANON_KEY, Authorization: `Bearer ${cfg.SUPABASE_ANON_KEY}`, "Content-Type": blob.type || "image/jpeg", "x-upsert": "false" },
+          body: blob,
+        });
+        if (res.ok) return `${base}/storage/v1/object/public/${BUCKET}/${path}`;
+        this._noBucket = true;
+        console.warn("Bildspeicher nicht eingerichtet:", res.status, await res.text().catch(() => ""));
+      } catch (e) { console.warn(e); }
+    }
+    // Ersatz: verkleinert direkt in der Lektion speichern
+    const small = await shrinkBlob(blob, 600);
+    return await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(small); });
+  },
+  get imageStorageOk() { return isCloud && !this._noBucket; },
+  async checkImageStorage() {
+    if (!isCloud) return false;
+    try {
+      const r = await fetch(`${cfg.SUPABASE_URL.replace(/\/$/, "")}/storage/v1/object/list/${BUCKET}`, {
+        method: "POST", headers: { apikey: cfg.SUPABASE_ANON_KEY, Authorization: `Bearer ${cfg.SUPABASE_ANON_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ prefix: "", limit: 1 }),
+      });
+      const ok = r.ok && Array.isArray(await r.json());
+      if (!ok) this._noBucket = true;
+      return ok;
+    } catch { return false; }
+  },
+
   async createClass(code, data) {
     code = this.normCode(code);
     await backend.put(code, "class", "main", data);
@@ -99,4 +149,5 @@ export const Device = {
   del(k) { try { localStorage.removeItem("vi-dev:" + k); } catch {} },
 };
 
+import { uid } from "./util.js";
 export { uid, sha } from "./util.js";
