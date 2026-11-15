@@ -10,6 +10,6 @@
 // ---------------------------------------------------------------
 
 window.VOKABEL_CONFIG = {
-  SUPABASE_URL: "",       // z. B. "https://abcdxyz.supabase.co"
-  SUPABASE_ANON_KEY: "",  // der lange "anon public"-Schlüssel
+  SUPABASE_URL: "https://qoifydcldggqsgyutbze.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_Ld0ZlWOZEITlmDBqqbES6Q_WNoYsC8z", // öffentlicher Schlüssel (darf im Code stehen)
 };
