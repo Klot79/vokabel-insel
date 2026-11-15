@@ -100,37 +100,93 @@ export function overallStats(prog, lessons) {
   return { total, known, solid, master, due };
 }
 
-// Inseln werden nacheinander freigeschaltet (1 Stern öffnet die nächste)
+// Inseln werden freigeschaltet: Wochen-Lektionen ab ihrer Woche,
+// andere nacheinander (1 Stern öffnet die nächste)
 export function unlockedLessons(prog, lessons, allOpen) {
   const out = [];
-  for (let i = 0; i < lessons.length; i++) {
-    if (allOpen || i === 0) { out.push(lessons[i]); continue; }
-    if (lessonStats(prog, lessons[i - 1]).stars >= 1) out.push(lessons[i]); else break;
+  let prevFree = null;
+  for (const l of lessons) {
+    const ws = weekState(l);
+    if (ws === "future") continue;
+    if (ws !== "none" || allOpen || !prevFree || lessonStats(prog, prevFree).stars >= 1) out.push(l);
+    if (ws === "none") { if (!out.includes(l)) break; prevFree = l; }
   }
   return out;
+}
+export function sortLessons(lessons) {
+  return [...lessons].sort((a, b) => (a.week || "9999") .localeCompare(b.week || "9999") || (a.order || 0) - (b.order || 0) || (a.created || 0) - (b.created || 0));
 }
 
 const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 export { shuffle };
 
+// ---- Wochenplan: eine Lektion pro Schulwoche ---------------------
+// „Häufig kurz statt selten lang“: die Wörter einer Wochen-Lektion werden auf
+// 5 Schultage verteilt, 5–7 neue pro Tag. Am Freitag: Wochentest.
+export function mondayOf(d = new Date()) {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const wd = (x.getDay() + 6) % 7; // 0 = Montag
+  x.setDate(x.getDate() - wd);
+  return todayStr(x);
+}
+export function weekNumber(dateStr) {
+  const d = new Date(dateStr + "T12:00");
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day);
+  const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return Math.ceil(((t - y0) / DAY + 1) / 7);
+}
+export function weekLabel(mon) {
+  if (!mon) return "";
+  const a = new Date(mon + "T12:00"), b = new Date(a.getTime() + 4 * DAY);
+  const f = d => `${d.getDate()}.${d.getMonth() + 1}.`;
+  return `KW ${weekNumber(mon)} (${f(a)}–${f(b)})`;
+}
+export function schoolDay(d = new Date()) { const wd = (d.getDay() + 6) % 7; return Math.min(5, wd + 1); } // Mo=1 … Fr/Sa/So=5
+export function weekState(lesson, now = new Date()) {
+  if (!lesson.week) return "none";
+  const thisMon = mondayOf(now);
+  return lesson.week === thisMon ? "current" : lesson.week > thisMon ? "future" : "past";
+}
+export function perDayFor(lesson) { const n = lesson.words.length; return Math.max(5, Math.min(7, Math.ceil(n / 5))); }
+// Wie viele neue Wörter dieser Lektion sind heute erlaubt?
+export function newAllowed(prog, lesson, now = new Date()) {
+  const ws = weekState(lesson, now);
+  if (ws === "future") return 0;
+  const seen = lesson.words.filter(w => wstate(prog, lesson.id, w.id).b >= 1).length;
+  if (ws === "current") return Math.max(0, Math.min(lesson.words.length, perDayFor(lesson) * schoolDay(now)) - seen);
+  return Math.max(0, lesson.words.length - seen);
+}
+
 // Welche Wörter kommen in die nächste Lerneinheit?
 //  1. fällige Wiederholungen (älteste zuerst, max. 10)
 //  2. Wörter, die noch auf „heute lernen“ stehen (z. B. nach Fehlern)
-//  3. ein paar neue Wörter (max. 5, weniger wenn viel zu wiederholen ist)
+//  3. neue Wörter: Wochen-Lektion nach Tagesplan (5–7), sonst höchstens 5
 export function planLearn(prog, lessons, { maxReview = 10, maxLearn = 8 } = {}) {
   const now = Date.now();
   const review = [], learn = [], fresh = [];
-  for (const l of lessons) for (const w of l.words) {
-    const s = wstate(prog, l.id, w.id);
-    if (s.b === 0) fresh.push({ l, w, s, kind: "new" });
-    else if (s.b === 1) learn.push({ l, w, s, kind: "learn" });
-    else if (s.d <= now) review.push({ l, w, s, kind: "review" });
+  const weekly = lessons.some(l => weekState(l) === "current");
+  for (const l of lessons) {
+    if (weekState(l) === "future") continue;
+    let allow = newAllowed(prog, l);
+    for (const w of l.words) {
+      const s = wstate(prog, l.id, w.id);
+      if (s.b === 0) { if (allow > 0) { fresh.push({ l, w, s, kind: "new", cur: weekState(l) === "current" }); allow--; } }
+      else if (s.b === 1) learn.push({ l, w, s, kind: "learn" });
+      else if (s.d <= now) review.push({ l, w, s, kind: "review" });
+    }
   }
   review.sort((a, b) => a.s.d - b.s.d);
+  fresh.sort((a, b) => (b.cur ? 1 : 0) - (a.cur ? 1 : 0)); // Wochen-Lektion zuerst
   const r = review.slice(0, maxReview), le = learn.slice(0, maxLearn);
-  const nNew = Math.max(0, Math.min(MAX_NEW, 14 - r.length - le.length));
+  const maxNew = weekly ? 7 : MAX_NEW;
+  const nNew = Math.max(0, Math.min(maxNew, 16 - r.length - le.length));
   return [...r, ...le, ...fresh.slice(0, nNew)];
 }
+
+// Tagesziel: 5 Minuten (Routine statt Marathon)
+export const DAILY_GOAL_SEC = 300;
+export function todaySeconds(prog) { return prog.days?.[todayStr()]?.sec || 0; }
 export function countDueToday(prog, lessons) { return planLearn(prog, lessons).length; }
 
 // ---- Antwort prüfen (kindgerecht tolerant) ---------------------

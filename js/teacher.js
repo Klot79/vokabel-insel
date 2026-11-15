@@ -2,7 +2,7 @@ import { Store, Device, isCloud } from "./store.js";
 import { esc, uid, sha, pinHash, randomPin, LANG_FLAG, LANG_NAME, PIN_NAMES } from "./util.js";
 import { art } from "./art.js";
 import { render, $, $$, toast, modal, confirmBox, pic, avatarHtml, fmtMin, relDay } from "./ui.js";
-import { lessonStats, weekSummary, currentStreak, emptyProgress, todayStr, DAY, wstate, stripArticle, norm } from "./srs.js";
+import { lessonStats, weekSummary, currentStreak, emptyProgress, todayStr, DAY, wstate, stripArticle, norm, mondayOf, weekLabel, weekState, sortLessons, perDayFor } from "./srs.js";
 import { fileToLines, splitLines, linesToPairs, prepareImage, matchImages, searchOpenverse, fetchImageBlob } from "./import.js";
 
 // ---- Bilder speichern (hohe Auflösung, wenn der Online-Bildspeicher eingerichtet ist) ----
@@ -119,7 +119,8 @@ function suggestCode() {
 async function loadAll() {
   const [students, lessons, progs, cls] = await Promise.all([Store.list("student"), Store.list("lesson"), Store.list("progress"), Store.getOne("class", "main")]);
   T.students = students.sort((a, b) => a.name.localeCompare(b.name, "de"));
-  T.lessons = lessons.sort((a, b) => (a.order || 0) - (b.order || 0) || (a.created || 0) - (b.created || 0));
+  T.lessons = sortLessons(lessons);
+  T.reports = (await Store.list("class")).filter(r => r.id.startsWith("report-")).sort((a, b) => b.week.localeCompare(a.week));
   T.progs = Object.fromEntries(progs.map(p => [p.id, { ...emptyProgress(), ...p }]));
   if (cls) T.cls = cls;
 }
@@ -128,13 +129,16 @@ async function dashboard() {
   document.body.classList.add("teacher-mode");
   render(`<div class="wrap"><div class="t-panel">Lade Daten …</div></div>`);
   try { await loadAll(); } catch (e) { render(`<div class="wrap"><div class="t-panel">${esc(e.message)}</div></div>`); return; }
-  const tabs = [["overview", "📊 Übersicht"], ["lessons", "📚 Lektionen"], ["students", "👧 Kinder"], ["settings", "⚙️ Einstellungen"]];
+  const fresh = await autoWeekReport();
+  const tabs = [["overview", "📊 Übersicht"], ["lessons", "📚 Lektionen"], ["reports", "📅 Wochenberichte"], ["students", "👧 Kinder"], ["settings", "⚙️ Einstellungen"]];
   render(`<div class="wrap">
     <div class="t-head"><span class="logo">${art("parrot")}</span><h1>${esc(T.cls.name)} <span class="pill">${esc(Store.code)}</span></h1>
       <nav class="tabs">${tabs.map(([k, n]) => `<button data-t="${k}" class="${T.tab === k ? "on" : ""}">${n}</button>`).join("")}</nav>
       <button class="btn ghost small" id="logout">Abmelden</button></div>
     ${!isCloud ? `<div class="banner no-print">Demo-Modus: Daten werden nur auf diesem Gerät gespeichert. Für die ganze Klasse auf allen Geräten bitte Supabase einrichten (siehe Anleitung).</div>` : ""}
+    ${fresh ? `<div class="banner no-print row between"><span>📅 Neuer Wochenbericht: ${esc(weekLabel(fresh.week))}</span><button class="btn blue small" id="openRep">Ansehen</button></div>` : ""}
     <div id="tab"></div></div>`);
+  if ($("#openRep")) $("#openRep").onclick = () => { T.tab = "reports"; $$(".tabs button").forEach(x => x.classList.toggle("on", x.dataset.t === "reports")); showReport(fresh); };
   $$(".tabs button").forEach(b => b.onclick = () => { T.tab = b.dataset.t; $$(".tabs button").forEach(x => x.classList.toggle("on", x === b)); showTab(); });
   $("#logout").onclick = () => { document.body.classList.remove("teacher-mode"); T.back(); };
   showTab();
@@ -142,7 +146,7 @@ async function dashboard() {
 
 function showTab() {
   const el = $("#tab");
-  ({ overview, lessons: lessonsTab, students: studentsTab, settings })[T.tab](el);
+  ({ overview, lessons: lessonsTab, reports: reportsTab, students: studentsTab, settings })[T.tab](el);
 }
 
 const assignedTo = (l, sid) => l.assigned === "all" || !l.assigned || (Array.isArray(l.assigned) && l.assigned.includes(sid));
@@ -262,7 +266,7 @@ function lessonsTab(el) {
     <p class="small muted" style="margin:0">Die Reihenfolge bestimmt die Inseln auf der Weltkarte. Die nächste Insel öffnet sich, sobald ein Kind auf der vorherigen einen Stern hat.</p>
     <div class="lesson-list">${T.lessons.map((l, i) => `<div class="lesson-row">
       <span class="ic">${l.iconImg ? `<span class="wpic"><img src="${esc(l.iconImg)}" alt=""></span>` : esc(l.icon || "🏝️")}</span>
-      <div><b>${esc(l.title)}</b> <span class="pill">FR → ${LANG_FLAG[l.lang] || ""} ${LANG_NAME[l.lang] || ""}</span><br><span class="small muted">${l.words?.length || 0} Wörter · ${l.assigned === "all" || !l.assigned ? "alle Kinder" : `${l.assigned.length} Kinder`}</span></div>
+      <div><b>${esc(l.title)}</b> <span class="pill">FR → ${LANG_FLAG[l.lang] || ""} ${LANG_NAME[l.lang] || ""}</span>${l.week ? ` <span class="pill ${weekState(l) === "current" ? "good" : ""}">${esc(weekLabel(l.week))}${weekState(l) === "current" ? " · diese Woche" : ""}</span>` : ""}<br><span class="small muted">${l.words?.length || 0} Wörter · ${l.assigned === "all" || !l.assigned ? "alle Kinder" : `${l.assigned.length} Kinder`}</span></div>
       <div class="row" style="gap:6px"><button class="btn ghost small" data-up="${i}" ${i === 0 ? "disabled" : ""} aria-label="nach oben">↑</button><button class="btn ghost small" data-down="${i}" ${i === T.lessons.length - 1 ? "disabled" : ""} aria-label="nach unten">↓</button><button class="btn blue small" data-edit="${esc(l.id)}">Bearbeiten</button></div>
     </div>`).join("") || `<p class="muted">Noch keine Lektionen. Lege die erste an – z. B. aus einem Foto deines Vokabelblatts.</p>`}</div></div>`;
   $("#new").onclick = () => editLesson({ id: uid("l-"), title: "", icon: "🏝️", lang: "de", assigned: "all", words: [], order: (T.lessons.at(-1)?.order || 0) + 1, created: Date.now(), _new: true });
@@ -299,6 +303,7 @@ function editLesson(L) {
             </div>
             <input type="file" id="iconFile" class="hidden" accept="image/*,.heic,.svg">
           </div>
+          <div class="field" style="flex:1;min-width:200px"><label for="lw">Lernwoche</label><select class="input" id="lw">${weekOptions(L.week)}</select></div>
           <div class="field" style="flex:1;min-width:160px"><label for="ll">Sprachen</label><select class="input" id="ll"><option value="de" ${L.lang === "de" ? "selected" : ""}>Französisch → Deutsch</option><option value="pt" ${L.lang === "pt" ? "selected" : ""}>Französisch → Portugiesisch</option></select></div>
         </div>
       </div>
@@ -342,12 +347,13 @@ function editLesson(L) {
       <div class="row between"><h2>Wörter (${L.words.length})</h2>
         <div class="row" style="gap:6px"><button class="btn ghost small" id="findMissing">🔍 Fehlende Bilder suchen</button><button class="btn blue small" id="add">＋ Wort</button></div></div>
       <p class="small muted" style="margin:0">Ein Klick auf das Bild-Feld ${trayPick != null ? "<b>setzt das ausgewählte Bild aus der Ablage</b>" : "lädt ein Bild hoch"}, 🔍 sucht ein lizenzfreies Bild, 🔊 spricht das Wort vor.</p>
-      <div class="tbl-wrap"><table class="tbl words-tbl"><thead><tr><th>Bild</th><th>Französisch</th><th>${LANG_NAME[L.lang]}</th><th>Emoji</th><th>Beispielsatz (optional)</th><th></th></tr></thead>
+      <div class="tbl-wrap"><table class="tbl words-tbl"><thead><tr><th>Bild</th><th>Französisch</th><th>${LANG_NAME[L.lang]}</th><th>Emoji</th><th>Eselsbrücke (optional)</th><th>Beispielsatz (optional)</th><th></th></tr></thead>
       <tbody>${L.words.map((w, i) => `<tr data-i="${i}">
         <td><button class="wpic ${trayPick != null ? "target" : ""}" data-pic="${i}" title="Bild ändern">${pic(w)}</button></td>
         <td><input class="input" data-f="fr" value="${esc(w.fr)}" aria-label="Französisch"></td>
         <td><input class="input" data-f="tr" value="${esc(w.tr)}" aria-label="Übersetzung"></td>
         <td><input class="input" data-f="emoji" value="${esc(w.emoji || "")}" style="width:64px;text-align:center" aria-label="Emoji"></td>
+        <td><input class="input" data-f="memo" value="${esc(w.memo || "")}" placeholder="z. B. Reim oder Bild im Kopf" aria-label="Eselsbrücke"></td>
         <td><input class="input" data-f="ex" value="${esc(w.ex || "")}" aria-label="Beispielsatz"></td>
         <td class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn ghost small" data-find="${i}" aria-label="Bild suchen" title="Bild suchen">🔍</button><button class="btn ghost small" data-say="${i}" aria-label="Anhören">🔊</button>${w.img ? `<button class="btn ghost small" data-noimg="${i}" title="Bild entfernen">🚫🖼</button>` : ""}<button class="btn ghost small" data-rm="${i}" aria-label="Löschen">✕</button></td>
       </tr>`).join("") || `<tr><td colspan="6" class="muted">Noch keine Wörter. Importiere eine Liste oder füge Wörter einzeln hinzu.</td></tr>`}</tbody></table></div>
@@ -357,7 +363,7 @@ function editLesson(L) {
   };
 
   const syncInputs = () => {
-    L.title = $("#lt").value.trim(); L.icon = $("#li").value.trim() || "🏝️"; L.lang = $("#ll").value;
+    L.title = $("#lt").value.trim(); L.icon = $("#li").value.trim() || "🏝️"; L.lang = $("#ll").value; L.week = $("#lw").value || "";
     const mode = $("input[name=as]:checked").value;
     L.assigned = mode === "all" ? "all" : $$("#kids input:checked").map(c => c.value);
     $$(".words-tbl tbody tr[data-i]").forEach(tr => { const w = L.words[+tr.dataset.i]; $$("input[data-f]", tr).forEach(inp => w[inp.dataset.f] = inp.value.trim()); });
@@ -600,6 +606,7 @@ function settings(el) {
       <div class="field"><label for="gn">Klassenziel: richtige Antworten pro Woche</label><input class="input" id="gn" type="number" min="10" value="${g.target}"></div>
       <p class="small muted" style="margin:0">Richtwert: ca. 40–60 richtige Antworten pro Kind und Woche.</p>
       <label class="check"><input type="checkbox" id="ao" ${T.cls.allOpen ? "checked" : ""}> Alle Inseln von Anfang an offen (sonst nacheinander)</label>
+      <label class="check"><input type="checkbox" id="rep" ${T.cls.report?.enabled ? "checked" : ""}> Wochenbericht automatisch erstellen (jeden Montag ab 7:00)</label>
       <button class="btn green small" id="sv" style="justify-self:start">Speichern</button>
     </div>
     <div class="t-panel"><h2>Link für die Kinder</h2>
@@ -619,7 +626,7 @@ function settings(el) {
     </div>
   </div>`;
   $("#sv").onclick = async () => {
-    T.cls = { ...T.cls, name: $("#cn").value.trim() || T.cls.name, goal: { title: $("#gt").value.trim() || "Klassenziel", target: Math.max(10, +$("#gn").value || 300) }, allOpen: $("#ao").checked };
+    T.cls = { ...T.cls, name: $("#cn").value.trim() || T.cls.name, goal: { title: $("#gt").value.trim() || "Klassenziel", target: Math.max(10, +$("#gn").value || 300) }, allOpen: $("#ao").checked, report: { ...(T.cls.report || {}), enabled: $("#rep").checked } };
     await Store.put("class", "main", T.cls); toast("Gespeichert ✔");
   };
   if ($("#bucketState")) Store.checkImageStorage().then(ok => {
@@ -652,4 +659,116 @@ function settings(el) {
       toast("Sicherung eingespielt ✔"); dashboard();
     } catch (err) { toast(err.message); }
   };
+}
+
+// ------------------------------------------------------------------
+//  Wochenplan & Wochenberichte
+// ------------------------------------------------------------------
+function weekOptions(sel) {
+  const now = mondayOf();
+  const base = new Date(now + "T12:00");
+  let html = `<option value="">ohne feste Woche</option>`;
+  for (let i = -6; i <= 40; i++) {
+    const m = todayStr(new Date(base.getTime() + i * 7 * DAY));
+    html += `<option value="${m}" ${m === sel ? "selected" : ""}>${esc(weekLabel(m))}${i === 0 ? " – diese Woche" : ""}</option>`;
+  }
+  if (sel && !html.includes(`value="${sel}"`)) html += `<option value="${sel}" selected>${esc(weekLabel(sel))}</option>`;
+  return html;
+}
+
+// Bericht für die Woche ab Montag `mon` berechnen
+function buildWeekReport(mon) {
+  const start = new Date(mon + "T00:00").getTime(), end = start + 7 * DAY;
+  const days = Array.from({ length: 7 }, (_, i) => todayStr(new Date(start + i * DAY + 12 * 3600 * 1000)));
+  const weekLessons = T.lessons.filter(l => l.week === mon);
+  const hard = {};
+  const rows = T.students.map(st => {
+    const p = T.progs[st.id] || emptyProgress();
+    let sec = 0, ans = 0, ok = 0, act = 0;
+    for (const d of days) { const x = p.days?.[d]; if (x) { sec += x.sec; ans += x.ans; ok += x.ok; if (x.ans > 0) act++; } }
+    let learned = 0;
+    for (const [k, s] of Object.entries(p.words || {})) {
+      if (s.l >= start && s.l < end) {
+        if (s.b >= 2) learned++;
+        if (s.w > 0) { const h = hard[k] || (hard[k] = { kids: 0, w: 0 }); h.kids++; h.w += s.w; }
+      }
+    }
+    const tests = Object.entries(p.tests || {}).filter(([, t]) => t.date && t.date >= days[0] && t.date <= days[6])
+      .map(([lid, t]) => ({ title: T.lessons.find(l => l.id === lid)?.title || "?", last: t.last }));
+    const wl = weekLessons.filter(l => l.assigned === "all" || !l.assigned || l.assigned.includes?.(st.id))
+      .map(l => ({ title: l.title, pct: lessonStats(p, l).knownPct }));
+    return { name: st.name, days: act, min: Math.round(sec / 60), ans, acc: ans ? Math.round(ok / ans * 100) : null, learned, tests, wl };
+  });
+  const hardList = Object.entries(hard).map(([k, h]) => {
+    const [lid, wid] = k.split(":"); const l = T.lessons.find(x => x.id === lid); const w = l?.words.find(x => x.id === wid);
+    return w ? { fr: w.fr, tr: w.tr, kids: h.kids, w: h.w } : null;
+  }).filter(Boolean).sort((a, b) => b.kids - a.kids || b.w - a.w).slice(0, 10);
+  const n = rows.length || 1;
+  return {
+    type: "report", week: mon, created: Date.now(), lessons: weekLessons.map(l => l.title),
+    summary: { kids: rows.length, active: rows.filter(r => r.days > 0).length, min: rows.reduce((a, r) => a + r.min, 0), avgDays: Math.round(rows.reduce((a, r) => a + r.days, 0) / n * 10) / 10,
+      acc: (() => { const t = rows.reduce((a, r) => a + r.ans, 0); return t ? Math.round(rows.reduce((a, r) => a + (r.acc ?? 0) * r.ans / 100, 0) / t * 100) : null; })() },
+    rows, hard: hardList,
+    attention: rows.filter(r => r.days < 2 || (r.acc != null && r.acc < 60)).map(r => ({ name: r.name, why: r.days < 2 ? `nur ${r.days} Übungstag${r.days === 1 ? "" : "e"}` : `${r.acc} % Treffer` })),
+  };
+}
+
+// Jeden Montag ab 7:00: Bericht der vergangenen Woche automatisch erstellen und speichern
+async function autoWeekReport() {
+  if (!T.cls.report?.enabled) return null;
+  const now = new Date();
+  const thisMon = new Date(mondayOf(now) + "T07:00");
+  const lastMon = todayStr(new Date(thisMon.getTime() - 7 * DAY));
+  const target = now >= thisMon ? lastMon : todayStr(new Date(thisMon.getTime() - 14 * DAY));
+  if (T.reports.some(r => r.week === target)) return null;
+  const rep = buildWeekReport(target);
+  try { await Store.put("class", "report-" + target, rep); T.reports.unshift({ id: "report-" + target, ...rep }); T.reports.sort((a, b) => b.week.localeCompare(a.week)); return rep; }
+  catch { return null; }
+}
+
+function reportsTab(el) {
+  const on = !!T.cls.report?.enabled;
+  el.innerHTML = `<div class="stack" style="gap:16px">
+    <div class="t-panel no-print">
+      <div class="row between"><h2>Wochenberichte</h2>
+        <label class="check"><input type="checkbox" id="repOn" ${on ? "checked" : ""}> automatisch jeden Montag ab 7:00</label></div>
+      <p class="small muted" style="margin:0">Der Bericht fasst die vergangene Schulwoche zusammen: Übungstage, Übungszeit, Treffer, gelernte Wörter, Tests, schwierige Wörter und wer Unterstützung brauchen könnte. Er wird beim ersten Öffnen des Lehrerbereichs ab Montag 7:00 erstellt und gespeichert – der Inhalt ist immer genau die Vorwoche.</p>
+      <div class="row"><button class="btn blue small" id="nowRep">Laufende Woche ansehen</button></div>
+    </div>
+    <div class="t-panel"><h2>Gespeicherte Berichte</h2>
+      ${T.reports.length ? `<div class="lesson-list">${T.reports.map(r => `<div class="lesson-row"><span class="ic">📅</span><div><b>${esc(weekLabel(r.week))}</b><br><span class="small muted">${r.summary.active}/${r.summary.kids} Kinder aktiv · ${r.summary.min} Minuten · ${r.lessons.length ? esc(r.lessons.join(", ")) : "keine Wochen-Lektion"}</span></div><button class="btn blue small" data-rep="${esc(r.id)}">Öffnen</button></div>`).join("")}</div>`
+        : `<p class="muted">${on ? "Der erste Bericht erscheint am nächsten Montag ab 7:00." : "Schalte den automatischen Bericht ein oder sieh dir die laufende Woche an."}</p>`}
+    </div></div>`;
+  $("#repOn").onchange = async e => { T.cls = { ...T.cls, report: { ...(T.cls.report || {}), enabled: e.target.checked } }; await Store.put("class", "main", T.cls); toast(e.target.checked ? "Wochenbericht eingeschaltet." : "Wochenbericht ausgeschaltet."); if (e.target.checked) { const f = await autoWeekReport(); reportsTab(el); if (f) toast("Bericht der Vorwoche erstellt."); } };
+  $("#nowRep").onclick = () => showReport(buildWeekReport(mondayOf()), true);
+  $$("[data-rep]", el).forEach(b => b.onclick = () => showReport(T.reports.find(r => r.id === b.dataset.rep)));
+}
+
+function showReport(r, live = false) {
+  const el = $("#tab");
+  const s = r.summary;
+  el.innerHTML = `<div class="stack report" style="gap:16px">
+    <div class="row between no-print"><button class="btn ghost small" id="back">Zurück</button><button class="btn blue small" id="print">🖨 Drucken / als PDF</button></div>
+    <div class="t-panel">
+      <h2>Wochenbericht ${esc(weekLabel(r.week))}${live ? " (bis heute)" : ""}</h2>
+      <span class="small muted">${esc(T.cls.name)} · Klassencode ${esc(Store.code)} · erstellt am ${new Date(r.created).toLocaleString("de")}${r.lessons.length ? ` · Wochen-Lektion: ${esc(r.lessons.join(", "))}` : ""}</span>
+      <div class="kpis">
+        <div class="kpi"><span class="l">Aktive Kinder</span><span class="v">${s.active} / ${s.kids}</span></div>
+        <div class="kpi"><span class="l">Übungszeit gesamt</span><span class="v">${s.min} min</span><span class="s">Ø ${Math.round(s.min / Math.max(1, s.kids))} min pro Kind</span></div>
+        <div class="kpi"><span class="l">Ø Übungstage</span><span class="v">${s.avgDays}</span><span class="s">Ziel: 5 Tage à 5 Minuten</span></div>
+        <div class="kpi"><span class="l">Trefferquote</span><span class="v">${s.acc == null ? "–" : s.acc + " %"}</span></div>
+      </div>
+    </div>
+    <div class="t-panel"><h2>Kinder</h2>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Kind</th><th>Tage</th><th>Minuten</th><th>Antworten</th><th>Treffer</th><th>gelernt</th>${r.lessons.length ? "<th>Wochen-Lektion</th>" : ""}<th>Tests</th></tr></thead><tbody>
+      ${r.rows.map(x => `<tr><td><b>${esc(x.name)}</b></td><td>${x.days}</td><td>${x.min}</td><td>${x.ans}</td><td>${x.acc == null ? "–" : x.acc + " %"}</td><td>${x.learned}</td>${r.lessons.length ? `<td>${x.wl.map(w => `${w.pct} %`).join(", ") || "–"}</td>` : ""}<td>${x.tests.map(t => `<span class="pill ${t.last >= 80 ? "good" : "warn"}">${esc(t.title)} ${t.last} %</span>`).join(" ") || "–"}</td></tr>`).join("")}
+      </tbody></table></div>
+      <p class="small muted" style="margin:0">„gelernt“ = Wörter, die diese Woche geübt wurden und mindestens 2× richtig sitzen. „Wochen-Lektion“ = Anteil gelernter Wörter.</p>
+    </div>
+    <div class="grid2">
+      <div class="t-panel"><h2>Schwierige Wörter der Woche</h2>${r.hard.length ? `<table class="tbl"><thead><tr><th>Wort</th><th>Bedeutung</th><th>Kinder mit Fehlern</th></tr></thead><tbody>${r.hard.map(h => `<tr><td><b>${esc(h.fr)}</b></td><td>${esc(h.tr)}</td><td>${h.kids}</td></tr>`).join("")}</tbody></table><p class="small muted" style="margin:0">Gut für eine kurze Wiederholung im Unterricht (z. B. als Bewegungsspiel oder Vokabeldusche).</p>` : `<p class="muted">Keine auffälligen Wörter.</p>`}</div>
+      <div class="t-panel"><h2>Brauchen vielleicht Unterstützung</h2>${r.attention.length ? r.attention.map(a => `<div class="row between"><b>${esc(a.name)}</b><span class="pill warn">${esc(a.why)}</span></div>`).join("") : `<p class="muted">Alle Kinder waren gut dabei. 🎉</p>`}</div>
+    </div></div>`;
+  $("#back").onclick = () => reportsTab(el);
+  $("#print").onclick = () => window.print();
 }

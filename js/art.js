@@ -77,6 +77,32 @@ const ART = {
   medal: svg("0 0 100 100", `<path d="M34 6 L50 40 L66 6" fill="#1c7ed6" ${o()}/><circle cx="50" cy="62" r="28" fill="#ffd43b" ${o()}/><circle cx="50" cy="62" r="18" fill="#fab005" ${o(3)}/><path d="M50 50 l4 8 9 1 -7 6 2 9 -8 -5 -8 5 2 -9 -7 -6 9 -1Z" fill="#fff" ${o(2)}/>`),
   rocket: svg("0 0 100 100", `<path d="M50 6 Q72 24 70 62 H30 Q28 24 50 6Z" fill="#f1f3f5" ${o()}/><circle cx="50" cy="36" r="9" fill="#74c0fc" ${o(3)}/><path d="M30 50 L16 70 L30 66 M70 50 L84 70 L70 66" fill="#ff6b6b" ${o()}/><path d="M40 62 Q50 92 60 62Z" fill="#ff922b" ${o(3)}/>`),
 
+  shower: svg("0 0 100 100", `
+    <path d="M30 14 H58 Q70 14 70 26 V30" fill="none" stroke="#adb5bd" stroke-width="7" stroke-linecap="round"/>
+    <path d="M52 30 H88 Q88 44 70 44 Q52 44 52 30Z" fill="#74c0fc" ${o()}/>
+    <g fill="#4dabf7" ${o(2)}><path d="M58 54 q3 6 0 9 q-3 -3 0 -9z"/><path d="M70 58 q3 6 0 9 q-3 -3 0 -9z"/><path d="M82 54 q3 6 0 9 q-3 -3 0 -9z"/><path d="M64 72 q3 6 0 9 q-3 -3 0 -9z"/><path d="M78 74 q3 6 0 9 q-3 -3 0 -9z"/></g>
+    <circle cx="28" cy="58" r="16" fill="#ffd8a8" ${o()}/>${eye(23, 56, 3)}${eye(33, 56, 3)}<ellipse cx="28" cy="66" rx="4" ry="5" fill="${K}"/>
+    <path d="M14 50 Q28 34 42 50" fill="none" stroke="#f783ac" stroke-width="6" stroke-linecap="round"/>
+    <path d="M8 86 Q28 70 48 86" fill="#ffd8a8" ${o()}/>
+    <path d="M40 44 l8 -6 M44 52 l9 -2" fill="none" stroke="#1c7ed6" stroke-width="3" stroke-linecap="round"/>`),
+  postit: svg("0 0 100 100", `
+    <g transform="rotate(-8 40 44)"><rect x="12" y="16" width="52" height="52" rx="3" fill="#ffe066" ${o()}/><path d="M22 34 h30 M22 46 h24" stroke="#c49a00" stroke-width="4" stroke-linecap="round"/></g>
+    <g transform="rotate(10 62 62)"><rect x="40" y="38" width="52" height="52" rx="3" fill="#ffc9de" ${o()}/><path d="M50 56 h30 M50 68 h20" stroke="#d6336c" stroke-width="4" stroke-linecap="round"/><circle cx="66" cy="42" r="5" fill="#e03131" ${o(2)}/></g>`),
+  baskets: svg("0 0 100 100", `
+    <path d="M6 52 H46 L40 88 H12Z" fill="#74c0fc" ${o()}/><path d="M54 52 H94 L88 88 H60Z" fill="#f783ac" ${o()}/>
+    <path d="M14 62 H38 M18 74 H36 M62 62 H86 M66 74 H84" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+    <rect x="34" y="10" width="32" height="22" rx="5" fill="#ffd43b" ${o()}/><path d="M50 32 V44 M44 40 L50 46 L56 40" fill="none" ${o(3)}/>`),
+  jump: svg("0 0 100 100", `
+    <path d="M14 30 Q50 -6 86 30" fill="none" stroke="${K}" stroke-width="2.5" stroke-dasharray="4 4"/>
+    <circle cx="50" cy="26" r="12" fill="#ffd8a8" ${o()}/>${eye(46, 25, 2.5)}${eye(55, 25, 2.5)}
+    <path d="M38 20 Q50 8 62 20" fill="none" stroke="#e8590c" stroke-width="6" stroke-linecap="round"/>
+    <path d="M40 40 H60 L64 64 H36Z" fill="#2fb36a" ${o()}/>
+    <path d="M40 44 L22 30 M60 44 L78 30" fill="none" ${o(5)}/><path d="M40 44 L22 30 M60 44 L78 30" fill="none" stroke="#ffd8a8" stroke-width="2"/>
+    <path d="M42 64 L34 86 M58 64 L68 84" fill="none" stroke="#1c7ed6" stroke-width="7" stroke-linecap="round"/>
+    <path d="M28 88 h10 M64 86 h10" fill="none" ${o(5)}/>
+    <path d="M14 90 h72" stroke="#ced4da" stroke-width="3" stroke-linecap="round"/>`),
+  bulbArt: svg("0 0 100 100", `<path d="M50 8 Q78 8 78 38 Q78 54 64 64 V74 H36 V64 Q22 54 22 38 Q22 8 50 8Z" fill="#ffd43b" ${o()}/><rect x="36" y="74" width="28" height="14" rx="4" fill="#ced4da" ${o()}/><path d="M42 40 Q50 52 58 40" fill="none" ${o(3)}/><path d="M36 26 Q40 18 48 16" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/>`),
+
   // ---------- Bild-PIN (Schlüssel = gespeicherte Werte) ----------
   "🐶": svg("0 0 100 100", `<path d="M22 30 Q8 34 14 62 Q22 64 28 50Z M78 30 Q92 34 86 62 Q78 64 72 50Z" fill="#a0673a" ${o()}/><circle cx="50" cy="52" r="32" fill="#e8b27a" ${o()}/><ellipse cx="50" cy="66" rx="16" ry="12" fill="#fff4e6" ${o(3)}/><ellipse cx="50" cy="58" rx="6" ry="4.5" fill="${K}"/>${eye(38, 46)}${eye(62, 46)}${smile(50, 68, 12)}`),
   "🐱": svg("0 0 100 100", `<path d="M22 40 L24 10 L46 26Z M78 40 L76 10 L54 26Z" fill="#ffa94d" ${o()}/><circle cx="50" cy="54" r="32" fill="#ffa94d" ${o()}/><path d="M24 58 H10 M24 64 L12 70 M76 58 H90 M76 64 L88 70" fill="none" ${o(2)}/>${eye(38, 50)}${eye(62, 50)}<path d="M46 60 L54 60 L50 65Z" fill="#ff8fa3" ${o(2)}/>${smile(50, 68, 12)}`),

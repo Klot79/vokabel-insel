@@ -1,6 +1,6 @@
 // Beispielklasse "DEMO" für den Demo-Modus (Lehrer-PIN: 1234)
 import { sha, pinHash } from "./util.js";
-import { emptyProgress, todayStr, checkBadges, DAY, INTERVALS } from "./srs.js";
+import { emptyProgress, todayStr, checkBadges, mondayOf, DAY, INTERVALS } from "./srs.js";
 
 const W = (fr, tr, emoji) => ({ fr, tr, emoji });
 
@@ -38,7 +38,7 @@ export async function seedDemo(local) {
   const code = "DEMO";
   await local.put(code, "class", "main", {
     name: "Klasse 4b (Demo)", teacherPinHash: await sha(`${code}#teacher#1234`),
-    goal: { title: "Leuchtturm bauen", target: 1000 }, allOpen: false, created: Date.now(),
+    goal: { title: "Leuchtturm bauen", target: 1000 }, allOpen: false, report: { enabled: true }, created: Date.now(),
   });
   const ptKids = [], deKids = [];
   const kids = [];
@@ -53,7 +53,7 @@ export async function seedDemo(local) {
   for (const l of LESSONS) {
     const assigned = l.id === "l-animaux" ? deKids : l.id === "l-animaux-pt" ? ptKids : "all";
     await local.put(code, "lesson", l.id, {
-      title: l.title, icon: l.icon, lang: l.lang, order: l.order, assigned, created: Date.now(),
+      title: l.title, icon: l.icon, lang: l.lang, order: l.order, assigned, created: Date.now(), week: l.id === "l-manger" ? mondayOf() : "",
       words: l.words.map((w, j) => ({ id: "w" + j, ...w })),
     });
   }
@@ -61,7 +61,7 @@ export async function seedDemo(local) {
   for (const k of kids) {
     const p = emptyProgress();
     p.avatar = { animal: k.animal, color: k.color, hat: "" };
-    const mine = LESSONS.filter(l => l.id === "l-animaux" ? k.lang === "de" : l.id === "l-animaux-pt" ? k.lang === "pt" : true);
+    const mine = LESSONS.filter(l => l.id !== "l-manger" && (l.id === "l-animaux" ? k.lang === "de" : l.id === "l-animaux-pt" ? k.lang === "pt" : true));
     let streak = 0, last = null;
     for (let d = 13; d >= 0; d--) {
       if (Math.random() > k.skill) continue;

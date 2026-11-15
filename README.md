@@ -1,7 +1,7 @@
 # 🦜 Vokabeln lernen ist doch einfach
 
 Französisch-Vokabeln lernen für die 4. Klasse (FR → Deutsch und FR → Portugiesisch).
-Jede Lektion ist eine Insel. Die Kinder wählen zwischen **Lernen** (mit Hilfen) und **Testen** (ohne Hilfen).
+Jede Lektion ist eine Insel vor einem ruhigen Naturbild. Die Kinder wählen zwischen **Lernen** (mit Hilfen) und **Testen** (ohne Hilfen).
 Die Lehrkraft sieht den Fortschritt der ganzen Klasse auf einen Blick.
 
 Die App läuft im Browser (iPad, Handy, PC) und braucht kein App-Store-Konto.
@@ -16,6 +16,13 @@ Die Kinder brauchen kein Benutzerkonto, sie melden sich mit Klassencode, Namen u
 - **Testen**: Jedes Wort der Insel einmal, ohne Tipps, ein Versuch. Ergebnis in Prozent, ab 80 % gibt es den Test-Stern. Falsche Wörter kommen automatisch zurück ins Lernen.
 - **🔊 Anhören bei jedem Wort** (zweimal tippen = langsamer). Im Test ist es eine Notfall-Hilfe und zählt nur halb.
 - **🎤 Sprechen bei jedem Wort**: automatische Spracherkennung prüft das gesprochene Wort (iPad/Safari, Chrome). Großzügig bei Artikel, Akzenten und kleinen Aussprachefehlern.
+- **Wochentraining**: Jede Lektion kann einer Schulwoche zugeordnet werden. Die App verteilt die Wörter auf 5 Tage (5–7 neue pro Tag), zeigt die Wochenkarte mit Mo–Fr und lädt am Freitag zum **Wochentest** ein. Ältere Wochen werden automatisch wiederholt.
+- **Tagesziel 5 Minuten** (Ring auf der Startseite): häufig kurz statt selten lang
+- **Vokabeldusche**: Wort hören → nachsprechen → Bedeutung hören, automatisch hintereinander
+- **Malen**: eigenes Bild zum Wort zeichnen (erscheint danach in den Übungen) · **Eselsbrücken** (von der Lehrkraft oder selbst geschrieben)
+- **Post-its zuordnen**, **Sortieren** (le oder la? bzw. kurz/lang), **Bewegungsrunde** (hüpfen, Hampelmann … und dabei das Wort sagen)
+- **Meine schwierigen Wörter**: eigene Liste mit Üben-Knopf
+- **Rechtschreibung im Test**: fehlender Akzent oder Artikel zählt nur halb
 - **Spiele**: Memory, Blitzrunde (60 Sekunden), „Wörter ansehen“ zum Nachschlagen
 - **Motivation**: Sterne pro Insel, Münzen, Avatar-Shop (Tiere, Hüte, Farben), Tage-Serie, Abzeichen, gemeinsames Klassenziel – **keine Rangliste**
 - **Kindgerechte Gestaltung**: weißer Hintergrund, große Knöpfe, eigene Comic-Grafiken (Maskottchen Papagei), Schrift für Leseanfänger
@@ -26,6 +33,9 @@ Die Kinder brauchen kein Benutzerkonto, sie melden sich mit Klassencode, Namen u
 - **Lektionen anlegen**: 📷 Foto vom Vokabelblatt, 📄 PDF, Word, Excel, CSV oder Text einfügen
 - **Bilder separat hochladen**: einzelne Bilder, einen ganzen Ordner oder eine ZIP-Datei – vor oder nach der Wortliste. Zuordnung automatisch über den Dateinamen (`chat.jpg` → *le chat*, `Katze.png` → *die Katze*), der Rest per Antippen aus der Ablage. Bilder bis 1200 Pixel.
 - 🔍 **Bildsuche** (lizenzfreie Zeichnungen/Fotos über Openverse) und 🏝️ eigenes **Inselbild** pro Lektion
+- **Wochenplan**: jeder Lektion eine Lernwoche zuordnen
+- **Wochenbericht** (im Dashboard einschaltbar): wird jeden Montag ab 7:00 für die Vorwoche erstellt und gespeichert – Übungstage, Minuten, Treffer, gelernte Wörter, Tests, schwierige Wörter, wer Unterstützung braucht. Zum Ausdrucken oder als PDF sichern.
+- **Eselsbrücke** pro Wort
 - Lektionen für alle oder nur bestimmte Kinder (z. B. FR→PT), Bild-PIN-Karten zum Drucken, Sicherung als Datei
 
 ---

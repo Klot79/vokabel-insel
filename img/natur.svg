@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMax slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#dff1fa"/>
+      <stop offset="0.55" stop-color="#eef8f6"/>
+      <stop offset="1" stop-color="#f4faef"/>
+    </linearGradient>
+    <linearGradient id="lake" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#bfe3ef"/>
+      <stop offset="1" stop-color="#d9eff4"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#sky)"/>
+  <!-- Sonne -->
+  <circle cx="1280" cy="190" r="90" fill="#fff4cf"/>
+  <circle cx="1280" cy="190" r="62" fill="#ffe9a8"/>
+  <!-- Wolken -->
+  <g fill="#ffffff" opacity=".9">
+    <path d="M180 200 q20 -46 70 -34 q26 -40 78 -14 q52 -10 60 40 q34 8 26 40 H170 q-34 -6 10 -32z"/>
+    <path d="M760 130 q16 -34 54 -26 q22 -30 60 -10 q40 -6 46 30 q26 6 20 30 H752 q-26 -6 8 -24z"/>
+    <path d="M1420 330 q14 -28 44 -22 q18 -26 50 -8 q34 -6 38 24 q22 6 16 26 H1412 q-22 -4 8 -20z"/>
+  </g>
+  <!-- ferne Berge -->
+  <path d="M0 560 L170 400 L300 500 L470 330 L640 500 L780 420 L960 540 L1130 380 L1300 520 L1450 430 L1600 520 V700 H0Z" fill="#cfe3e6"/>
+  <path d="M470 330 L520 380 L490 372 L460 392 L430 368Z M1130 380 L1176 424 L1146 418 L1118 436 L1092 414Z" fill="#ffffff" opacity=".8"/>
+  <!-- Hügel hinten -->
+  <path d="M0 640 C220 560 420 590 620 620 C820 650 1000 560 1220 580 C1400 596 1500 630 1600 610 V1000 H0Z" fill="#c7e2c0"/>
+  <!-- See -->
+  <path d="M520 720 C700 690 1000 690 1180 724 C1240 740 1180 790 1000 800 C800 812 560 800 480 770 C440 752 470 728 520 720Z" fill="url(#lake)"/>
+  <path d="M640 740 h120 M880 752 h90 M720 772 h70" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity=".8"/>
+  <!-- Hügel vorne -->
+  <path d="M0 780 C180 720 360 760 470 800 C560 832 520 880 700 900 C900 920 1100 860 1260 820 C1400 786 1500 790 1600 760 V1000 H0Z" fill="#a9d39c"/>
+  <path d="M0 900 C260 860 520 940 800 950 C1080 960 1300 900 1600 880 V1000 H0Z" fill="#94c788"/>
+  <!-- Bäume -->
+  <g>
+    <rect x="132" y="716" width="12" height="46" rx="4" fill="#a68462"/><circle cx="138" cy="700" r="38" fill="#7fbf75"/><circle cx="120" cy="712" r="24" fill="#8fcb84"/>
+    <rect x="232" y="744" width="10" height="36" rx="4" fill="#a68462"/><circle cx="237" cy="732" r="28" fill="#6fb267"/>
+    <rect x="1364" y="736" width="12" height="44" rx="4" fill="#a68462"/><circle cx="1370" cy="718" r="40" fill="#7fbf75"/><circle cx="1392" cy="732" r="24" fill="#8fcb84"/>
+    <path d="M1470 760 l30 -96 30 96z" fill="#6aa864"/><path d="M1480 730 l20 -66 20 66z" fill="#7fbf75"/><rect x="1495" y="758" width="10" height="24" fill="#a68462"/>
+    <path d="M1250 776 l24 -76 24 76z" fill="#6aa864"/><rect x="1269" y="774" width="9" height="20" fill="#a68462"/>
+  </g>
+  <!-- Blumen -->
+  <g>
+    <circle cx="300" cy="940" r="7" fill="#ffd1dc"/><circle cx="330" cy="926" r="6" fill="#fff3b0"/><circle cx="1120" cy="944" r="7" fill="#ffd1dc"/>
+    <circle cx="1150" cy="930" r="6" fill="#ffffff"/><circle cx="760" cy="968" r="6" fill="#fff3b0"/><circle cx="1480" cy="910" r="7" fill="#ffd1dc"/>
+  </g>
+  <!-- Vögel -->
+  <path d="M560 250 q12 -10 24 0 q12 -10 24 0 M640 220 q9 -8 18 0 q9 -8 18 0" fill="none" stroke="#7b97a6" stroke-width="3" stroke-linecap="round"/>
+</svg>
