@@ -125,11 +125,9 @@ export const Store = {
   async checkImageStorage() {
     if (!isCloud) return false;
     try {
-      const r = await fetch(`${cfg.SUPABASE_URL.replace(/\/$/, "")}/storage/v1/object/list/${BUCKET}`, {
-        method: "POST", headers: { apikey: cfg.SUPABASE_ANON_KEY, Authorization: `Bearer ${cfg.SUPABASE_ANON_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ prefix: "", limit: 1 }),
-      });
-      const ok = r.ok && Array.isArray(await r.json());
+      // Nicht vorhandene Datei abrufen: "Bucket not found" = Bildspeicher fehlt, sonst ist er da
+      const r = await fetch(`${cfg.SUPABASE_URL.replace(/\/$/, "")}/storage/v1/object/public/${BUCKET}/__probe__.jpg`);
+      const ok = !/bucket not found/i.test(await r.text());
       if (!ok) this._noBucket = true;
       return ok;
     } catch { return false; }
