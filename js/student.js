@@ -2,6 +2,8 @@ import { Store, Device } from "./store.js";
 import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js";
 import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars } from "./ui.js";
 import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js";
+import { currentGoal, der, unser, zum } from "./goal.js";
+import { buildingSvg } from "./buildings.js";
 import { say, listen, canListen } from "./speech.js";
 import {
   emptyProgress, lessonStats, overallStats, unlockedLessons, planLearn, markSeen, countAnswer, fallBack, promote,
@@ -80,7 +82,8 @@ async function enter(student, back) {
   S.lessons = sortLessons(lessons
     .filter(l => l.words?.length && (l.assigned === "all" || !l.assigned || (Array.isArray(l.assigned) && l.assigned.includes(student.id)))));
   S.prog.memos = S.prog.memos || {}; S.prog.drawings = S.prog.drawings || {};
-  S.classWeekOk = all.reduce((sum, p) => sum + weekSummary(p.id === student.id ? S.prog : { days: p.days || {} }).ok, 0);
+  const allProgs = all.filter(p => p.id !== student.id).concat([S.prog]);
+  try { S.goal = await currentGoal(S.cls, allProgs, Math.max(1, (await Store.list("student")).length)); } catch (e) { S.goal = null; }
   // Gemeinsamer Klassenfortschritt (ohne Namen – keine Rangliste)
   const others = all.filter(p => p.id !== student.id);
   S.classInfo = {
@@ -134,8 +137,7 @@ function home() {
   const unlocked = unlockedLessons(S.prog, S.lessons, S.cls.allOpen);
   const plan = planLearn(S.prog, unlocked);
   const doneToday = S.prog.missionDay === todayStr();
-  const goal = S.cls.goal || { title: "Leuchtturm bauen", target: 400 };
-  const gp = Math.min(100, Math.round((S.classWeekOk / Math.max(1, goal.target)) * 100));
+
   const nNew = plan.filter(p => p.kind === "new").length, nRep = plan.length - nNew;
 
   render(`<div class="wrap">
@@ -152,7 +154,7 @@ function home() {
       <button class="mode-btn learn" id="learn">${art("book", "mode-art")}<span><b>Lernen</b><small>${plan.length ? "mit Hilfen üben" : "nochmal üben"}</small></span></button>
       <button class="mode-btn test" id="test">${art("clipboard", "mode-art")}<span><b>Testen</b><small>Kann ich es schon?</small></span></button>
     </div>
-    ${classPanel(goal, gp)}
+    ${classPanel()}
     ${hardCard()}
     <h2 class="section-title">Meine Inseln</h2>
     <div class="isle-grid">${S.lessons.length ? S.lessons.map(l => islandCard(l, unlocked.includes(l))).join("") : `<div class="panel">Deine Lehrkraft hat noch keine Lektion für dich freigegeben.</div>`}</div>
@@ -160,6 +162,8 @@ function home() {
   if ($("#weekLearn")) $("#weekLearn").onclick = () => startLearn(null, S.lessons.find(l => l.id === $("#weekLearn").dataset.id));
   if ($("#weekTest")) $("#weekTest").onclick = () => startTest(S.lessons.find(l => l.id === $("#weekTest").dataset.id));
   if ($("#hardGo")) $("#hardGo").onclick = () => practiceHard();
+  if ($("#wheelBtn")) $("#wheelBtn").onclick = () => showWheel(false);
+  maybeCelebrate();
   bindTop();
   $("#learn").onclick = () => startLearn(unlocked);
   $("#test").onclick = () => chooseTest(unlocked);
@@ -556,9 +560,9 @@ function runLearn(items, opts) {
 
   const finish = () => {
     const sec = Math.round((Date.now() - st.t0) / 1000);
-    logActivity(S.prog, { sec, ans: st.ans, ok: st.ok });
+    logActivity(S.prog, { sec, ans: st.ans, ok: st.ok, pts: st.ok });
     S.prog.coins += st.coins; S.prog.xp += st.ok * 10;
-    S.classWeekOk += st.ok;
+    if (S.goal) S.goal.achieved += st.ok;
     if (opts.mission && planLearn(S.prog, unlockedLessons(S.prog, S.lessons, S.cls.allOpen)).length === 0) S.prog.missionDay = todayStr();
     const newStars = S.lessons.filter(l => lessonStats(S.prog, l).stars > (st.starsBefore[l.id] || 0));
     const badges = checkBadges(S.prog, S.lessons);
@@ -618,8 +622,8 @@ function runTest(l, mode) {
     if (passed) coins += 10;
     S.prog.coins += coins;
     const ok = res.filter(r => r.ok && !r.helped).length;
-    logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: res.length, ok });
-    S.classWeekOk += ok;
+    logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: res.length, ok, pts: ok });
+    if (S.goal) S.goal.achieved += ok;
     const badges = checkBadges(S.prog, S.lessons);
     save(true);
     if (passed) { sfx.win(); confetti(200); }
@@ -707,7 +711,6 @@ function memoryGame(l) {
           const coins = Math.max(3, words.length * 2 - Math.max(0, moves - words.length));
           S.prog.coins += coins;
           logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: words.length, ok: words.length });
-          S.classWeekOk += words.length;
           checkBadges(S.prog, S.lessons); save(true);
           setTimeout(() => { sfx.win(); confetti(); modal(`<div class="center stack"><div class="result-art">${art("trophy")}</div><h2>Alle Paare gefunden!</h2><p class="muted" style="margin:0">${moves} Züge</p><div class="reward-row"><span class="reward">${art("coin", "ic")} +${coins}</span></div><button class="btn green" data-close="ok">Weiter</button></div>`).then(() => islandView(l)); }, 500);
         }
@@ -738,7 +741,6 @@ function blitz(l) {
     if (rec) S.prog.best["blitz:" + l.id] = score;
     S.prog.coins += score;
     logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: score + wrong, ok: score });
-    S.classWeekOk += score;
     checkBadges(S.prog, S.lessons); save(true);
     if (rec && score > 0) { sfx.win(); confetti(); }
     render(`<div class="wrap narrow"><div class="card result"><div class="result-art">${art("flame")}</div>
@@ -966,7 +968,7 @@ function matchGame(l) {
       if (done === words.length) {
         const coins = Math.max(2, words.length * 2 - errors);
         S.prog.coins += coins; logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: words.length + errors, ok: words.length });
-        S.classWeekOk += words.length; save(true);
+        save(true);
         setTimeout(() => { sfx.win(); confetti(); modal(`<div class="center stack"><div class="result-art">${art("postit")}</div><h2>Alle Post-its kleben!</h2><div class="reward-row"><span class="reward">${art("coin", "ic")} +${coins}</span></div><button class="btn green" data-close="ok">Weiter</button></div>`).then(() => islandView(l)); }, 500);
       }
     } else { errors++; sfx.no(); b.classList.add("shake"); setTimeout(() => b.classList.remove("shake"), 400); }
@@ -990,7 +992,7 @@ function sortGame(l) {
   const draw = () => {
     if (i >= pool.length) {
       const coins = ok * 2; S.prog.coins += coins;
-      logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: pool.length, ok }); S.classWeekOk += ok; save(true);
+      logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: pool.length, ok }); save(true);
       sfx.win(); if (ok >= pool.length - 1) confetti();
       return render(`<div class="wrap narrow"><div class="card result"><div class="result-art">${art("baskets")}</div><h1>${ok} von ${pool.length} richtig sortiert!</h1>
         <p class="muted" style="margin:0">${byArt ? "Tipp: Lerne jedes Wort immer mit seinem Artikel – le oder la." : "Lange Wörter darfst du in Silben zerlegen."}</p>
@@ -1029,7 +1031,7 @@ function moveGame(l) {
   const t0 = Date.now();
   const show = () => {
     if (i >= words.length) {
-      S.prog.coins += ok * 2; logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: words.length, ok }); S.classWeekOk += ok; save(true);
+      S.prog.coins += ok * 2; logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: words.length, ok }); save(true);
       sfx.win(); confetti();
       render(`<div class="wrap narrow"><div class="card result"><div class="result-art">${art("jump")}</div><h1>Super bewegt!</h1><p class="muted" style="margin:0">${ok} von ${words.length} Wörtern richtig gesagt.</p><p class="small muted" style="margin:0">Bewegung hilft dem Kopf beim Merken.</p>
         <div class="reward-row"><span class="reward">${art("coin", "ic")} +${ok * 2}</span></div><button class="btn green big" id="back">Zur Insel</button></div></div>`);
@@ -1103,31 +1105,96 @@ function drawWord(l, w, after) {
 // ------------------------------------------------------------------
 //  Gemeinsamer Klassenfortschritt (Zusammenhalt statt Rangliste)
 // ------------------------------------------------------------------
-function classPanel(goal, gp) {
+function classPanel() {
+  const g = S.goal;
+  if (!g) return "";
   const ci = S.classInfo || { kids: 1, othersWeek: 0, othersToday: 0, othersKnown: 0, othersStars: 0 };
   const meWeek = weekSummary(S.prog).ans > 0 ? 1 : 0;
   const meToday = (S.prog.days?.[todayStr()]?.ans || 0) > 0 ? 1 : 0;
   const myKnown = Object.values(S.prog.words || {}).filter(s => s.b >= 2).length;
   const myStars = S.lessons.reduce((a, l) => a + lessonStats(S.prog, l).stars, 0);
-  const left = Math.max(0, goal.target - S.classWeekOk);
-  const steps = [25, 50, 75, 100];
-  const msg = left === 0 ? "Ziel erreicht! Die ganze Klasse hat es zusammen geschafft!" :
-    gp >= 75 ? `Fast geschafft! Nur noch ${left} richtige Antworten.` :
-    gp >= 50 ? `Schon mehr als die Hälfte! Noch ${left} richtige Antworten.` :
-    `Noch ${left} richtige Antworten bis zum Ziel. Jede Antwort zählt!`;
-  return `<div class="panel class-panel ${left === 0 ? "reached" : ""}">
-    <div class="row between"><h2 class="cp-title">${art("rocket", "ic")} Unsere Klasse: ${esc(goal.title)}</h2><span class="chip">${S.classWeekOk} / ${goal.target}</span></div>
-    <div class="goal-track">
-      <div class="goal-bar big"><i style="width:${gp}%"></i></div>
-      <div class="milestones">${steps.map(st => `<span class="ms ${gp >= st ? "on" : ""}" style="left:${st}%">${art(gp >= st ? "star" : "starEmpty")}</span>`).join("")}</div>
+  const gp = Math.min(100, Math.round(g.achieved / Math.max(1, g.target) * 100));
+  const left = Math.max(0, g.target - g.achieved);
+  const reached = g.achieved >= g.target;
+  const myPts = weekDaysPts(S.prog, g.mon);
+  const B = g.building, Unser = unser(B)[0].toUpperCase() + unser(B).slice(1);
+  const msg = reached ? `Geschafft! ${Unser} ${B.name} ist fertig!` :
+    gp >= 75 ? `Fast fertig! Nur noch ${left} Punkte.` :
+    gp >= 50 ? `Mehr als die Hälfte steht! Noch ${left} Punkte.` :
+    gp >= 25 ? `Das Fundament steht! Noch ${left} Punkte.` :
+    `Noch ${left} Punkte bis ${zum(B)} ${B.name}. Jede richtige Antwort beim Lernen und Testen zählt!`;
+  return `<div class="panel class-panel ${reached ? "reached" : ""}">
+    <div class="row between"><h2 class="cp-title">Unsere Klasse baut: ${esc(g.building.name)}</h2><span class="chip">${g.achieved} / ${g.target} Punkte</span></div>
+    <div class="cp-main">
+      <div class="cp-build">${buildingSvg(g.building.key, gp)}</div>
+      <div class="stack" style="gap:10px;min-width:0">
+        <div class="goal-track"><div class="goal-bar big"><i style="width:${gp}%"></i></div>
+          <div class="milestones">${[25, 50, 75, 100].map(st => `<span class="ms ${gp >= st ? "on" : ""}" style="left:${st}%">${art(gp >= st ? "star" : "starEmpty")}</span>`).join("")}</div></div>
+        <p class="cp-msg">${esc(msg)}</p>
+        ${reached ? `<button class="btn orange" id="wheelBtn">Unsere Belohnung: ${esc(g.rewards[g.rewardIdx])}</button>` : `<span class="small muted">Wenn ${der(B)} ${esc(B.name)} fertig ist, dreht sich das Glücksrad für eine Klassenbelohnung!</span>`}
+      </div>
     </div>
-    <p class="cp-msg">${esc(msg)}</p>
     <div class="cp-stats">
       <div><b>${ci.othersWeek + meWeek} / ${ci.kids}</b><span>Kinder haben diese Woche geübt</span></div>
       <div><b>${ci.othersToday + meToday}</b><span>${ci.othersToday + meToday === 1 ? "Kind hat" : "Kinder haben"} heute schon geübt</span></div>
       <div><b>${ci.othersKnown + myKnown}</b><span>Wörter kennt ihr zusammen</span></div>
-      <div><b>${ci.othersStars + myStars}</b><span>Sterne hat die Klasse gesammelt</span></div>
+      <div><b>${g.built.length}</b><span>${g.built.length === 1 ? "Bauwerk steht" : "Bauwerke stehen"} schon auf der Klassen-Insel</span></div>
     </div>
-    <span class="small muted">Du hast diese Woche <b>${weekSummary(S.prog).ok}</b> richtige Antworten beigetragen. Danke!</span>
+    ${g.built.length ? `<div class="class-isle"><b>Unsere Klassen-Insel</b><div class="built">${g.built.map(b => `<div class="built-item" title="${esc(b.name)} – ${esc(b.reward)}">${buildingSvg(b.key, 100, "small")}<small>${esc(b.name)}</small></div>`).join("")}</div></div>` : ""}
+    <span class="small muted">Dein Beitrag diese Woche: <b>${myPts}</b> Punkte. Danke!</span>
   </div>`;
+}
+function weekDaysPts(p, mon) {
+  const a = new Date(mon + "T12:00").getTime(); let s = 0;
+  for (let i = 0; i < 7; i++) s += p.days?.[todayStr(new Date(a + i * DAY))]?.pts || 0;
+  return s;
+}
+
+// Ziel erreicht → einmal pro Kind feiern + Glücksrad
+function maybeCelebrate() {
+  const g = S.goal;
+  if (!g || g.achieved < g.target) return;
+  S.prog.celebrated = S.prog.celebrated || {};
+  if (S.prog.celebrated[g.mon]) return;
+  S.prog.celebrated[g.mon] = true;
+  S.prog.classWins = (S.prog.classWins || 0) + 1;
+  S.prog.coins += 10;
+  checkBadges(S.prog, S.lessons); save(true);
+  sfx.win(); confetti(220);
+  setTimeout(() => showWheel(true), 600);
+}
+
+// Glücksrad: Ergebnis steht fest (für alle Kinder gleich), Nadel stoppt mittig im Feld
+function showWheel(first) {
+  const g = S.goal, R = g.rewards, n = R.length, idx = g.rewardIdx, seg = 360 / n;
+  const cols = ["#ff8a3d", "#2fb36a", "#2b9ad1", "#ffc531", "#d6336c", "#7048e8", "#20c997", "#f76707", "#1c7ed6", "#e64980", "#82c91e", "#845ef7"];
+  const cx = 160, cy = 160, r = 150;
+  const pt = (a, rr = r) => [cx + rr * Math.sin(a * Math.PI / 180), cy - rr * Math.cos(a * Math.PI / 180)];
+  const slices = R.map((txt, i) => {
+    const a0 = i * seg, a1 = (i + 1) * seg, [x0, y0] = pt(a0), [x1, y1] = pt(a1);
+    const mid = a0 + seg / 2, [tx, ty] = pt(mid, r * 0.6);
+    const short = txt.length > 18 ? txt.slice(0, 17) + "…" : txt;
+    return `<path d="M${cx} ${cy} L${x0} ${y0} A${r} ${r} 0 0 1 ${x1} ${y1} Z" fill="${cols[i % cols.length]}" stroke="#fff" stroke-width="3"/>
+      <text x="${tx}" y="${ty}" transform="rotate(${mid - 90} ${tx} ${ty})" text-anchor="middle" dominant-baseline="central" font-size="10.5" font-weight="700" fill="#fff" font-family="Andika, sans-serif">${esc(short)}</text>`;
+  }).join("");
+  // Feld idx soll oben (unter der Nadel) mittig stehen
+  const final = 360 * 6 - (idx * seg + seg / 2);
+  modal(`<div class="center stack">
+    <h2>${first ? `Geschafft! ${unser(g.building)[0].toUpperCase() + unser(g.building).slice(1)} ${esc(g.building.name)} ist fertig!` : "Unser Glücksrad"}</h2>
+    <p class="muted" style="margin:0">${first ? "Die ganze Klasse hat zusammen das Ziel erreicht. Das Glücksrad entscheidet die Belohnung:" : "Das Rad bleibt bei allen Kindern auf demselben Feld stehen."}</p>
+    <div class="wheel-wrap">
+      <svg viewBox="0 0 320 320" class="wheel" id="wheel" style="transform:rotate(${first ? 0 : final}deg)">${slices}<circle cx="160" cy="160" r="22" fill="#fff" stroke="#24323f" stroke-width="4"/></svg>
+      <svg viewBox="0 0 40 50" class="needle"><path d="M20 48 L4 8 Q20 -4 36 8Z" fill="#e03131" stroke="#24323f" stroke-width="3" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="reward-result" id="rr" ${first ? "hidden" : ""}>${art("trophy", "ic")} <b>${esc(R[idx])}</b></div>
+    ${first ? `<div class="reward-row"><span class="reward">${art("coin", "ic")} +10</span><span class="reward">${art("medal", "ic")} Klassen-Baumeister</span></div>` : ""}
+    <p class="small muted" style="margin:0">Die Lehrkraft sucht einen passenden Moment für die Belohnung aus.</p>
+    <button class="btn green" data-close="ok">Super!</button></div>`, {
+    onMount: m => {
+      if (!first) return;
+      const w = m.querySelector("#wheel");
+      requestAnimationFrame(() => { w.style.transition = "transform 5.5s cubic-bezier(.12,.75,.18,1)"; w.style.transform = `rotate(${final}deg)`; });
+      setTimeout(() => { m.querySelector("#rr").hidden = false; sfx.win(); confetti(120); }, 5700);
+    },
+  });
 }

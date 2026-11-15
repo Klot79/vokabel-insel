@@ -1,6 +1,7 @@
 import { Store, Device, isCloud } from "./store.js";
 import { esc, uid, sha, pinHash, randomPin, LANG_FLAG, LANG_NAME, PIN_NAMES } from "./util.js";
 import { art } from "./art.js";
+import { currentGoal, DEFAULT_REWARDS, START_TARGET, rewardsOf, BUILDINGS } from "./goal.js";
 import { render, $, $$, toast, modal, confirmBox, pic, avatarHtml, fmtMin, relDay } from "./ui.js";
 import { lessonStats, weekSummary, currentStreak, emptyProgress, todayStr, DAY, wstate, stripArticle, norm, mondayOf, weekLabel, weekState, sortLessons, perDayFor } from "./srs.js";
 import { fileToLines, splitLines, linesToPairs, prepareImage, matchImages, searchOpenverse, fetchImageBlob } from "./import.js";
@@ -129,6 +130,7 @@ async function dashboard() {
   document.body.classList.add("teacher-mode");
   render(`<div class="wrap"><div class="t-panel">Lade Daten …</div></div>`);
   try { await loadAll(); } catch (e) { render(`<div class="wrap"><div class="t-panel">${esc(e.message)}</div></div>`); return; }
+  try { T.goal = await currentGoal(T.cls, Object.values(T.progs), T.students.length); } catch { T.goal = null; }
   const fresh = await autoWeekReport();
   const tabs = [["overview", "📊 Übersicht"], ["lessons", "📚 Lektionen"], ["reports", "📅 Wochenberichte"], ["students", "👧 Kinder"], ["settings", "⚙️ Einstellungen"]];
   render(`<div class="wrap">
@@ -136,6 +138,7 @@ async function dashboard() {
       <nav class="tabs">${tabs.map(([k, n]) => `<button data-t="${k}" class="${T.tab === k ? "on" : ""}">${n}</button>`).join("")}</nav>
       <button class="btn ghost small" id="logout">Abmelden</button></div>
     ${!isCloud ? `<div class="banner no-print">Demo-Modus: Daten werden nur auf diesem Gerät gespeichert. Für die ganze Klasse auf allen Geräten bitte Supabase einrichten (siehe Anleitung).</div>` : ""}
+    ${T.goal && T.goal.achieved >= T.goal.target ? `<div class="banner no-print good-banner">🎉 Klassenziel erreicht${T.goal.day ? ` am ${new Date(T.goal.day + "T12:00").toLocaleDateString("de", { weekday: "long" })}` : ""}: ${esc(T.goal.building.name)} fertig (${T.goal.achieved}/${T.goal.target} Punkte). Belohnung laut Glücksrad: <b>${esc(T.goal.rewards[T.goal.rewardIdx])}</b></div>` : ""}
     ${fresh ? `<div class="banner no-print row between"><span>📅 Neuer Wochenbericht: ${esc(weekLabel(fresh.week))}</span><button class="btn blue small" id="openRep">Ansehen</button></div>` : ""}
     <div id="tab"></div></div>`);
   if ($("#openRep")) $("#openRep").onclick = () => { T.tab = "reports"; $$(".tabs button").forEach(x => x.classList.toggle("on", x.dataset.t === "reports")); showReport(fresh); };
@@ -176,7 +179,7 @@ function overview(el) {
   const avgPct = Math.round(rows.reduce((s, r) => s + r.pct, 0) / n);
   const weekSec = rows.reduce((s, r) => s + r.wk.sec, 0);
   const weekOk = rows.reduce((s, r) => s + r.wk.ok, 0);
-  const goal = T.cls.goal || { title: "Klassenziel", target: 300 };
+  const G = T.goal || { achieved: 0, target: START_TARGET, building: BUILDINGS[0] };
   const lessons = T.lessons.filter(l => l.words?.length);
 
   // schwierige Wörter
@@ -195,7 +198,7 @@ function overview(el) {
       <div class="kpi"><span class="l">Diese Woche aktiv</span><span class="v">${active} / ${rows.length}</span><span class="s">Kinder mit mind. 1 Übung</span></div>
       <div class="kpi"><span class="l">Wörter sicher (Ø)</span><span class="v">${avgPct} %</span><span class="s">der zugewiesenen Wörter</span></div>
       <div class="kpi"><span class="l">Übungszeit diese Woche</span><span class="v">${fmtMin(weekSec)}</span><span class="s">Ø ${fmtMin(weekSec / n)} pro Kind</span></div>
-      <div class="kpi"><span class="l">Klassenziel „${esc(goal.title)}“</span><span class="v">${Math.min(100, Math.round(weekOk / Math.max(1, goal.target) * 100))} %</span><span class="s">${weekOk} / ${goal.target} richtige Antworten</span></div>
+      <div class="kpi"><span class="l">Klassenziel: ${esc(G.building.name)}</span><span class="v">${Math.min(100, Math.round(G.achieved / Math.max(1, G.target) * 100))} %</span><span class="s">${G.achieved} / ${G.target} Punkte (Lernen + Testen)</span></div>
     </div>
     <div class="t-panel">
       <div class="row between"><h2>Fortschritt der Klasse</h2>
@@ -609,14 +612,19 @@ function studentsTab(el) {
 //  Einstellungen
 // ------------------------------------------------------------------
 function settings(el) {
-  const g = T.cls.goal || { title: "Leuchtturm bauen", target: 300 };
+  const g = T.cls.goal || {};
+  const hist = (T.goal?.history || []).slice(-6);
   const link = location.origin + location.pathname + "#k=" + encodeURIComponent(Store.code);
   el.innerHTML = `<div class="grid2">
     <div class="t-panel"><h2>Klasse</h2>
       <div class="field"><label for="cn">Name</label><input class="input" id="cn" value="${esc(T.cls.name)}"></div>
-      <div class="field"><label for="gt">Klassenziel (Name)</label><input class="input" id="gt" value="${esc(g.title)}"></div>
-      <div class="field"><label for="gn">Klassenziel: richtige Antworten pro Woche</label><input class="input" id="gn" type="number" min="10" value="${g.target}"></div>
-      <p class="small muted" style="margin:0">Richtwert: ca. 40–60 richtige Antworten pro Kind und Woche.</p>
+      <h3 style="margin-top:6px">Klassenziel (pro Woche)</h3>
+      <p class="small muted" style="margin:0">Punkte = richtige Antworten der ganzen Klasse in „Lernen“ und „Testen“ (Mo–So). Jede Woche wird ein neues Bauwerk gebaut. Diese Woche: <b>${T.goal ? `${esc(T.goal.building.name)}, Ziel ${T.goal.target} Punkte, erreicht ${T.goal.achieved}` : "–"}</b>.</p>
+      <div class="field"><label for="gs">Startziel (erste Woche)</label><input class="input" id="gs" type="number" min="10" value="${g.start || START_TARGET}"></div>
+      <label class="check"><input type="checkbox" id="ga" ${g.auto !== false ? "checked" : ""}> Ziel jeden Montag automatisch an die Klasse anpassen (empfohlen)</label>
+      <div class="field"><label for="go">Ziel diese Woche selbst festlegen (leer = automatisch)</label><input class="input" id="go" type="number" min="10" value="${g.override || ""}" placeholder="automatisch"></div>
+      ${hist.length > 1 ? `<div class="small muted">Verlauf: ${hist.map(h => `${h.mon.slice(8, 10)}.${h.mon.slice(5, 7)}.: ${h.achieved ?? "läuft"}/${h.target}${h.reached ? " ✓" : ""}`).join(" · ")}</div>` : ""}
+      <div class="field"><label for="rw">Klassenbelohnungen fürs Glücksrad (eine pro Zeile, max. 12)</label><textarea class="input" id="rw" style="font-family:inherit;min-height:200px">${esc(rewardsOf(T.cls).join("\n"))}</textarea></div>
       <label class="check"><input type="checkbox" id="ao" ${T.cls.allOpen ? "checked" : ""}> Alle Inseln von Anfang an offen (sonst nacheinander)</label>
       <label class="check"><input type="checkbox" id="rep" ${T.cls.report?.enabled ? "checked" : ""}> Wochenbericht automatisch erstellen (jeden Montag ab 7:00)</label>
       <button class="btn green small" id="sv" style="justify-self:start">Speichern</button>
@@ -638,7 +646,8 @@ function settings(el) {
     </div>
   </div>`;
   $("#sv").onclick = async () => {
-    T.cls = { ...T.cls, name: $("#cn").value.trim() || T.cls.name, goal: { title: $("#gt").value.trim() || "Klassenziel", target: Math.max(10, +$("#gn").value || 300) }, allOpen: $("#ao").checked, report: { ...(T.cls.report || {}), enabled: $("#rep").checked } };
+    T.cls = { ...T.cls, name: $("#cn").value.trim() || T.cls.name, goal: { start: Math.max(10, +$("#gs").value || START_TARGET), auto: $("#ga").checked, override: +$("#go").value > 0 ? Math.max(10, +$("#go").value) : null },
+      rewards: $("#rw").value.split("\n").map(x => x.trim()).filter(Boolean).slice(0, 12), allOpen: $("#ao").checked, report: { ...(T.cls.report || {}), enabled: $("#rep").checked } };
     await Store.put("class", "main", T.cls); toast("Gespeichert ✔");
   };
   if ($("#bucketState")) Store.checkImageStorage().then(ok => {
@@ -718,6 +727,7 @@ function buildWeekReport(mon) {
   const n = rows.length || 1;
   return {
     type: "report", week: mon, created: Date.now(), lessons: weekLessons.map(l => l.title),
+    goal: (() => { const h = (T.goal?.history || []).find(x => x.mon === mon); if (!h) return null; const pts = rowsPts(mon); return { target: h.target, achieved: h.achieved ?? pts, reached: (h.achieved ?? pts) >= h.target, day: h.day || null }; })(),
     summary: { kids: rows.length, active: rows.filter(r => r.days > 0).length, min: rows.reduce((a, r) => a + r.min, 0), avgDays: Math.round(rows.reduce((a, r) => a + r.days, 0) / n * 10) / 10,
       acc: (() => { const t = rows.reduce((a, r) => a + r.ans, 0); return t ? Math.round(rows.reduce((a, r) => a + (r.acc ?? 0) * r.ans / 100, 0) / t * 100) : null; })() },
     rows, hard: hardList,
@@ -725,6 +735,7 @@ function buildWeekReport(mon) {
   };
 }
 
+function rowsPts(mon) { const a = new Date(mon + "T12:00").getTime(); let s = 0; for (const p of Object.values(T.progs)) for (let i = 0; i < 7; i++) s += p.days?.[todayStr(new Date(a + i * DAY))]?.pts || 0; return s; }
 // Jeden Montag ab 7:00: Bericht der vergangenen Woche automatisch erstellen und speichern
 async function autoWeekReport() {
   if (!T.cls.report?.enabled) return null;
@@ -769,6 +780,7 @@ function showReport(r, live = false) {
         <div class="kpi"><span class="l">Übungszeit gesamt</span><span class="v">${s.min} min</span><span class="s">Ø ${Math.round(s.min / Math.max(1, s.kids))} min pro Kind</span></div>
         <div class="kpi"><span class="l">Ø Übungstage</span><span class="v">${s.avgDays}</span><span class="s">Ziel: 5 Tage à 5 Minuten</span></div>
         <div class="kpi"><span class="l">Trefferquote</span><span class="v">${s.acc == null ? "–" : s.acc + " %"}</span></div>
+        ${r.goal ? `<div class="kpi"><span class="l">Klassenziel</span><span class="v">${r.goal.reached ? "✓ erreicht" : Math.round(r.goal.achieved / Math.max(1, r.goal.target) * 100) + " %"}</span><span class="s">${r.goal.achieved} / ${r.goal.target} Punkte${r.goal.day ? ` · am ${new Date(r.goal.day + "T12:00").toLocaleDateString("de", { weekday: "long" })}` : ""}</span></div>` : ""}
       </div>
     </div>
     <div class="t-panel"><h2>Kinder</h2>

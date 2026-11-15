@@ -391,6 +391,28 @@ body:not(.teacher-mode) .hero h1, body:not(.teacher-mode) .section-title { text-
 .cp-stats b { font-family: var(--f-display); font-size: 1.6rem; line-height: 1; color: var(--ink); }
 .cp-stats span { font-size: .85rem; color: var(--ink-soft); }
 
+/* Bauwerk der Woche, Klassen-Insel, Glücksrad */
+.cp-main { display: grid; grid-template-columns: 150px 1fr; gap: 16px; align-items: center; }
+@media (max-width: 480px) { .cp-main { grid-template-columns: 1fr; } .cp-build { justify-self: center; } }
+.cp-build { background: linear-gradient(#e3f3fb 70%, #c7e2c0 70%); border-radius: 18px; padding: 8px; }
+.building { width: 100%; height: auto; overflow: visible; }
+.building.done .lamp { animation: lamp 1.6s ease-in-out infinite; }
+.building .beam { animation: beam 2.4s ease-in-out infinite; transform-origin: 60px 24px; }
+.building .sparkle { animation: twinkle 1.4s ease-in-out infinite; }
+@keyframes lamp { 50% { fill: #fff9db; } }
+@keyframes beam { 50% { opacity: .25; } }
+@keyframes twinkle { 50% { opacity: .3; } }
+.class-isle { display: grid; gap: 6px; }
+.built { display: flex; gap: 10px; flex-wrap: wrap; }
+.built-item { width: 76px; display: grid; justify-items: center; gap: 2px; background: var(--soft); border-radius: 14px; padding: 6px; }
+.built-item svg { width: 60px; height: 70px; }
+.built-item small { font-size: .7rem; font-weight: 700; text-align: center; }
+.wheel-wrap { position: relative; width: min(320px, 78vw); aspect-ratio: 1; margin: 6px auto 0; }
+.wheel { width: 100%; height: 100%; border-radius: 50%; box-shadow: 0 0 0 6px #24323f, 0 8px 0 6px rgba(0,0,0,.15); }
+.needle { position: absolute; top: -14px; left: 50%; width: 40px; transform: translateX(-50%); }
+.reward-result { font-family: var(--f-display); font-size: 1.5rem; background: var(--sun-l); border-radius: 16px; padding: 10px 16px; display: inline-flex; gap: 8px; align-items: center; justify-self: center; }
+.good-banner { background: var(--green-l); border-color: #8fd6a8; }
+
 /* Eselsbrücke */
 .memo { display: inline-flex; gap: 8px; align-items: center; justify-content: center; background: var(--sun-l); border-radius: 14px; padding: 8px 12px; font-size: 1rem; font-weight: 400; color: var(--ink); }
 

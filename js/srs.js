@@ -239,10 +239,10 @@ export function checkSpoken(alternatives, target) {
 }
 
 // ---- Tagebuch & Belohnungen ------------------------------------
-export function logActivity(prog, { sec = 0, ans = 0, ok = 0 } = {}) {
+export function logActivity(prog, { sec = 0, ans = 0, ok = 0, pts = 0 } = {}) {
   const t = todayStr();
   const d = prog.days[t] || { sec: 0, ans: 0, ok: 0 };
-  d.sec += sec; d.ans += ans; d.ok += ok;
+  d.sec += sec; d.ans += ans; d.ok += ok; d.pts = (d.pts || 0) + pts; // pts = Punkte fürs Klassenziel (nur Lernen/Testen)
   prog.days[t] = d;
   if (prog.streak.last !== t) {
     const y = todayStr(new Date(Date.now() - DAY));
@@ -277,6 +277,8 @@ export const BADGES = [
   { id: "test1", icon: "star", name: "Test bestanden", desc: "Einen Test mit 80 % geschafft", test: p => Object.values(p.tests || {}).some(t => t.best >= 80) },
   { id: "star3", icon: "island", name: "Insel-Meister", desc: "Auf einer Insel 3 Sterne", test: p => Object.values(p.stars).some(s => s >= 3) },
   { id: "master", icon: "chest", name: "Wort-Kapitän", desc: "20 Wörter gemeistert", test: (p, o) => o.master >= 20 },
+  { id: "class1", icon: "medal", name: "Klassen-Baumeister", desc: "Mit der Klasse ein Bauwerk fertig gebaut", test: p => (p.classWins || 0) >= 1 },
+  { id: "class5", icon: "trophy", name: "Insel-Architekt", desc: "5 Bauwerke mit der Klasse", test: p => (p.classWins || 0) >= 5 },
 ];
 
 export function checkBadges(prog, lessons) {

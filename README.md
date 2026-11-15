@@ -33,6 +33,8 @@ Die Kinder brauchen kein Benutzerkonto, sie melden sich mit Klassencode, Namen u
 - **Lektionen anlegen**: 📷 Foto vom Vokabelblatt, 📄 PDF, Word, Excel, CSV oder Text einfügen
 - **Bilder separat hochladen**: einzelne Bilder, einen ganzen Ordner oder eine ZIP-Datei – vor oder nach der Wortliste. Zuordnung automatisch über den Dateinamen (`chat.jpg` → *le chat*, `Katze.png` → *die Katze*), der Rest per Antippen aus der Ablage. Bilder bis 1200 Pixel.
 - 🔍 **Bildsuche** (lizenzfreie Zeichnungen/Fotos über Openverse) und 🏝️ eigenes **Inselbild** pro Lektion
+- **Klassenziel mit Bauwerken**: Punkte = richtige Antworten in Lernen und Testen (Mo–So). Jede Woche baut die Klasse ein Bauwerk (Leuchtturm, Brücke, Burg …), das mit den Punkten wächst. Start 300 Punkte, danach passt sich das Ziel jeden Montag an die Klasse an (locker erreicht → bis +50 %, erreicht → bis +15 %, knapp verfehlt → gleich, deutlich verfehlt → bis −15 %, Ferien → gleich; 10–60 Punkte pro Kind).
+- **Glücksrad mit Klassenbelohnungen** (max. 10 Minuten, in den Einstellungen änderbar): dreht sich, wenn das Ziel erreicht ist, und bleibt bei allen Kindern auf demselben Feld stehen. Fertige Bauwerke bleiben auf der Klassen-Insel.
 - **Wochenplan**: jeder Lektion eine Lernwoche zuordnen
 - **Wochenbericht** (im Dashboard einschaltbar): wird jeden Montag ab 7:00 für die Vorwoche erstellt und gespeichert – Übungstage, Minuten, Treffer, gelernte Wörter, Tests, schwierige Wörter, wer Unterstützung braucht. Zum Ausdrucken oder als PDF sichern.
 - **Eselsbrücke** pro Wort
