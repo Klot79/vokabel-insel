@@ -81,6 +81,15 @@ async function enter(student, back) {
     .filter(l => l.words?.length && (l.assigned === "all" || !l.assigned || (Array.isArray(l.assigned) && l.assigned.includes(student.id)))));
   S.prog.memos = S.prog.memos || {}; S.prog.drawings = S.prog.drawings || {};
   S.classWeekOk = all.reduce((sum, p) => sum + weekSummary(p.id === student.id ? S.prog : { days: p.days || {} }).ok, 0);
+  // Gemeinsamer Klassenfortschritt (ohne Namen – keine Rangliste)
+  const others = all.filter(p => p.id !== student.id);
+  S.classInfo = {
+    kids: Math.max(1, (await Store.list("student")).length),
+    othersWeek: others.filter(p => weekSummary({ days: p.days || {} }).ans > 0).length,
+    othersToday: others.filter(p => (p.days?.[todayStr()]?.ans || 0) > 0).length,
+    othersKnown: others.reduce((sum, p) => sum + Object.values(p.words || {}).filter(s => s.b >= 2).length, 0),
+    othersStars: others.reduce((sum, p) => sum + Object.values(p.stars || {}).reduce((a, b) => a + (b || 0), 0), 0),
+  };
   goHome = () => home(back);
   home(back);
 }
@@ -143,14 +152,7 @@ function home() {
       <button class="mode-btn learn" id="learn">${art("book", "mode-art")}<span><b>Lernen</b><small>${plan.length ? "mit Hilfen üben" : "nochmal üben"}</small></span></button>
       <button class="mode-btn test" id="test">${art("clipboard", "mode-art")}<span><b>Testen</b><small>Kann ich es schon?</small></span></button>
     </div>
-    <div class="panel goal">
-      <span class="goal-art">${art("rocket")}</span>
-      <div class="stack" style="gap:6px;flex:1;min-width:0">
-        <div class="row between"><b>Klassenziel: ${esc(goal.title)}</b><span class="small muted">${S.classWeekOk} / ${goal.target}</span></div>
-        <div class="goal-bar"><i style="width:${gp}%"></i></div>
-        <span class="small muted">Jede richtige Antwort hilft der ganzen Klasse.</span>
-      </div>
-    </div>
+    ${classPanel(goal, gp)}
     ${hardCard()}
     <h2 class="section-title">Meine Inseln</h2>
     <div class="isle-grid">${S.lessons.length ? S.lessons.map(l => islandCard(l, unlocked.includes(l))).join("") : `<div class="panel">Deine Lehrkraft hat noch keine Lektion für dich freigegeben.</div>`}</div>
@@ -823,7 +825,7 @@ function shop() {
     const has = price === 0 || owned.has(kind + key);
     const sel = av[kind] === key;
     const look = kind === "animal" ? art(key) : key ? hat(key) : `<span class="none">ohne</span>`;
-    return `<button data-kind="${kind}" data-e="${esc(key)}" data-p="${price}" class="${sel ? "sel" : ""}"><span class="shop-art">${look}</span><small>${sel ? "an" : has ? "anziehen" : `${art("coin", "ic")} ${price}`}</small></button>`;
+    return `<button data-kind="${kind}" data-e="${esc(key)}" data-p="${price}" class="${sel ? "sel" : ""}"><span class="shop-art">${look}</span><small>${sel ? "ausgewählt" : has ? "auswählen" : `${art("coin", "ic")} ${price}`}</small></button>`;
   };
   render(`<div class="wrap">
     ${topbar()}
@@ -1096,4 +1098,36 @@ function drawWord(l, w, after) {
       };
     },
   });
+}
+
+// ------------------------------------------------------------------
+//  Gemeinsamer Klassenfortschritt (Zusammenhalt statt Rangliste)
+// ------------------------------------------------------------------
+function classPanel(goal, gp) {
+  const ci = S.classInfo || { kids: 1, othersWeek: 0, othersToday: 0, othersKnown: 0, othersStars: 0 };
+  const meWeek = weekSummary(S.prog).ans > 0 ? 1 : 0;
+  const meToday = (S.prog.days?.[todayStr()]?.ans || 0) > 0 ? 1 : 0;
+  const myKnown = Object.values(S.prog.words || {}).filter(s => s.b >= 2).length;
+  const myStars = S.lessons.reduce((a, l) => a + lessonStats(S.prog, l).stars, 0);
+  const left = Math.max(0, goal.target - S.classWeekOk);
+  const steps = [25, 50, 75, 100];
+  const msg = left === 0 ? "Ziel erreicht! Die ganze Klasse hat es zusammen geschafft!" :
+    gp >= 75 ? `Fast geschafft! Nur noch ${left} richtige Antworten.` :
+    gp >= 50 ? `Schon mehr als die Hälfte! Noch ${left} richtige Antworten.` :
+    `Noch ${left} richtige Antworten bis zum Ziel. Jede Antwort zählt!`;
+  return `<div class="panel class-panel ${left === 0 ? "reached" : ""}">
+    <div class="row between"><h2 class="cp-title">${art("rocket", "ic")} Unsere Klasse: ${esc(goal.title)}</h2><span class="chip">${S.classWeekOk} / ${goal.target}</span></div>
+    <div class="goal-track">
+      <div class="goal-bar big"><i style="width:${gp}%"></i></div>
+      <div class="milestones">${steps.map(st => `<span class="ms ${gp >= st ? "on" : ""}" style="left:${st}%">${art(gp >= st ? "star" : "starEmpty")}</span>`).join("")}</div>
+    </div>
+    <p class="cp-msg">${esc(msg)}</p>
+    <div class="cp-stats">
+      <div><b>${ci.othersWeek + meWeek} / ${ci.kids}</b><span>Kinder haben diese Woche geübt</span></div>
+      <div><b>${ci.othersToday + meToday}</b><span>${ci.othersToday + meToday === 1 ? "Kind hat" : "Kinder haben"} heute schon geübt</span></div>
+      <div><b>${ci.othersKnown + myKnown}</b><span>Wörter kennt ihr zusammen</span></div>
+      <div><b>${ci.othersStars + myStars}</b><span>Sterne hat die Klasse gesammelt</span></div>
+    </div>
+    <span class="small muted">Du hast diese Woche <b>${weekSummary(S.prog).ok}</b> richtige Antworten beigetragen. Danke!</span>
+  </div>`;
 }

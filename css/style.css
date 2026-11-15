@@ -374,6 +374,23 @@ body:not(.teacher-mode) .hero h1, body:not(.teacher-mode) .section-title { text-
 @media (max-width: 480px) { .week-card { flex-direction: column; align-items: stretch; } .small-pic { width: 100%; } }
 .hard-card { display: flex; gap: 12px; align-items: center; border-color: #ffd2b0; }
 
+/* Gemeinsamer Klassenfortschritt */
+.class-panel { display: grid; gap: 12px; border-color: #c9e4f5; }
+.class-panel.reached { border-color: var(--green); background: var(--green-l); }
+.cp-title { font-size: 1.35rem; display: flex; align-items: center; gap: 8px; }
+.cp-title .ic { width: 34px; height: 34px; }
+.goal-track { position: relative; padding: 12px 0 6px; }
+.goal-bar.big { height: 26px; }
+.milestones { position: absolute; inset: 0; pointer-events: none; }
+.ms { position: absolute; top: 4px; transform: translateX(-50%); width: 40px; height: 40px; }
+.ms:last-child { transform: translateX(-90%); }
+.ms svg { width: 100%; height: 100%; }
+.cp-msg { margin: 0; font-family: var(--f-display); font-size: 1.2rem; color: var(--blue-d); }
+.cp-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.cp-stats div { background: var(--soft); border-radius: 14px; padding: 10px 12px; display: grid; gap: 2px; }
+.cp-stats b { font-family: var(--f-display); font-size: 1.6rem; line-height: 1; color: var(--ink); }
+.cp-stats span { font-size: .85rem; color: var(--ink-soft); }
+
 /* Eselsbrücke */
 .memo { display: inline-flex; gap: 8px; align-items: center; justify-content: center; background: var(--sun-l); border-radius: 14px; padding: 8px 12px; font-size: 1rem; font-weight: 400; color: var(--ink); }
 

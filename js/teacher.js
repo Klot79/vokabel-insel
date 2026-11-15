@@ -561,9 +561,10 @@ function studentsTab(el) {
       <div class="pin-cards">${T.students.map(s => `<div class="pin-card"><b>${esc(s.name)}</b><span class="p">${(s.pinHint || []).map(e => art(e)).join("") || "—"}</span><span class="small muted">Code: ${esc(Store.code)}</span></div>`).join("") || `<span class="muted">Noch keine Kinder.</span>`}</div>
     </div>
   </div>
-  <div class="t-panel no-print" style="margin-top:16px"><h2>Alle Kinder (${T.students.length})</h2>
+  <div class="t-panel no-print" style="margin-top:16px"><div class="row between"><h2>Alle Kinder (${T.students.length})</h2>${T.students.length ? `<button class="btn ghost small" id="resetAll">Ganze Klasse zurücksetzen</button>` : ""}</div>
+    <p class="small muted" style="margin:0"><b>Zurücksetzen</b> löscht den gesamten Lernfortschritt eines Kindes (Lernkartei, Sterne, Tests, Münzen, Avatar, Zeichnungen, Eselsbrücken) – das Kind beginnt wieder ganz von vorn. Name und Bild-PIN bleiben.</p>
     <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Name</th><th>Bild-PIN</th><th></th></tr></thead><tbody>
-    ${T.students.map(s => `<tr><td><b>${esc(s.name)}</b></td><td><span class="pin-inline">${(s.pinHint || []).map(e => art(e)).join("")}</span> <span class="small muted">${(s.pinHint || []).map(e => PIN_NAMES[e] || e).join(", ")}</span></td><td class="row" style="gap:6px;justify-content:flex-end"><button class="btn ghost small" data-pin="${esc(s.id)}">Neue PIN</button><button class="btn ghost small" data-ren="${esc(s.id)}">Umbenennen</button><button class="btn ghost small" data-delk="${esc(s.id)}">Entfernen</button></td></tr>`).join("")}
+    ${T.students.map(s => `<tr><td><b>${esc(s.name)}</b></td><td><span class="pin-inline">${(s.pinHint || []).map(e => art(e)).join("")}</span> <span class="small muted">${(s.pinHint || []).map(e => PIN_NAMES[e] || e).join(", ")}</span></td><td class="row" style="gap:6px;justify-content:flex-end"><button class="btn ghost small" data-pin="${esc(s.id)}">Neue PIN</button><button class="btn ghost small" data-ren="${esc(s.id)}">Umbenennen</button><button class="btn ghost small" data-reset="${esc(s.id)}">Zurücksetzen</button><button class="btn ghost small" data-delk="${esc(s.id)}">Entfernen</button></td></tr>`).join("")}
     </tbody></table></div></div>`;
   $("#print").onclick = () => window.print();
   $("#addk").onclick = async () => {
@@ -586,6 +587,17 @@ function studentsTab(el) {
       { onMount: (m, close) => { const i = m.querySelector("#rn"); i.focus(); m.querySelector("#ok").onclick = () => close(i.value.trim()); } });
     if (r) { await Store.put("student", s.id, { ...s, name: r.slice(0, 30) }); await loadAll(); studentsTab(el); }
   });
+  $$("[data-reset]", el).forEach(b => b.onclick = async () => {
+    const s = T.students.find(x => x.id === b.dataset.reset);
+    if (!await confirmBox(`Den gesamten Lernfortschritt von ${s.name} zurücksetzen? ${s.name} beginnt wieder ganz von vorn. Das kann nicht rückgängig gemacht werden.`, "Zurücksetzen", "Abbrechen", true)) return;
+    await Store.del("progress", s.id); await loadAll(); studentsTab(el);
+    toast(`${s.name} wurde zurückgesetzt.`);
+  });
+  if ($("#resetAll")) $("#resetAll").onclick = async () => {
+    if (!await confirmBox(`Den Lernfortschritt ALLER ${T.students.length} Kinder zurücksetzen? Alle beginnen wieder von vorn. Lektionen, Kinder und Wochenberichte bleiben erhalten. Das kann nicht rückgängig gemacht werden.`, "Alle zurücksetzen", "Abbrechen", true)) return;
+    for (const s of T.students) await Store.del("progress", s.id);
+    await loadAll(); studentsTab(el); toast("Die ganze Klasse wurde zurückgesetzt.");
+  };
   $$("[data-delk]", el).forEach(b => b.onclick = async () => {
     const s = T.students.find(x => x.id === b.dataset.delk);
     if (!await confirmBox(`${s.name} und den ganzen Lernfortschritt entfernen?`, "Entfernen", "Abbrechen", true)) return;
