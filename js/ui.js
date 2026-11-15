@@ -1,0 +1,100 @@
+import { esc } from "./util.js";
+
+export const $ = (s, el = document) => el.querySelector(s);
+export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+export const app = () => document.getElementById("app");
+
+export function render(html) {
+  const el = app();
+  el.innerHTML = html;
+  window.scrollTo(0, 0);
+  return el;
+}
+
+let toastT;
+export function toast(msg, ms = 2600) {
+  let t = document.getElementById("toast");
+  if (!t) { t = document.createElement("div"); t.id = "toast"; t.setAttribute("role", "status"); document.body.appendChild(t); }
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toastT); toastT = setTimeout(() => (t.hidden = true), ms);
+}
+
+export function modal(html, { onMount } = {}) {
+  return new Promise(resolve => {
+    const bg = document.createElement("div");
+    bg.className = "modal-bg";
+    bg.innerHTML = `<div class="modal" role="dialog" aria-modal="true">${html}</div>`;
+    document.body.appendChild(bg);
+    const close = v => { bg.remove(); resolve(v); };
+    bg.addEventListener("click", e => {
+      if (e.target === bg) close(null);
+      const b = e.target.closest("[data-close]");
+      if (b) close(b.dataset.close);
+    });
+    onMount && onMount(bg.firstElementChild, close);
+  });
+}
+
+export async function confirmBox(text, yes = "Ja", no = "Abbrechen", danger = false) {
+  const r = await modal(`<p style="font-size:1.1rem;margin:0">${esc(text)}</p>
+    <div class="row" style="justify-content:flex-end"><button class="btn ghost small" data-close="no">${esc(no)}</button>
+    <button class="btn small ${danger ? "coral" : "green"}" data-close="yes">${esc(yes)}</button></div>`);
+  return r === "yes";
+}
+
+// Bild eines Wortes: hochgeladenes Bild oder Emoji
+export function pic(w, cls = "") {
+  if (w.img) return `<img src="${esc(w.img)}" alt="" class="${cls}">`;
+  if (w.emoji) return `<span aria-hidden="true">${esc(w.emoji)}</span>`;
+  return `<span aria-hidden="true" style="font-size:.5em;opacity:.5">🖼️</span>`;
+}
+export const hasPic = w => !!(w.img || w.emoji);
+
+export function avatarHtml(av = {}, size = "") {
+  return `<span class="avatar ${size}" style="background:${esc(av.color || "#bfe6f6")}22;box-shadow:inset 0 0 0 3px ${esc(av.color || "#2b9ad1")}">${av.hat ? `<span class="hat">${esc(av.hat)}</span>` : ""}${esc(av.animal || "🐢")}</span>`;
+}
+
+// ---- Töne (ohne Dateien, WebAudio) ----
+let ac;
+function tone(freq, dur = .12, type = "sine", when = 0, vol = .18) {
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, ac.currentTime + when);
+    g.gain.exponentialRampToValueAtTime(.001, ac.currentTime + when + dur);
+    o.connect(g); g.connect(ac.destination);
+    o.start(ac.currentTime + when); o.stop(ac.currentTime + when + dur + .02);
+  } catch {}
+}
+export const sfx = {
+  ok() { tone(660, .1, "triangle"); tone(990, .16, "triangle", .09); },
+  no() { tone(220, .18, "sawtooth", 0, .08); },
+  coin() { tone(1200, .07, "square", 0, .06); tone(1600, .1, "square", .07, .06); },
+  win() { [523, 659, 784, 1046].forEach((f, i) => tone(f, .18, "triangle", i * .12)); },
+  tap() { tone(500, .04, "sine", 0, .06); },
+};
+
+// ---- Konfetti ----
+export function confetti(n = 120) {
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+  const c = document.createElement("canvas"); c.id = "confetti";
+  document.body.appendChild(c);
+  const ctx = c.getContext("2d");
+  const W = c.width = innerWidth, H = c.height = innerHeight;
+  const cols = ["#ffc531", "#ff6f4f", "#2f9e5e", "#2b9ad1", "#7048e8"];
+  const ps = Array.from({ length: n }, () => ({ x: Math.random() * W, y: -20 - Math.random() * H * .5, vx: (Math.random() - .5) * 4, vy: 2 + Math.random() * 4, r: Math.random() * 6.28, s: 6 + Math.random() * 8, c: cols[Math.floor(Math.random() * cols.length)] }));
+  let f = 0;
+  (function loop() {
+    ctx.clearRect(0, 0, W, H);
+    for (const p of ps) { p.x += p.vx; p.y += p.vy; p.vy += .05; p.r += .1; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c; ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); ctx.restore(); }
+    if (++f < 160) requestAnimationFrame(loop); else c.remove();
+  })();
+}
+
+export function fmtMin(sec) { const m = Math.round(sec / 60); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; }
+export function relDay(ts) {
+  if (!ts) return "noch nie";
+  const d = Math.floor((Date.now() - ts) / 86400000);
+  if (d <= 0) return "heute"; if (d === 1) return "gestern"; return `vor ${d} Tagen`;
+}
