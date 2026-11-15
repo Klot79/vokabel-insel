@@ -1,7 +1,7 @@
-# 🏝️ Vokabel-Insel
+# 🦜 Vokabeln lernen ist doch einfach
 
 Französisch-Vokabeln lernen für die 4. Klasse (FR → Deutsch und FR → Portugiesisch).
-Die Kinder segeln auf einer Weltkarte von Insel zu Insel. Jede Insel ist eine Lektion.
+Jede Lektion ist eine Insel. Die Kinder wählen zwischen **Lernen** (mit Hilfen) und **Testen** (ohne Hilfen).
 Die Lehrkraft sieht den Fortschritt der ganzen Klasse auf einen Blick.
 
 Die App läuft im Browser (iPad, Handy, PC) und braucht kein App-Store-Konto.
@@ -12,45 +12,44 @@ Die Kinder brauchen kein Benutzerkonto, sie melden sich mit Klassencode, Namen u
 ## Was die App kann
 
 **Für die Kinder**
-- **Tagesmission**: kurze Einheit (ca. 5 Minuten) mit fälligen Wiederholungen und wenigen neuen Wörtern
-- **8 Übungsarten**: Entdecken (Bild + Wort + Ton), Quiz, Hören, Schreiben (mit Akzent-Tasten), Sprechen (Spracherkennung), Buchstabensalat, Memory, Blitzrunde (60 Sekunden)
-- **Vorlesen**: Jedes französische Wort wird vorgesprochen
-- **Weltkarte**: Inseln mit je 3 Sternen, die nächste Insel öffnet sich mit dem ersten Stern
-- **Motivation**: Münzen, Avatar-Shop (Tiere, Hüte, Farben), Tage-Serie 🔥, Abzeichen, gemeinsames Klassenziel
-- **Mein Fortschritt**: Lernkartei-Ansicht, Übungskalender, Sterne pro Insel
-- **Keine Rangliste**: Kinder vergleichen sich nur mit sich selbst
+- **Lernen**: Die App stellt jeden Tag die passenden Wörter zusammen (fällige Wiederholungen + höchstens 5 neue). Neue Wörter: kennenlernen (Bild, Wort, Ton) → wiedererkennen → **2× richtig schreiben oder sprechen**.
+- **Testen**: Jedes Wort der Insel einmal, ohne Tipps, ein Versuch. Ergebnis in Prozent, ab 80 % gibt es den Test-Stern. Falsche Wörter kommen automatisch zurück ins Lernen.
+- **🔊 Anhören bei jedem Wort** (zweimal tippen = langsamer). Im Test ist es eine Notfall-Hilfe und zählt nur halb.
+- **🎤 Sprechen bei jedem Wort**: automatische Spracherkennung prüft das gesprochene Wort (iPad/Safari, Chrome). Großzügig bei Artikel, Akzenten und kleinen Aussprachefehlern.
+- **Spiele**: Memory, Blitzrunde (60 Sekunden), „Wörter ansehen“ zum Nachschlagen
+- **Motivation**: Sterne pro Insel, Münzen, Avatar-Shop (Tiere, Hüte, Farben), Tage-Serie, Abzeichen, gemeinsames Klassenziel – **keine Rangliste**
+- **Kindgerechte Gestaltung**: weißer Hintergrund, große Knöpfe, eigene Comic-Grafiken (Maskottchen Papagei), Schrift für Leseanfänger
 
 **Für die Lehrkraft**
-- **Klassenübersicht**: Wer übt wie viel, Trefferquote, Fortschritt je Lektion als Farbtabelle, Aktivität der letzten 14 Tage
-- **Schwierige Wörter** der Klasse (gut für die Wiederholung im Unterricht)
-- **Hinweise**, welche Kinder länger nicht geübt haben oder Hilfe brauchen könnten
-- **Lektionen anlegen** in wenigen Minuten:
-  - 📷 **Foto vom Vokabelblatt** (auch direkt mit der iPad-Kamera), die Texterkennung liest die Wörter aus
-  - 📄 **PDF** (mit Text oder eingescannt), **Word** (.docx), **Excel** (.xlsx/.xls/.ods), **CSV/TXT** oder Text einfügen
-  - 🖼 **Bilder** (JPG, PNG, WebP, GIF, SVG, HEIC in Safari) in guter Auflösung (bis 1200 Pixel): mehrere auf einmal hochladen, Zuordnung per Dateiname (z. B. `chat.jpg` → *le chat*)
-  - 🔍 **Bildsuche**: lizenzfreie Zeichnungen oder Fotos (Creative Commons, über Openverse) direkt in der App finden – einzeln oder mit „Fehlende Bilder suchen“ für alle Wörter ohne Bild
-  - 🏝️ **Inselbild** für jede Lektion: eigenes Bild hochladen, suchen oder Emoji
-- Lektionen **für alle oder nur für bestimmte Kinder** freigeben (z. B. FR→PT für portugiesischsprachige Kinder)
-- **Bild-PIN-Karten** zum Ausdrucken, Sicherung als Datei
+- **Klassenübersicht**: Übungszeit, Trefferquote, Testergebnisse, Fortschritt je Lektion als Farbtabelle, Aktivität der letzten 14 Tage
+- **Schwierige Wörter** der Klasse und **Hinweise**, wer länger nicht geübt hat
+- **Lektionen anlegen**: 📷 Foto vom Vokabelblatt, 📄 PDF, Word, Excel, CSV oder Text einfügen
+- **Bilder separat hochladen**: einzelne Bilder, einen ganzen Ordner oder eine ZIP-Datei – vor oder nach der Wortliste. Zuordnung automatisch über den Dateinamen (`chat.jpg` → *le chat*, `Katze.png` → *die Katze*), der Rest per Antippen aus der Ablage. Bilder bis 1200 Pixel.
+- 🔍 **Bildsuche** (lizenzfreie Zeichnungen/Fotos über Openverse) und 🏝️ eigenes **Inselbild** pro Lektion
+- Lektionen für alle oder nur bestimmte Kinder (z. B. FR→PT), Bild-PIN-Karten zum Drucken, Sicherung als Datei
 
 ---
 
-## Worauf das Lernkonzept beruht
+## Die Lernstrategie (wissenschaftlich begründet)
 
-| Prinzip | Studie | Umsetzung in der App |
+```
+ neu ─► heute lernen ─(2× richtig, mit Abstand)─► +1 Tag ─► +3 Tage ─► +1 Woche ─► +1 Monat = gemeistert
+              ▲                                       │         │          │           │
+              └────────────── Fehler ◄────────────────┴─────────┴──────────┴───────────┘
+```
+
+| Regel | Forschung | So setzt es die App um |
 |---|---|---|
-| **Verteiltes Wiederholen** (Spacing-Effekt) | Ebbinghaus 1885; Cepeda et al. 2006 | Lernkartei mit 5 Fächern. Ein Wort kommt nach 10 Min., 1, 3, 7 und 16 Tagen wieder. |
-| **Abrufen statt Wiederlesen** (Testing-Effekt) | Roediger & Karpicke 2006 | Jede Übung verlangt eine Antwort, die Tagesmission besteht vor allem aus Wiederholungen. |
-| **Vom Erkennen zum freien Abrufen** | Desirable Difficulties, Bjork 1994 | Multiple Choice bringt ein Wort höchstens bis Fach 2, danach zählen nur Schreiben und Sprechen. |
-| **Bild + Wort + Ton** (Doppelte Kodierung) | Paivio 1971; Mayer 2009 | Jedes Wort mit Bild/Emoji und Aussprache |
-| **Laut sprechen** (Produktionseffekt) | MacLeod et al. 2010 | Sprechübung mit Spracherkennung, Nachsprechen beim Entdecken |
-| **Kleine Portionen** | Arbeitsgedächtnis, Cowan 2001 | Höchstens 5–6 neue Wörter pro Einheit |
-| **Sofortiges Feedback, Fehler wiederholen** | Hattie & Timperley 2007 | Richtige Lösung wird gezeigt und vorgelesen, das Wort kommt in derselben Runde nochmal |
-| **Motivation durch Autonomie, Kompetenz, Zugehörigkeit** | Selbstbestimmungstheorie, Deci & Ryan | Übungsart frei wählbar, sichtbarer Fortschritt, gemeinsames Klassenziel statt Rangliste |
-| **Anstrengung loben** | Dweck (Growth Mindset) | Rückmeldungen loben Üben und Dranbleiben, Fehler gelten als normal |
+| **2× richtig abrufen, dann Pause** | Successive Relearning, Rawson & Dunlosky 2011/2013 | Ein Wort ist für heute fertig, wenn es 2× richtig geschrieben/gesprochen wurde – **kein drittes Mal hintereinander**. |
+| **Abstand innerhalb der Einheit** | Kornell 2009; Karpicke & Bauernschmidt 2011 | Zwischen zwei Abfragen desselben Wortes liegen mindestens 3 andere Wörter. |
+| **Wachsende Pausen** | Spacing-Effekt, Cepeda et al. 2006 | Wiederholung nach 1 Tag, 3 Tagen, 1 Woche, 1 Monat. |
+| **Fehler → öfter üben** | Rawson & Dunlosky | Ein Fehler setzt das Wort zurück auf „heute“: es kommt nach 2–3 anderen Wörtern wieder und braucht wieder 2× richtig. |
+| **Abrufen statt Anschauen** | Testing-Effekt, Roediger & Karpicke 2006 | Gezählt wird nur Schreiben/Sprechen. Multiple Choice dient nur zum Aufwärmen. Hilfe (🔊/Tipp) zählt nicht als echter Abruf. |
+| **Bild + Wort + Ton, laut sprechen** | Paivio; Produktionseffekt, MacLeod 2010 | Jedes Wort mit Bild und Aussprache, Mikrofon bei jedem Wort. |
+| **Kleine Portionen** | Arbeitsgedächtnis, Cowan 2001 | Höchstens 5 neue Wörter pro Einheit. |
+| **Motivation ohne Druck** | Selbstbestimmungstheorie, Deci & Ryan; Dweck | Wahl zwischen Lernen/Testen und Schreiben/Sprechen, sichtbarer Fortschritt, Klassenziel statt Rangliste, Lob für Dranbleiben. |
 
-**Die 3 Sterne einer Insel:**
-⭐ alle Wörter entdeckt · ⭐⭐ 80 % sicher abrufbar · ⭐⭐⭐ 80 % gemeistert (nur durch Wiederholen an verschiedenen Tagen erreichbar)
+**Sterne einer Insel:** ⭐ alle Wörter kennengelernt · ⭐⭐ 80 % 2× richtig geschafft · ⭐⭐⭐ 80 % auch nach 3 Tagen noch gewusst. Dazu der **Test-Stern** ab 80 % im Test.
 
 ---
 
@@ -59,7 +58,7 @@ Die Kinder brauchen kein Benutzerkonto, sie melden sich mit Klassencode, Namen u
 Ohne Einrichtung startet die App im **Demo-Modus** mit einer Beispielklasse:
 
 - Klassencode **DEMO**
-- Kinder-PIN **🐶 🍎 ⭐** (für alle Demo-Kinder)
+- Kinder-PIN **Hund, Apfel, Stern** (für alle Demo-Kinder)
 - Lehrer-PIN **1234**
 
 Im Demo-Modus bleiben alle Daten **nur auf diesem Gerät**.
@@ -130,9 +129,10 @@ index.html            Startseite
 css/style.css         Gestaltung
 js/config.js          ← hier die Supabase-Daten eintragen
 js/app.js             Start & Klassencode
-js/student.js         Kinderbereich: Karte, Übungen, Spiele, Shop
+js/student.js         Kinderbereich: Inseln, Lernen, Testen, Spiele, Shop
+js/art.js             Comic-Grafiken (SVG): Maskottchen, Knöpfe, Avatare, Bild-PIN
 js/teacher.js         Lehrerbereich: Übersicht, Lektionen, Kinder, Einstellungen
-js/srs.js             Lernlogik (Lernkartei, Sterne, Abzeichen)
+js/srs.js             Lernlogik (2× richtig, wachsende Pausen, Sterne, Abzeichen)
 js/import.js          Import: Foto/PDF-Texterkennung, Word, Excel, CSV, Bilder
 js/speech.js          Vorlesen & Spracherkennung
 js/store.js           Speicher (Supabase oder Gerät)

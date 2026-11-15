@@ -1,6 +1,7 @@
 import { Store, Device, isCloud } from "./store.js";
 import { render, $, toast } from "./ui.js";
 import { esc } from "./util.js";
+import { art } from "./art.js";
 import { studentLogin } from "./student.js";
 import { teacherLogin } from "./teacher.js";
 
@@ -9,15 +10,15 @@ const m = location.hash.match(/k=([^&]+)/);
 if (m) { Device.set("classCode", Store.normCode(decodeURIComponent(m[1]))); history.replaceState(null, "", location.pathname); }
 
 function start() {
-  document.body.classList.remove("teacher-mode");
+  document.body.classList.remove("teacher-mode", "kid-mode");
   const code = Device.get("classCode", "");
   render(`<div class="wrap narrow">
-    <div class="hero"><div style="font-size:4.5rem">🏝️</div><h1>Vokabel-Insel</h1><p>Entdecke Wörter, sammle Sterne, segle von Insel zu Insel.</p></div>
+    <div class="hero"><span class="mascot">${art("parrot")}</span><h1>Vokabeln lernen ist doch einfach</h1><p>Französisch üben, Sterne sammeln, von Insel zu Insel segeln.</p></div>
     <div class="role-grid">
-      <button class="role-card" id="kid"><span class="em">🧒</span><b>Ich bin ein Kind</b><span class="muted">${code ? `Klasse ${esc(code)}` : "Los geht's!"}</span></button>
-      <button class="role-card" id="teacher"><span class="em">🧑‍🏫</span><b>Lehrkraft</b><span class="muted">Lektionen & Fortschritt</span></button>
+      <button class="role-card kid" id="kid"><span class="art-bg">${art("book")}</span><b>Ich bin ein Kind</b><span>${code ? `Klasse ${esc(code)}` : "Los geht's!"}</span></button>
+      <button class="role-card teacher" id="teacher"><span class="art-bg">${art("clipboard")}</span><b>Lehrkraft</b><span>Lektionen und Fortschritt</span></button>
     </div>
-    ${!isCloud ? `<p class="center" style="color:#fff;font-size:.9rem">Demo-Modus · zum Ausprobieren Klassencode <b>DEMO</b> (Kinder-PIN 🐶🍎⭐, Lehrer-PIN 1234)</p>` : ""}
+    ${!isCloud ? `<p class="center small muted">Demo-Modus · zum Ausprobieren Klassencode <b>DEMO</b> (Kinder-PIN Hund, Apfel, Stern · Lehrer-PIN 1234)</p>` : ""}
   </div>`);
   $("#kid").onclick = () => code ? openClass(code) : enterCode();
   $("#teacher").onclick = () => teacherLogin(start);
@@ -25,8 +26,8 @@ function start() {
 
 function enterCode() {
   render(`<div class="wrap narrow">
-    <div class="row"><button class="icon-btn" id="back" aria-label="Zurück">⬅️</button></div>
-    <div class="hero"><h1>Klassencode</h1><p>Den Code bekommst du von deiner Lehrkraft.</p></div>
+    <div class="row"><button class="btn ghost small" id="back">Zurück</button></div>
+    <div class="hello"><span class="mascot">${art("parrot")}</span><div class="bubble"><h1>Klassencode</h1><p>Den Code bekommst du von deiner Lehrkraft.</p></div></div>
     <div class="panel stack">
       <input class="input" id="code" style="font-size:1.8rem;text-align:center;font-family:var(--f-display);text-transform:uppercase" autocapitalize="characters" autocomplete="off" placeholder="SONNE-4821" aria-label="Klassencode">
       <button class="btn big green" id="go">Weiter ➜</button>

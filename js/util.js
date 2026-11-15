@@ -11,6 +11,7 @@ export async function sha(text) {
   return "x" + (h >>> 0).toString(16);
 }
 
+export const PIN_NAMES = { "🐶": "Hund", "🐱": "Katze", "🦊": "Fuchs", "🍎": "Apfel", "🍌": "Banane", "🍓": "Erdbeere", "⭐": "Stern", "🌙": "Mond", "☀️": "Sonne" };
 export const PIN_EMOJI = ["🐶", "🐱", "🦊", "🍎", "🍌", "🍓", "⭐", "🌙", "☀️"];
 export const pinHash = (code, pin) => sha(`${String(code).toUpperCase()}#${pin.join("")}`);
 export function randomPin() { return Array.from({ length: 3 }, () => PIN_EMOJI[Math.floor(Math.random() * PIN_EMOJI.length)]); }

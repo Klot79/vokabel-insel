@@ -1,5 +1,6 @@
 import { Store, Device, isCloud } from "./store.js";
-import { esc, uid, sha, pinHash, randomPin, LANG_FLAG, LANG_NAME } from "./util.js";
+import { esc, uid, sha, pinHash, randomPin, LANG_FLAG, LANG_NAME, PIN_NAMES } from "./util.js";
+import { art } from "./art.js";
 import { render, $, $$, toast, modal, confirmBox, pic, avatarHtml, fmtMin, relDay } from "./ui.js";
 import { lessonStats, weekSummary, currentStreak, emptyProgress, todayStr, DAY, wstate, stripArticle, norm } from "./srs.js";
 import { fileToLines, splitLines, linesToPairs, prepareImage, matchImages, searchOpenverse, fetchImageBlob } from "./import.js";
@@ -61,7 +62,7 @@ export function teacherLogin(back) {
   document.body.classList.remove("teacher-mode");
   const code = Device.get("classCode", "");
   render(`<div class="wrap narrow">
-    <div class="row"><button class="icon-btn" id="back" aria-label="Zurück">⬅️</button></div>
+    <div class="row"><button class="btn ghost small" id="back">Zurück</button></div>
     <div class="hero"><h1>Lehrerbereich</h1></div>
     <div class="panel stack">
       <h2>Klasse öffnen</h2>
@@ -129,7 +130,7 @@ async function dashboard() {
   try { await loadAll(); } catch (e) { render(`<div class="wrap"><div class="t-panel">${esc(e.message)}</div></div>`); return; }
   const tabs = [["overview", "📊 Übersicht"], ["lessons", "📚 Lektionen"], ["students", "👧 Kinder"], ["settings", "⚙️ Einstellungen"]];
   render(`<div class="wrap">
-    <div class="t-head"><h1>🏝️ ${esc(T.cls.name)} <span class="pill">${esc(Store.code)}</span></h1>
+    <div class="t-head"><span class="logo">${art("parrot")}</span><h1>${esc(T.cls.name)} <span class="pill">${esc(Store.code)}</span></h1>
       <nav class="tabs">${tabs.map(([k, n]) => `<button data-t="${k}" class="${T.tab === k ? "on" : ""}">${n}</button>`).join("")}</nav>
       <button class="btn ghost small" id="logout">Abmelden</button></div>
     ${!isCloud ? `<div class="banner no-print">Demo-Modus: Daten werden nur auf diesem Gerät gespeichert. Für die ganze Klasse auf allen Geräten bitte Supabase einrichten (siehe Anleitung).</div>` : ""}
@@ -197,7 +198,7 @@ function overview(el) {
         <div class="legend"><span><i style="background:#ffd9cc"></i>&lt;40 %</span><span><i style="background:#ffe8c2"></i>40–69 %</span><span><i style="background:#d3f2df"></i>70–89 %</span><span><i style="background:#8fd6a8"></i>≥90 %</span><span><i style="background:#f1f3f5"></i>nicht zugewiesen</span></div></div>
       <p class="small muted" style="margin:0">Prozent = Anteil der Wörter, die das Kind sicher abrufen kann (Lernkartei Fach 2+). Zeile anklicken für Details.</p>
       <div class="tbl-wrap"><table class="tbl">
-        <thead><tr><th>Kind</th><th>Zuletzt</th><th>🔥</th><th>Woche</th><th>Letzte 14 Tage</th><th>Treffer</th>${lessons.map(l => `<th title="${esc(l.title)}">${esc(l.icon || "")} ${esc(l.title.slice(0, 10))}${LANG_FLAG[l.lang] ? " " + LANG_FLAG[l.lang] : ""}</th>`).join("")}<th></th></tr></thead>
+        <thead><tr><th>Kind</th><th>Zuletzt</th><th>🔥</th><th>Woche</th><th>Letzte 14 Tage</th><th>Treffer</th><th>Tests</th>${lessons.map(l => `<th title="${esc(l.title)}">${esc(l.icon || "")} ${esc(l.title.slice(0, 10))}${LANG_FLAG[l.lang] ? " " + LANG_FLAG[l.lang] : ""}</th>`).join("")}<th></th></tr></thead>
         <tbody>${rows.map(r => `<tr class="click" data-id="${esc(r.s.id)}">
           <td><div class="row" style="gap:8px;flex-wrap:nowrap">${avatarHtml(r.p.avatar, "sm")}<b>${esc(r.s.name)}</b></div></td>
           <td>${relDay(r.lastTs)}</td>
@@ -205,6 +206,7 @@ function overview(el) {
           <td>${fmtMin(r.wk.sec)}</td>
           <td>${spark(r.p)}</td>
           <td>${r.acc == null ? "–" : r.acc + " %"}</td>
+          <td>${testCell(r)}</td>
           ${lessons.map(l => { if (!assignedTo(l, r.s.id)) return `<td><span class="heat" style="background:${heatColor(null)}">–</span></td>`; const st = lessonStats(r.p, l); return `<td><span class="heat" style="background:${heatColor(st.knownPct)}" title="${st.known}/${st.total} sicher, ${st.master} gemeistert">${st.knownPct}%</span></td>`; }).join("")}
           <td>${r.inactive ? `<span class="pill warn">inaktiv</span>` : r.acc != null && r.acc < 60 ? `<span class="pill bad">Hilfe?</span>` : `<span class="pill good">gut</span>`}</td>
         </tr>`).join("") || `<tr><td colspan="9" class="muted">Noch keine Kinder angelegt.</td></tr>`}</tbody>
@@ -224,6 +226,12 @@ function overview(el) {
   $$("tr.click", el).forEach(tr => tr.onclick = () => studentDetail(rows.find(r => r.s.id === tr.dataset.id)));
 }
 
+function testCell(r) {
+  const ts = r.my.map(l => r.p.tests?.[l.id]).filter(Boolean);
+  if (!ts.length) return `<span class="muted">–</span>`;
+  const passed = ts.filter(t => t.best >= 80).length;
+  return `<span class="pill ${passed === ts.length ? "good" : "warn"}" title="${ts.map(t => t.last + " %").join(", ")}">${passed}/${ts.length} ✓</span>`;
+}
 function spark(p) {
   const vals = Array.from({ length: 14 }, (_, i) => p.days?.[todayStr(new Date(Date.now() - (13 - i) * DAY))]?.ans || 0);
   const mx = Math.max(10, ...vals);
@@ -237,6 +245,7 @@ async function studentDetail(r) {
   const res = await modal(`<div class="row" style="gap:12px">${avatarHtml(r.p.avatar)}<div><h2>${esc(r.s.name)}</h2><span class="muted small">zuletzt aktiv: ${relDay(r.lastTs)} · 🔥 ${currentStreak(r.p)} · 🪙 ${r.p.coins}</span></div></div>
     <div class="stack" style="gap:8px">${r.my.map(l => { const st = lessonStats(r.p, l); return `<div><div class="row between small"><span>${esc(l.icon || "")} ${esc(l.title)} ${"⭐".repeat(st.stars)}</span><span>${st.known}/${st.total} sicher · ${st.master} gemeistert · ${st.due} fällig</span></div><div class="bar"><i style="width:${st.knownPct}%"></i></div></div>`; }).join("") || "Keine Lektionen zugewiesen."}</div>
     <div><b>Übt gerade schwer:</b> ${hardWords.slice(0, 8).map(h => `<span class="pill bad">${esc(h.w.fr)}</span>`).join(" ") || `<span class="muted">nichts Auffälliges</span>`}</div>
+    <div><b>Tests:</b> ${r.my.map(l => { const t = r.p.tests?.[l.id]; return t ? `<span class="pill ${t.best >= 80 ? "good" : "warn"}">${esc(l.title)}: ${t.last} % (bestes ${t.best} %, ${t.count}×)</span>` : ""; }).join(" ") || `<span class="muted">noch kein Test</span>`}</div>
     <div><b>Diese Woche:</b> ${r.wk.daysActive} Tage, ${fmtMin(r.wk.sec)}, ${r.wk.ok}/${r.wk.ans} richtig · 🎤 ${r.p.spoken} gesprochen · ✍️ ${r.p.typed} geschrieben</div>
     <div class="row" style="justify-content:flex-end"><button class="btn ghost small" data-close="reset">Fortschritt zurücksetzen</button><button class="btn green small" data-close="ok">Schließen</button></div>`);
   if (res === "reset" && await confirmBox(`Den gesamten Fortschritt von ${r.s.name} löschen? Das kann nicht rückgängig gemacht werden.`, "Löschen", "Abbrechen", true)) {
@@ -271,6 +280,8 @@ function lessonsTab(el) {
 
 function editLesson(L) {
   const el = $("#tab");
+  L.tray = L.tray || [];
+  let trayPick = null;
   const draw = () => {
     el.innerHTML = `<div class="stack" style="gap:16px">
     <div class="t-panel">
@@ -314,12 +325,26 @@ function editLesson(L) {
     </div>
 
     <div class="t-panel">
+      <h2>Bilder hochladen</h2>
+      <div class="drop" id="imgDrop">
+        <b>🖼 Bilder, einen ganzen Ordner oder eine ZIP-Datei hierher ziehen</b>
+        <div class="row" style="justify-content:center"><label class="btn blue small" for="imgs">Bilder wählen</label><label class="btn ghost small" for="imgDir">Ordner wählen</label><label class="btn ghost small" for="imgZip">ZIP-Datei</label></div>
+        <input type="file" id="imgs" class="hidden" multiple accept="image/*,.heic,.svg">
+        <input type="file" id="imgDir" class="hidden" webkitdirectory multiple>
+        <input type="file" id="imgZip" class="hidden" accept=".zip,application/zip">
+        <span class="small muted">Du kannst Bilder vor oder nach der Wortliste hochladen. Heißen sie wie das Wort (z. B. <i>chat.jpg</i> oder <i>Katze.png</i>), ordnet die App sie automatisch zu. Gespeichert wird in guter Auflösung (bis 1200 Pixel).</span>
+      </div>
+      ${(L.tray || []).length ? `<div class="stack" style="gap:6px"><b>Noch nicht zugeordnet (${L.tray.length}):</b><span class="small muted">Tippe ein Bild an und dann bei einem Wort auf das Bild-Feld. ✕ entfernt ein Bild aus der Ablage.</span>
+        <div class="tray">${L.tray.map((t, k) => `<div class="tray-item ${trayPick === k ? "sel" : ""}"><button class="wpic" style="width:100%;height:auto;background:none" data-tray="${k}" title="Auswählen"><img src="${esc(t.url)}" alt=""></button><span>${esc(t.name)}</span><button class="btn ghost small" data-untray="${k}" aria-label="Entfernen">✕</button></div>`).join("")}</div></div>` : ""}
+    </div>
+
+    <div class="t-panel">
       <div class="row between"><h2>Wörter (${L.words.length})</h2>
-        <div class="row" style="gap:6px"><button class="btn ghost small" id="findMissing">🔍 Fehlende Bilder suchen</button><label class="btn ghost small" for="imgs">🖼 Bilder hochladen</label><input type="file" id="imgs" class="hidden" multiple accept="image/*,.heic,.svg"><button class="btn blue small" id="add">＋ Wort</button></div></div>
-      <p class="small muted" style="margin:0">Tipp: Benenne Bilder wie das Wort (z. B. <i>chat.jpg</i> oder <i>Katze.png</i>), dann ordnet die App sie automatisch zu. Bilder werden in guter Auflösung (bis 1200 Pixel) gespeichert. Ein Klick auf ein Bild ersetzt es, 🔍 sucht ein lizenzfreies Bild.</p>
+        <div class="row" style="gap:6px"><button class="btn ghost small" id="findMissing">🔍 Fehlende Bilder suchen</button><button class="btn blue small" id="add">＋ Wort</button></div></div>
+      <p class="small muted" style="margin:0">Ein Klick auf das Bild-Feld ${trayPick != null ? "<b>setzt das ausgewählte Bild aus der Ablage</b>" : "lädt ein Bild hoch"}, 🔍 sucht ein lizenzfreies Bild, 🔊 spricht das Wort vor.</p>
       <div class="tbl-wrap"><table class="tbl words-tbl"><thead><tr><th>Bild</th><th>Französisch</th><th>${LANG_NAME[L.lang]}</th><th>Emoji</th><th>Beispielsatz (optional)</th><th></th></tr></thead>
       <tbody>${L.words.map((w, i) => `<tr data-i="${i}">
-        <td><button class="wpic" data-pic="${i}" title="Bild ändern">${pic(w)}</button></td>
+        <td><button class="wpic ${trayPick != null ? "target" : ""}" data-pic="${i}" title="Bild ändern">${pic(w)}</button></td>
         <td><input class="input" data-f="fr" value="${esc(w.fr)}" aria-label="Französisch"></td>
         <td><input class="input" data-f="tr" value="${esc(w.tr)}" aria-label="Übersetzung"></td>
         <td><input class="input" data-f="emoji" value="${esc(w.emoji || "")}" style="width:64px;text-align:center" aria-label="Emoji"></td>
@@ -352,7 +377,8 @@ function editLesson(L) {
       syncInputs();
       let n = 0;
       pairs.forEach((p, i) => { if ($(`[data-k="${i}"]`).checked) { const fr = $(`[data-a="${i}"]`).value.trim(), tr = $(`[data-b="${i}"]`).value.trim(); if (fr) { L.words.push({ id: uid("w"), fr, tr }); n++; } } });
-      toast(`${n} Wörter übernommen. Speichern nicht vergessen!`); draw();
+      const m = autoMatchTray(L);
+      toast(`${n} Wörter übernommen${m ? `, ${m} Bilder aus der Ablage zugeordnet` : ""}. Speichern nicht vergessen!`); draw();
     };
   };
 
@@ -416,23 +442,48 @@ function editLesson(L) {
     $$("[data-noimg]").forEach(b => b.onclick = () => { syncInputs(); delete L.words[+b.dataset.noimg].img; draw(); });
     $$("[data-say]").forEach(b => b.onclick = () => { syncInputs(); say(L.words[+b.dataset.say].fr, "fr"); });
     let picFor = null;
-    $$("[data-pic]").forEach(b => b.onclick = () => { syncInputs(); picFor = +b.dataset.pic; $("#onepic").click(); });
+    $$("[data-pic]").forEach(b => b.onclick = () => {
+      syncInputs();
+      if (trayPick != null && L.tray[trayPick]) { L.words[+b.dataset.pic].img = L.tray[trayPick].url; delete L.words[+b.dataset.pic].credit; L.tray.splice(trayPick, 1); trayPick = null; draw(); return; }
+      picFor = +b.dataset.pic; $("#onepic").click();
+    });
+    $$("[data-tray]").forEach(b => b.onclick = () => { syncInputs(); trayPick = trayPick === +b.dataset.tray ? null : +b.dataset.tray; draw(); });
+    $$("[data-untray]").forEach(b => b.onclick = () => { syncInputs(); L.tray.splice(+b.dataset.untray, 1); trayPick = null; draw(); });
+    const addImages = async files => {
+      syncInputs();
+      files = files.filter(f => /^image\//.test(f.type) || /\.(jpe?g|png|gif|webp|svg|heic|heif|bmp)$/i.test(f.name));
+      if (!files.length) return toast("Keine Bilder gefunden.");
+      let k = 0;
+      for (const f of files) {
+        toast(`Bild ${++k} von ${files.length} wird gespeichert …`, 8000);
+        try { L.tray.push({ url: await storeImageFile(f), name: f.name.replace(/^.*\//, "") }); } catch (err) { toast(err.message, 6000); }
+      }
+      const n = autoMatchTray(L);
+      warnIfNoStorage(); draw();
+      toast(`${files.length} Bilder hochgeladen, ${n} automatisch zugeordnet.${L.tray.length ? ` ${L.tray.length} warten in der Ablage.` : ""} Speichern nicht vergessen!`, 5000);
+    };
+    $("#imgs").onchange = e => { const f = [...e.target.files]; e.target.value = ""; addImages(f); };
+    $("#imgDir").onchange = e => { const f = [...e.target.files]; e.target.value = ""; addImages(f); };
+    $("#imgZip").onchange = async e => {
+      const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+      try { addImages(await unzipImages(f)); } catch (err) { toast(err.message, 6000); }
+    };
+    const imgDrop = $("#imgDrop");
+    imgDrop.ondragover = e => { e.preventDefault(); imgDrop.classList.add("over"); };
+    imgDrop.ondragleave = () => imgDrop.classList.remove("over");
+    imgDrop.ondrop = async e => {
+      e.preventDefault(); imgDrop.classList.remove("over");
+      const files = [];
+      const items = [...(e.dataTransfer.items || [])].map(i => i.webkitGetAsEntry?.()).filter(Boolean);
+      if (items.length) { for (const it of items) await walkEntry(it, files); } else files.push(...e.dataTransfer.files);
+      const zips = files.filter(f => /\.zip$/i.test(f.name));
+      for (const z of zips) files.push(...await unzipImages(z).catch(() => []));
+      addImages(files.filter(f => !/\.zip$/i.test(f.name)));
+    };
     $("#onepic").onchange = async e => {
       const f = e.target.files[0]; e.target.value = ""; if (!f || picFor == null) return;
       toast("Bild wird gespeichert …");
       try { L.words[picFor].img = await storeImageFile(f); delete L.words[picFor].credit; warnIfNoStorage(); draw(); } catch (err) { toast(err.message, 6000); }
-    };
-    $("#imgs").onchange = async e => {
-      syncInputs();
-      const files = [...e.target.files]; e.target.value = ""; if (!files.length) return;
-      const { matched, unmatched } = matchImages(files, L.words);
-      let k = 0;
-      for (const m of matched) { toast(`Bild ${++k} von ${matched.length} wird gespeichert …`, 8000); try { m.w.img = await storeImageFile(m.f); } catch (err) { toast(err.message, 6000); } }
-      warnIfNoStorage();
-      draw();
-      if (unmatched.length) {
-        await assignUnmatched(unmatched, L); draw();
-      } else toast(`${matched.length} Bilder zugeordnet.`);
     };
     $("#save").onclick = async () => {
       syncInputs();
@@ -455,14 +506,38 @@ function editLesson(L) {
   draw();
 }
 
-async function assignUnmatched(files, L) {
-  const urls = [];
-  for (const f of files) urls.push(await storeImageFile(f).catch(() => null));
-  await modal(`<h2>Bilder zuordnen</h2><p class="small muted" style="margin:0">Diese Bilder konnte ich nicht automatisch zuordnen. Wähle das passende Wort.</p>
-    <div class="stack">${files.map((f, i) => urls[i] ? `<div class="row" style="flex-wrap:nowrap"><img src="${urls[i]}" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:10px"><select class="input" data-u="${i}"><option value="">– nicht verwenden –</option>${L.words.map((w, k) => `<option value="${k}">${esc(w.fr)} (${esc(w.tr)})</option>`).join("")}</select></div>` : `<div class="small">„${esc(f.name)}“ konnte nicht geöffnet werden.</div>`).join("")}</div>
-    <button class="btn green" id="ok">Übernehmen</button>`, {
-    onMount: (m, close) => { m.querySelector("#ok").onclick = () => { m.querySelectorAll("[data-u]").forEach(s => { if (s.value !== "") L.words[+s.value].img = urls[+s.dataset.u]; }); close("ok"); }; },
+// Bilder aus der Ablage per Dateiname den Wörtern ohne Bild zuordnen
+function autoMatchTray(L) {
+  if (!L.tray?.length) return 0;
+  const { matched } = matchImages(L.tray, L.words.filter(w => !w.img));
+  for (const m of matched) { m.w.img = m.f.url; L.tray.splice(L.tray.indexOf(m.f), 1); }
+  return matched.length;
+}
+// Ordner beim Hineinziehen durchsuchen
+function walkEntry(entry, out) {
+  return new Promise(res => {
+    if (entry.isFile) entry.file(f => { out.push(f); res(); }, () => res());
+    else if (entry.isDirectory) {
+      const r = entry.createReader(), all = [];
+      const read = () => r.readEntries(async ents => { if (!ents.length) { for (const e of all) await walkEntry(e, out); res(); } else { all.push(...ents); read(); } }, () => res());
+      read();
+    } else res();
   });
+}
+// Bilder aus einer ZIP-Datei holen
+async function unzipImages(file) {
+  if (!window.JSZip) await new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"; sc.onload = res; sc.onerror = () => rej(new Error("ZIP-Programm konnte nicht geladen werden.")); document.head.appendChild(sc); });
+  const zip = await window.JSZip.loadAsync(await file.arrayBuffer());
+  const out = [];
+  for (const [name, entry] of Object.entries(zip.files)) {
+    if (entry.dir || name.startsWith("__MACOSX") || /(^|\/)\./.test(name)) continue;
+    const m = name.match(/\.(jpe?g|png|gif|webp|svg|bmp)$/i); if (!m) continue;
+    const blob = await entry.async("blob");
+    const type = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml", bmp: "image/bmp" }[m[1].toLowerCase()];
+    out.push(new File([blob], name.split("/").pop(), { type }));
+  }
+  if (!out.length) throw new Error("In der ZIP-Datei sind keine Bilder.");
+  return out;
 }
 
 // ------------------------------------------------------------------
@@ -477,12 +552,12 @@ function studentsTab(el) {
     </div>
     <div class="t-panel"><div class="row between"><h2>PIN-Karten</h2><button class="btn ghost small no-print" id="print">🖨 Drucken</button></div>
       <p class="small muted no-print" style="margin:0">Zum Ausschneiden und Verteilen. Klassencode: <b>${esc(Store.code)}</b></p>
-      <div class="pin-cards">${T.students.map(s => `<div class="pin-card"><b>${esc(s.name)}</b><span class="p">${(s.pinHint || []).join("") || "—"}</span><span class="small muted">Code: ${esc(Store.code)}</span></div>`).join("") || `<span class="muted">Noch keine Kinder.</span>`}</div>
+      <div class="pin-cards">${T.students.map(s => `<div class="pin-card"><b>${esc(s.name)}</b><span class="p">${(s.pinHint || []).map(e => art(e)).join("") || "—"}</span><span class="small muted">Code: ${esc(Store.code)}</span></div>`).join("") || `<span class="muted">Noch keine Kinder.</span>`}</div>
     </div>
   </div>
   <div class="t-panel no-print" style="margin-top:16px"><h2>Alle Kinder (${T.students.length})</h2>
     <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Name</th><th>Bild-PIN</th><th></th></tr></thead><tbody>
-    ${T.students.map(s => `<tr><td><b>${esc(s.name)}</b></td><td style="font-size:1.4rem">${(s.pinHint || []).join(" ")}</td><td class="row" style="gap:6px;justify-content:flex-end"><button class="btn ghost small" data-pin="${esc(s.id)}">Neue PIN</button><button class="btn ghost small" data-ren="${esc(s.id)}">Umbenennen</button><button class="btn ghost small" data-delk="${esc(s.id)}">Entfernen</button></td></tr>`).join("")}
+    ${T.students.map(s => `<tr><td><b>${esc(s.name)}</b></td><td><span class="pin-inline">${(s.pinHint || []).map(e => art(e)).join("")}</span> <span class="small muted">${(s.pinHint || []).map(e => PIN_NAMES[e] || e).join(", ")}</span></td><td class="row" style="gap:6px;justify-content:flex-end"><button class="btn ghost small" data-pin="${esc(s.id)}">Neue PIN</button><button class="btn ghost small" data-ren="${esc(s.id)}">Umbenennen</button><button class="btn ghost small" data-delk="${esc(s.id)}">Entfernen</button></td></tr>`).join("")}
     </tbody></table></div></div>`;
   $("#print").onclick = () => window.print();
   $("#addk").onclick = async () => {
@@ -497,7 +572,7 @@ function studentsTab(el) {
   $$("[data-pin]", el).forEach(b => b.onclick = async () => {
     const s = T.students.find(x => x.id === b.dataset.pin); const pin = randomPin();
     await Store.put("student", s.id, { ...s, pinHash: await pinHash(Store.code, pin), pinHint: pin });
-    toast(`Neue PIN für ${s.name}: ${pin.join(" ")}`); await loadAll(); studentsTab(el);
+    toast(`Neue PIN für ${s.name}: ${pin.map(e => PIN_NAMES[e] || e).join(", ")}`); await loadAll(); studentsTab(el);
   });
   $$("[data-ren]", el).forEach(b => b.onclick = async () => {
     const s = T.students.find(x => x.id === b.dataset.ren);

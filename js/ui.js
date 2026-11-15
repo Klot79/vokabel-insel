@@ -1,4 +1,5 @@
 import { esc } from "./util.js";
+import { art, hat } from "./art.js";
 
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -46,13 +47,23 @@ export async function confirmBox(text, yes = "Ja", no = "Abbrechen", danger = fa
 export function pic(w, cls = "") {
   if (w.img) return `<img src="${esc(w.img)}" alt="" class="${cls}" loading="lazy" decoding="async"${w.credit ? ` title="${esc(w.credit)}"` : ""}>`;
   if (w.emoji) return `<span aria-hidden="true">${esc(w.emoji)}</span>`;
-  return `<span aria-hidden="true" style="font-size:.5em;opacity:.5">🖼️</span>`;
+  return `<span class="no-pic" aria-hidden="true">${art("book")}</span>`;
 }
 export const hasPic = w => !!(w.img || w.emoji);
 
 export function avatarHtml(av = {}, size = "") {
-  return `<span class="avatar ${size}" style="background:${esc(av.color || "#bfe6f6")}22;box-shadow:inset 0 0 0 3px ${esc(av.color || "#2b9ad1")}">${av.hat ? `<span class="hat">${esc(av.hat)}</span>` : ""}${esc(av.animal || "🐢")}</span>`;
+  return `<span class="avatar ${size}" style="background:${esc(av.color || "#2b9ad1")}1f;box-shadow:inset 0 0 0 3px ${esc(av.color || "#2b9ad1")}">${av.hat ? `<span class="hat">${hat(av.hat)}</span>` : ""}${art(av.animal || "🐢", "av-art")}</span>`;
 }
+
+// Einfache Symbole für Knöpfe (weiß, folgen der Textfarbe)
+export const ICON = {
+  speaker: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg>`,
+  mic: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/></svg>`,
+  close: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>`,
+  back: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>`,
+  bulb: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg>`,
+};
+export function stars(n, size = "") { return `<span class="stars ${size}" aria-label="${n} von 3 Sternen">${[0, 1, 2].map(i => art(i < n ? "star" : "starEmpty")).join("")}</span>`; }
 
 // ---- Töne (ohne Dateien, WebAudio) ----
 let ac;
