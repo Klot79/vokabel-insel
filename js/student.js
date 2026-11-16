@@ -239,7 +239,8 @@ async function askAnswerMode(title, learn = false) {
   return modal(`<h2 class="center">${esc(title)}</h2>
     <div class="choose ${learn ? "choose4" : ""}">
       <button class="choose-btn" data-close="mix">${art("games")}<b>${t("Gemischt")}</b><small>${t("Schreiben und Sprechen")}</small></button>
-      ${learn ? `<button class="choose-btn" data-close="copy">${art("postit")}<b>${t("Abschreiben")}</b><small>${t("Wort sehen und abschreiben")}</small></button>
+      ${learn ? `<button class="choose-btn" data-close="cards">${art("book")}<b>${t("Lernkarten")}</b><small>${t("Karte umdrehen und merken")}</small></button>
+      <button class="choose-btn" data-close="copy">${art("postit")}<b>${t("Abschreiben")}</b><small>${t("Wort sehen und abschreiben")}</small></button>
       <button class="choose-btn" data-close="write">${art("clipboard")}<b>${t("Aus dem Kopf schreiben")}</b><small>${t("ohne das Wort zu sehen")}</small></button>`
         : `<button class="choose-btn" data-close="write">${art("clipboard")}<b>${t("Schreiben")}</b><small>${t("mit der Tastatur")}</small></button>`}
       ${canListen ? `<button class="choose-btn" data-close="speak">${art("parrot")}<b>${t("Sprechen")}</b><small>${t("ins Mikrofon")}</small></button>` : ""}
@@ -594,6 +595,31 @@ function introCard(item, ctx, cb, writeMode = false, copyOnly = false) {
   inp.onkeydown = e => { if (e.key === "Enter") check(); };
 }
 
+// Lernkarte: vorne Bedeutung (Deutsch bzw. Portugiesisch) + Bild, hinten Französisch + Bild
+function flashCard(item, ctx, cb) {
+  const { w, l } = item;
+  const p = picBox(w, l);
+  exFrame(ctx, `<span class="task-q">${t("Tippe auf die Karte, um sie umzudrehen.")}</span>
+    <button class="flash" id="flash" aria-label="${t("Karte umdrehen")}">
+      <span class="flash-in">
+        <span class="flash-face front">${p}<span class="flash-word tr">${LANG_FLAG[l.lang] || ""} ${esc(w.tr)}</span><span class="flash-hint">↻ ${t("umdrehen")}</span></span>
+        <span class="flash-face back">${p}<span class="flash-word fr">${esc(w.fr)}</span><span class="flash-hint">↻ ${t("umdrehen")}</span></span>
+      </span>
+    </button>
+    <div id="after" class="flash-after" hidden>
+      <div class="row center-row">${speakerBtn("hear", true)}<span class="small muted">${t("Wort vorlesen lassen")}</span></div>
+      <div class="row center-row"><button class="btn green big" id="knew">${t("Wusste ich")}</button><button class="btn coral big" id="notyet">${t("Noch nicht")}</button></div>
+    </div>`);
+  const card = $("#flash");
+  card.onclick = () => {
+    card.classList.toggle("flipped"); sfx.tap();
+    $("#after").hidden = false;
+  };
+  $("#hear").onclick = () => sayWord(w.fr);   // nur auf Wunsch vorlesen
+  $("#knew").onclick = () => cb(true);
+  $("#notyet").onclick = () => cb(false);
+}
+
 // ------------------------------------------------------------------
 //  LERNEN – Einheit nach „2× richtig mit Abstand“
 // ------------------------------------------------------------------
@@ -638,6 +664,15 @@ function runLearn(items, opts) {
     const ctx = { mode: "learn", label: opts.lesson ? opts.lesson.title : t("Lernen"), progress: Math.round((1 - totalSteps() / Math.max(1, startSteps)) * 100), coins: st.coins };
     const after = () => { it.last = st.pos; st.pos++; save(); };
 
+    if (opts.pref === "cards") {
+      return flashCard(it, ctx, knew => {
+        if (!extra && it.kind === "new") markSeen(S.prog, it.l, it.w);
+        st.ans++;
+        if (knew) { it.done = true; st.doneWords++; st.ok++; st.coins += 1; sfx.ok(); }
+        else sfx.no();
+        after(); next();
+      });
+    }
     if (opts.pref === "copy") {
       return introCard(it, ctx, () => {
         if (!extra && it.kind === "new") markSeen(S.prog, it.l, it.w);
@@ -685,7 +720,7 @@ function runLearn(items, opts) {
   const finish = () => {
     const sec = Math.round((Date.now() - st.t0) / 1000);
     logActivity(S.prog, { sec, ans: st.ans, ok: st.ok, pts: st.ok, wp: st.wp });
-    const copy = opts.pref === "copy";
+    const copy = opts.pref === "copy", cards = opts.pref === "cards";
     S.prog.coins += st.coins; S.prog.xp += st.ok * 10;
     if (S.goal) S.goal.achieved += st.wp;
     if (opts.mission && planLearn(S.prog, unlockedLessons(S.prog, S.lessons, S.cls.allOpen)).length === 0) S.prog.missionDay = todayStr();
@@ -696,9 +731,9 @@ function runLearn(items, opts) {
     render(`<div class="wrap narrow"><div class="card result">
       <div class="result-art">${art("trophy")}</div>
       <h1>${t("Super gemacht!")}</h1>
-      <p class="muted" style="margin:0">${copy ? tn(st.doneWords, "{n} Wort abgeschrieben.", "{n} Wörter abgeschrieben.") : tn(st.doneWords, "{n} Wort für heute geschafft · {ok} von {ans} Antworten richtig.", "{n} Wörter für heute geschafft · {ok} von {ans} Antworten richtig.", { ok: st.ok, ans: st.ans })}</p>
+      <p class="muted" style="margin:0">${cards ? tn(st.doneWords, "{n} Lernkarte gewusst.", "{n} Lernkarten gewusst.") : copy ? tn(st.doneWords, "{n} Wort abgeschrieben.", "{n} Wörter abgeschrieben.") : tn(st.doneWords, "{n} Wort für heute geschafft · {ok} von {ans} Antworten richtig.", "{n} Wörter für heute geschafft · {ok} von {ans} Antworten richtig.", { ok: st.ok, ans: st.ans })}</p>
       ${st.wp ? `<div class="fb-point">${art("rocket", "ic")} ${tn(st.wp, "{n} Wort für das Klassenziel!", "{n} Wörter für das Klassenziel!")}</div>` : ""}
-      <p class="small muted" style="margin:0">${copy ? t("Gut abgeschrieben! Jetzt kannst du die Wörter aus dem Kopf schreiben.") : t("Die geschafften Wörter machen jetzt Pause und kommen später wieder. So bleiben sie im Kopf.")}</p>
+      <p class="small muted" style="margin:0">${cards ? t("Toll! Probier die Wörter jetzt beim Schreiben oder Sprechen.") : copy ? t("Gut abgeschrieben! Jetzt kannst du die Wörter aus dem Kopf schreiben.") : t("Die geschafften Wörter machen jetzt Pause und kommen später wieder. So bleiben sie im Kopf.")}</p>
       <div class="reward-row"><span class="reward">${art("coin", "ic")} +${st.coins}</span><span class="reward">${art("flame", "ic")} ${currentStreak(S.prog)}</span></div>
       ${newStars.map(l => `<div class="feedback ok">${art("star", "ic")} ${t("Neuer Stern auf „{t}“!", { t: esc(l.title) })}</div>`).join("")}
       ${badges.map(b => `<div class="feedback ok">${art(b.icon, "ic")} ${t("Neues Abzeichen: {n}", { n: esc(t(b.name)) })}</div>`).join("")}
