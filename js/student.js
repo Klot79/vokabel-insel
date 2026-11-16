@@ -4,7 +4,7 @@ import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, IC
 import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js";
 import { currentGoal, der, unser, zum } from "./goal.js";
 import { buildingSvg } from "./buildings.js";
-import { checkSentence, STARTERS } from "./sentence.js";
+import { checkSentence, STARTERS, onlineCheck, issueText, markSentence } from "./sentence.js";
 import { uid } from "./util.js";
 import { say, listen, canListen } from "./speech.js";
 import {
@@ -1280,21 +1280,39 @@ function sentenceTask(l, w, after) {
   $$("[data-s]").forEach(b => b.onclick = () => { ta.value = STARTERS[+b.dataset.s].fr; ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); });
   $$(".accents button").forEach(b => b.onclick = () => insert(b.dataset.c));
   $("#read").onclick = () => ta.value.trim() && say(ta.value.trim(), "fr", 0.85);
-  $("#chk").onclick = () => {
+  let checking = false;
+  $("#chk").onclick = async () => {
     const txt = ta.value.trim();
     if (!txt) { toast("Schreib zuerst einen Satz."); ta.focus(); return; }
+    if (checking) return;
     const r = checkSentence(txt, w, lessonWords);
-    const card = $(".sentence-card"); card.classList.remove("flash-ok", "flash-no"); void card.offsetWidth; card.classList.add(r.good ? "flash-ok" : "flash-no");
-    r.good ? sfx.ok() : sfx.no();
-    $("#res").innerHTML = `<div class="feedback ${r.good ? "ok" : "no"}">
-      <div class="fb-head"><span class="fb-icon">${r.good ? ICON.check : ICON.cross}</span><span class="fb-title">${r.perfect ? "Super Satz!" : r.good ? "Guter Satz!" : "Fast! Verbessere noch:"}</span></div>
-      <ul class="checklist">${r.checks.map(c => `<li class="${c.ok ? (c.info ? "info" : "yes") : c.soft ? "soft" : "no"}">${c.ok ? (c.info ? "ℹ" : "✓") : c.soft ? "!" : "✗"} ${esc(c.txt)}</li>`).join("")}</ul>
-      ${r.good ? `<button class="btn green big" id="saveS">Satz speichern</button>` : `<span class="small">Ändere deinen Satz oben und tippe nochmal auf „Prüfen“.</span>`}
-    </div>`;
-    if (r.good) {
+    const useOnline = S.cls.onlineCheck !== false;
+    const draw = (online) => {
+      const grammarErr = online?.ok ? online.issues.filter(i => i.kind === "grammar") : [];
+      const spellErr = online?.ok ? online.issues.filter(i => i.kind === "spelling") : [];
+      const good = r.good && grammarErr.length === 0;
+      const perfect = good && r.perfect && spellErr.length === 0;
+      const pending = useOnline && !online;
+      // bei vorhandener Online-Prüfung ersetzt sie die Liste „unbekannte Wörter“
+      const local = online?.ok ? r.checks.filter(c => !c.info) : r.checks;
+      const onlineHtml = !useOnline ? "" : pending ? `<li class="info">⏳ Grammatik und Rechtschreibung werden online geprüft …</li>` :
+        !online.ok ? `<li class="info">ℹ ${esc(online.error)} Deine Lehrkraft schaut sich den Satz an.</li>` :
+        online.issues.length === 0 ? `<li class="yes">✓ Grammatik und Rechtschreibung: keine Fehler gefunden (online geprüft).</li>` :
+        online.issues.map(i => `<li class="${i.kind === "grammar" ? "no" : "soft"}">${i.kind === "grammar" ? "✗" : "!"} ${esc(issueText(i))}</li>`).join("");
+      $("#res").innerHTML = `<div class="feedback ${pending ? "" : good ? "ok" : "no"}">
+        <div class="fb-head"><span class="fb-icon">${pending ? "…" : good ? ICON.check : ICON.cross}</span><span class="fb-title">${pending ? "Ich prüfe deinen Satz …" : perfect ? "Super Satz!" : good ? "Guter Satz!" : "Fast! Verbessere noch:"}</span></div>
+        ${online?.ok && online.issues.length ? `<div class="marked">${markSentence(txt, online.issues, esc)}</div>` : ""}
+        <ul class="checklist">${local.map(c => `<li class="${c.ok ? (c.info ? "info" : "yes") : c.soft ? "soft" : "no"}">${c.ok ? (c.info ? "ℹ" : "✓") : c.soft ? "!" : "✗"} ${esc(c.txt)}</li>`).join("")}${onlineHtml}</ul>
+        ${pending ? "" : good ? `<button class="btn green big" id="saveS">Satz speichern</button>` : `<span class="small">Ändere deinen Satz oben und tippe nochmal auf „Prüfen“.</span>`}
+      </div>`;
+      if (pending) return;
+      const card = $(".sentence-card"); card.classList.remove("flash-ok", "flash-no"); void card.offsetWidth; card.classList.add(good ? "flash-ok" : "flash-no");
+      good ? sfx.ok() : sfx.no();
+      if (!good) return;
       if (isSound()) setTimeout(() => say(txt, "fr", 0.85), 400);
       $("#saveS").onclick = () => {
-        const entry = { id: uid("st-"), l: l.id, w: w.id, fr: w.fr, text: txt.slice(0, 200), date: todayStr(), auto: r.perfect ? "perfect" : "good" };
+        const entry = { id: uid("st-"), l: l.id, w: w.id, fr: w.fr, text: txt.slice(0, 200), date: todayStr(), auto: perfect ? "perfect" : "good",
+          online: online?.ok ? { n: online.issues.length, issues: online.issues.slice(0, 5).map(i => issueText(i)) } : null };
         S.prog.sentences = [entry, ...(S.prog.sentences || [])].slice(0, 60);
         S.prog.coins += 3;
         logActivity(S.prog, { sec: 60 });
@@ -1305,7 +1323,13 @@ function sentenceTask(l, w, after) {
           <p class="small muted" style="margin:0">Deine Lehrkraft schaut sich deinen Satz an. Ihre Rückmeldung siehst du auf der Startseite.</p>
           <div class="row center-row"><button class="btn blue" data-close="again">Noch ein Satz</button><button class="btn green" data-close="ok">Fertig</button></div></div>`).then(v => v === "again" ? sentenceTask(l, null, after) : back());
       };
-    }
+    };
+    if (!r.good || !useOnline) return draw(null);   // erst die Grundregeln, dann online
+    checking = true; $("#chk").disabled = true;
+    draw(null);
+    const online = await onlineCheck(txt);
+    checking = false; $("#chk").disabled = false;
+    if (ta.value.trim() === txt) draw(online);
   };
 }
 

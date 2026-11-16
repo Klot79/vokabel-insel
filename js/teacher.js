@@ -629,6 +629,7 @@ function settings(el) {
       <div class="field"><label for="rw">Klassenbelohnungen fürs Glücksrad (eine pro Zeile, max. 12)</label><textarea class="input" id="rw" style="font-family:inherit;min-height:200px">${esc(rewardsOf(T.cls).join("\n"))}</textarea></div>
       <label class="check"><input type="checkbox" id="ao" ${T.cls.allOpen ? "checked" : ""}> Alle Inseln von Anfang an offen (sonst nacheinander)</label>
       <label class="check"><input type="checkbox" id="rep" ${T.cls.report?.enabled ? "checked" : ""}> Wochenbericht automatisch erstellen (jeden Montag ab 7:00)</label>
+      <label class="check"><input type="checkbox" id="olc" ${T.cls.onlineCheck !== false ? "checked" : ""}> Eigene Sätze online auf Grammatik und Rechtschreibung prüfen (LanguageTool; es wird nur der Satz gesendet, kein Name)</label>
       <button class="btn green small" id="sv" style="justify-self:start">Speichern</button>
     </div>
     <div class="t-panel"><h2>Link für die Kinder</h2>
@@ -649,7 +650,7 @@ function settings(el) {
   </div>`;
   $("#sv").onclick = async () => {
     T.cls = { ...T.cls, name: $("#cn").value.trim() || T.cls.name, goal: { unit: "w3", start: Math.max(START_PER_KID * T.students.length, +$("#gs").value || 0), auto: $("#ga").checked, override: +$("#go").value > 0 ? Math.max(START_PER_KID * T.students.length, +$("#go").value) : null },
-      rewards: $("#rw").value.split("\n").map(x => x.trim()).filter(Boolean).slice(0, 12), allOpen: $("#ao").checked, report: { ...(T.cls.report || {}), enabled: $("#rep").checked } };
+      rewards: $("#rw").value.split("\n").map(x => x.trim()).filter(Boolean).slice(0, 12), allOpen: $("#ao").checked, report: { ...(T.cls.report || {}), enabled: $("#rep").checked }, onlineCheck: $("#olc").checked };
     await Store.put("class", "main", T.cls); toast("Gespeichert ✔");
   };
   if ($("#bucketState")) Store.checkImageStorage().then(ok => {
@@ -813,12 +814,12 @@ function sentencesTab(el, onlyOpen = true) {
   el.innerHTML = `<div class="t-panel">
     <div class="row between"><h2>Eigene Sätze der Kinder</h2><label class="check"><input type="checkbox" id="onlyOpen" ${onlyOpen ? "checked" : ""}> nur noch nicht angeschaute</label></div>
     <p class="small muted" style="margin:0">Die App hat jeden Satz schon geprüft (Lernwort benutzt, Artikel, Großbuchstabe, Satzzeichen, Akzente). Den Inhalt beurteilst du: ✓ lobt den Satz, „Verbessern“ bittet das Kind um eine neue Fassung. Das Kind sieht deine Rückmeldung beim nächsten Öffnen.</p>
-    ${list.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Kind</th><th>Wort</th><th>Satz</th><th>App</th><th>Deine Rückmeldung</th></tr></thead><tbody>
+    ${list.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Kind</th><th>Wort</th><th>Satz</th><th>App-Prüfung</th><th>Deine Rückmeldung</th></tr></thead><tbody>
       ${list.map(x => { const f = T.fb[x.sid]?.[x.id]; return `<tr>
         <td><b>${esc(x.name)}</b><br><span class="small muted">${new Date(x.date + "T12:00").toLocaleDateString("de")}</span></td>
         <td>${esc(x.fr)}</td>
         <td style="min-width:200px"><span style="font-size:1.05rem">„${esc(x.text)}“</span> <button class="btn ghost small" data-say="${esc(x.text)}" aria-label="Vorlesen">🔊</button></td>
-        <td>${x.auto === "perfect" ? `<span class="pill good">✓</span>` : `<span class="pill warn">ok</span>`}</td>
+        <td>${x.auto === "perfect" ? `<span class="pill good">✓</span>` : `<span class="pill warn">ok</span>`}${x.online ? (x.online.n ? `<br><span class="small" title="${esc(x.online.issues.join(" · "))}">online: ${x.online.n} Hinweis${x.online.n > 1 ? "e" : ""}</span>` : `<br><span class="small">online: keine Fehler</span>`) : ""}</td>
         <td style="min-width:240px">${f ? `<span class="pill ${f.ok ? "good" : "warn"}">${f.ok ? "✓ gelobt" : "✎ verbessern"}</span> ${esc(f.comment || "")}` : `
           <input class="input" data-cm="${esc(x.sid)}|${esc(x.id)}" placeholder="Kommentar (optional), z. B. Très bien!">
           <div class="row" style="gap:6px;margin-top:6px"><button class="btn green small" data-ok="${esc(x.sid)}|${esc(x.id)}">✓ Super</button><button class="btn ghost small" data-fix="${esc(x.sid)}|${esc(x.id)}">✎ Verbessern</button></div>`}</td>

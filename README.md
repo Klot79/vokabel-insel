@@ -21,7 +21,7 @@ Die Kinder brauchen kein Benutzerkonto, sie melden sich mit Klassencode, Namen u
 - **Vokabeldusche**: Wort hören → nachsprechen → Bedeutung hören, automatisch hintereinander
 - **Malen**: eigenes Bild zum Wort zeichnen (erscheint danach in den Übungen) · **Eselsbrücken** (von der Lehrkraft oder selbst geschrieben)
 - **Post-its zuordnen**, **Sortieren** (le oder la? bzw. kurz/lang), **Bewegungsrunde** (hüpfen, Hampelmann … und dabei das Wort sagen)
-- **Zusatzaufgabe „Mein eigener Satz“** (Selbstbezug-Effekt): Das Kind schreibt mit einem Lernwort einen eigenen französischen Satz, mit Satzanfängen zum Antippen. Die App prüft sofort Lernwort, Artikel (le/la, un/une), Großbuchstabe, Satzzeichen, Akzente und unbekannte Wörter, liest den Satz vor; die Lehrkraft gibt im Tab „Sätze“ ✓ oder „Verbessern“ mit Kommentar.
+- **Zusatzaufgabe „Mein eigener Satz“** (Selbstbezug-Effekt): Das Kind schreibt mit einem Lernwort einen eigenen französischen Satz, mit Satzanfängen zum Antippen. Die App prüft sofort Lernwort, Artikel (le/la, un/une), Großbuchstabe, Satzzeichen und Akzente und danach **online Grammatik und Rechtschreibung** (LanguageTool, Fehler werden im Satz unterstrichen und kindgerecht auf Deutsch erklärt); sie liest den Satz vor; die Lehrkraft gibt im Tab „Sätze“ ✓ oder „Verbessern“ mit Kommentar.
 - **Meine schwierigen Wörter**: eigene Liste mit Üben-Knopf
 - **Rechtschreibung im Test**: fehlender Akzent oder Artikel zählt nur halb
 - **Spiele**: Memory, Blitzrunde (60 Sekunden), „Wörter ansehen“ zum Nachschlagen
@@ -130,6 +130,7 @@ Jetzt läuft die App, aber noch im Demo-Modus. Für die Klassenübersicht folgt 
 ## Datenschutz
 
 - Gespeichert werden nur **Vornamen**, Bild-PIN und Lernfortschritt. Keine E-Mail, kein Foto der Kinder.
+- Die Online-Grammatikprüfung der eigenen Sätze schickt **nur den Satz** (ohne Namen oder Klasse) an LanguageTool (LanguageTooler GmbH, Deutschland). Sie lässt sich in den Einstellungen ausschalten.
 - Die Datenbank liegt bei Supabase in der EU-Region, die du in Schritt 2 wählst.
 - Ohne den Klassencode kann niemand die Daten der Klasse sehen. Den Klassencode deshalb nicht öffentlich posten.
 - Die Bild-PIN ist kindgerecht einfach. Sie verhindert Verwechslungen, ist aber kein starker Schutz.
