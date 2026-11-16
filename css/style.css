@@ -492,3 +492,11 @@ body:not(.teacher-mode) .hero h1, body:not(.teacher-mode) .section-title { text-
 .copy-box .write-row { width: 100%; }
 .copy-box.ok { background: var(--green-l); border: 7px solid var(--green); color: #145c33; }
 .copy-box.no { background: #ffe6dc; border: 7px solid #e03131; color: #8f2f08; }
+
+/* Sprache der Anweisungen */
+.lang-pick { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 4px 0 8px; }
+.lang-btn { display: inline-flex; align-items: center; gap: 8px; border: 2px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 14px 6px 8px; font-weight: 700; font-size: 1rem; box-shadow: 0 3px 0 var(--line); }
+.lang-btn.on { border-color: var(--green); background: var(--green-l); box-shadow: 0 3px 0 var(--green); }
+.flag-big { font-size: 1.6rem; line-height: 1; }
+.lang-top { font-size: 1.5rem; }
+.choose.choose4 { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }

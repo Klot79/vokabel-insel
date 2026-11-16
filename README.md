@@ -12,6 +12,9 @@ Die Kinder brauchen kein Benutzerkonto, sie melden sich mit Klassencode, Namen u
 ## Was die App kann
 
 **Für die Kinder**
+
+- **Anweisungen auf Deutsch, Französisch oder Portugiesisch**: Jedes Kind wählt die Sprache auf der Namensseite (Flaggen) oder oben über die Flagge; die App merkt sich die Wahl pro Kind.
+- **Lernen mit Schreiben**: entweder **Abschreiben** (Wort sehen und abschreiben – ändert die Lernpausen nicht) oder **Aus dem Kopf schreiben** (ohne das französische Wort zu sehen).
 - **Lernen**: Die App stellt jeden Tag die passenden Wörter zusammen (fällige Wiederholungen + höchstens 5 neue). Neue Wörter: kennenlernen (Bild, Wort, Ton) → wiedererkennen → **2× richtig schreiben oder sprechen**.
 - **Testen**: Jedes Wort der Insel einmal, ohne Tipps, ein Versuch. Ergebnis in Prozent, ab 80 % gibt es den Test-Stern. Falsche Wörter kommen automatisch zurück ins Lernen.
 - **🔊 Anhören bei jedem Wort** (zweimal tippen = langsamer). Im Test ist es eine Notfall-Hilfe und zählt nur halb.
@@ -143,6 +146,7 @@ js/config.js          ← hier die Supabase-Daten eintragen
 js/app.js             Start & Klassencode
 js/student.js         Kinderbereich: Inseln, Lernen, Testen, Spiele, Shop
 js/art.js             Comic-Grafiken (SVG): Maskottchen, Knöpfe, Avatare, Bild-PIN
+js/i18n.js            Übersetzungen der Kinder-Anweisungen (DE/FR/PT)
 js/teacher.js         Lehrerbereich: Übersicht, Lektionen, Kinder, Einstellungen
 js/srs.js             Lernlogik (2× richtig, wachsende Pausen, Sterne, Abzeichen)
 js/import.js          Import: Foto/PDF-Texterkennung, Word, Excel, CSV, Bilder
