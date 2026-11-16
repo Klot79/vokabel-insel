@@ -86,8 +86,10 @@ function tone(freq, dur = .12, type = "sine", when = 0, vol = .18) {
   } catch {}
 }
 export const sfx = {
-  ok() { tone(660, .12, "triangle", 0, .22); tone(880, .12, "triangle", .1, .22); tone(1320, .22, "triangle", .2, .22); },
-  no() { tone(392, .16, "square", 0, .07); tone(262, .32, "square", .16, .07); },
+  // richtig: fröhliche, aufsteigende Melodie (ca. 1,3 s)
+  ok() { [523, 659, 784, 1046].forEach((f, i) => tone(f, .28, "triangle", i * .15, .2)); tone(1318, .7, "triangle", .62, .2); tone(1046, .7, "sine", .62, .1); },
+  // falsch: zwei weiche, absteigende Töne (ca. 1 s), nicht erschreckend
+  no() { tone(392, .4, "square", 0, .06); tone(330, .4, "square", .3, .06); tone(262, .6, "square", .6, .06); },
   coin() { tone(1200, .07, "square", 0, .06); tone(1600, .1, "square", .07, .06); },
   win() { [523, 659, 784, 1046].forEach((f, i) => tone(f, .18, "triangle", i * .12)); },
   tap() { tone(500, .04, "sine", 0, .06); },

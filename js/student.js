@@ -336,6 +336,41 @@ async function useMic(btn, out) {
 }
 
 // Deutliche Rückmeldung: großes ✓/✗, Farbe, Klang, immer Schreibweise + Aussprache
+// Motivierende Sprüche (zufällig, nie zweimal hintereinander derselbe)
+const MOTTO_OK = [
+  "Weiter so – du bist ein echter Vokabel-Profi!",
+  "Stark! Das Wort sitzt.",
+  "Du wirst immer besser!",
+  "Wow, das war perfekt!",
+  "Bravo! Darauf kannst du stolz sein.",
+  "Super gemacht – auf zum nächsten Wort!",
+  "Dein Gehirn hat gerade ein Wort gespeichert. Klasse!",
+];
+const MOTTO_OK_SPEAK = [
+  "Toll ausgesprochen – man versteht dich super!",
+  "Dein Französisch klingt richtig gut!",
+  "Très bien! Du sprichst wie ein Profi.",
+];
+const MOTTO_NO = [
+  "Kein Problem – aus Fehlern lernt man!",
+  "Fast geschafft! Beim nächsten Mal klappt es.",
+  "Nicht aufgeben – jedes Üben macht dich stärker!",
+  "Fehler sind Lernhelfer. Weiter geht's!",
+  "Auch Profis üben viel. Du bist auf einem guten Weg!",
+  "Atme tief durch – du schaffst das!",
+];
+const MOTTO_NO_SPEAK = [
+  "Hör gut zu, sprich es nach – gleich sitzt es!",
+  "Mutig gesprochen! Hör dir das Wort an und versuch es nochmal.",
+  "Sprich langsam und deutlich – du schaffst das!",
+];
+let lastMotto = "";
+function motto(ok, spoken) {
+  const list = ok ? (spoken ? [...MOTTO_OK_SPEAK, ...MOTTO_OK_SPEAK, ...MOTTO_OK] : MOTTO_OK) : (spoken ? [...MOTTO_NO_SPEAK, ...MOTTO_NO_SPEAK, ...MOTTO_NO] : MOTTO_NO);
+  let m; do { m = list[Math.floor(Math.random() * list.length)]; } while (m === lastMotto && list.length > 1);
+  return (lastMotto = m);
+}
+
 function feedbackBox(ok, w, msg, onNext, auto, memo, x = {}) {
   const card = $("#card");
   card.classList.remove("flash-ok", "flash-no"); void card.offsetWidth; card.classList.add(ok ? "flash-ok" : "flash-no");
@@ -344,6 +379,7 @@ function feedbackBox(ok, w, msg, onNext, auto, memo, x = {}) {
   const dots = x.wc ? `<div class="wc-dots" title="richtig geschrieben">${Array.from({ length: WRITES_FOR_POINT }, (_, i) => `<span class="${i < x.wc ? "on" : ""}">✍</span>`).join("")}<small>${x.wc} von ${WRITES_FOR_POINT}× richtig geschrieben</small></div>` : "";
   fb.innerHTML = `
     <div class="fb-head"><span class="fb-icon">${ok ? ICON.check : ICON.cross}</span><span class="fb-title">${esc(msg || (ok ? ["Richtig!", "Super!", "Genau!", "Klasse!"][Math.floor(Math.random() * 4)] : "Nicht ganz."))}</span></div>
+    <div class="fb-motto">${ok ? "🌟" : "💪"} ${esc(motto(ok, !!x.heard || x.how === "speak"))}</div>
     ${x.heard ? `<div class="fb-heard">Du hast gesagt: „${esc(x.heard)}“</div>` : x.typed && !ok ? `<div class="fb-heard">Du hast geschrieben: „${esc(x.typed)}“</div>` : ""}
     <div class="fb-sol"><span class="small">So schreibt man es:</span><span class="sol">${esc(w.fr)}</span><button class="round-btn blue" id="solHear" aria-label="So spricht man es aus">${ICON.speaker}</button><span class="small">So spricht man es aus</span></div>
     ${dots}
@@ -360,7 +396,7 @@ function feedbackBox(ok, w, msg, onNext, auto, memo, x = {}) {
   if (x.point) setTimeout(() => sfx.coin(), 450);
   fb.querySelector("#solHear").onclick = () => sayWord(w.fr);
   setTimeout(() => autoSay(w.fr), 500);        // richtige Aussprache – nur wenn Ton an
-  if (ok && auto) setTimeout(go, Math.max(auto, 2200));
+  if (ok && auto) setTimeout(go, Math.max(auto, 3200));   // Zeit zum Lesen des Spruchs
   fb.scrollIntoView({ block: "nearest", behavior: "smooth" });
   btn.focus({ preventScroll: true });
 }
@@ -393,7 +429,9 @@ function recallTask(item, type, ctx, cb, { test = false } = {}) {
       tries++;
       const ok = checkSpoken(alts, w.fr);
       if (ok || test || tries >= 2) { $("#mic").disabled = true; cb({ ok, helped, how: "speak", heard: alts[0] }); return; }
-      sfx.no(); $("#heard").textContent += " Fast! Hör nochmal genau hin und versuch es nochmal.";
+      sfx.no();
+      const card = $("#card"); card.classList.remove("flash-ok", "flash-no"); void card.offsetWidth; card.classList.add("flash-no");
+      $("#heard").innerHTML = `<div class="retry-box"><b>Ich habe „${esc(alts[0])}“ gehört.</b><span class="fb-motto">💪 ${esc(motto(false, true))}</span><span class="small">Tippe auf 🔊, hör genau hin und versuch es nochmal.</span></div>`;
     };
     return;
   }
@@ -566,7 +604,7 @@ function runLearn(items, opts) {
     recallTask(it, recallType(it), ctx, ({ ok, helped, how, note, heard, typed }) => {
       st.ans++;
       countAnswer(S.prog, it.l, it.w, ok);
-      const fx = { heard: how === "speak" ? heard : "", typed };
+      const fx = { heard: how === "speak" ? heard : "", typed, how };
       if (ok) {
         st.ok++; st.coins += 1;
         if (how === "speak") S.prog.spoken++; else S.prog.typed++;
@@ -633,7 +671,7 @@ function runTest(l, mode) {
       if (ok && spelling) helped = true; // Rechtschreibung: Akzent/Artikel fehlt = halber Punkt
       res.push({ w, ok, helped, spelling });
       countAnswer(S.prog, l, w, ok);
-      const fx = { heard: how === "speak" ? heard : "", typed };
+      const fx = { heard: how === "speak" ? heard : "", typed, how };
       if (ok && !helped) {
         coins += 2;
         if (how === "write") { const r = writePoint(S.prog, l, w); wp += r.point; fx.wc = r.count; fx.point = r.point; fx.already = r.already; }
