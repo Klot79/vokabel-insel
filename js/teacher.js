@@ -52,7 +52,6 @@ function searchImage(query, { title = "Bild suchen", alt = [], series = false } 
 }
 const searchTerm = s => stripArticle(norm(String(s || "").split(/[\/;]/)[0]));
 import { say } from "./speech.js";
-import { aiCheck } from "./sentence.js";
 
 const T = { cls: null, tab: "overview", students: [], lessons: [], progs: {}, back: null };
 
@@ -124,7 +123,6 @@ async function loadAll() {
   T.lessons = sortLessons(lessons);
   const classRows = await Store.list("class");
   T.reports = classRows.filter(r => r.id.startsWith("report-")).sort((a, b) => b.week.localeCompare(a.week));
-  T.fb = Object.fromEntries(classRows.filter(r => r.id.startsWith("fb-")).map(r => { const { id, _updated, ...rest } = r; return [id.slice(3), rest]; }));
   T.progs = Object.fromEntries(progs.map(p => [p.id, { ...emptyProgress(), ...p }]));
   if (cls) T.cls = cls;
 }
@@ -135,7 +133,7 @@ async function dashboard() {
   try { await loadAll(); } catch (e) { render(`<div class="wrap"><div class="t-panel">${esc(e.message)}</div></div>`); return; }
   try { T.goal = await currentGoal(T.cls, Object.values(T.progs), T.students.length); } catch { T.goal = null; }
   const fresh = await autoWeekReport();
-  const tabs = [["overview", "📊 Übersicht"], ["lessons", "📚 Lektionen"], ["reports", "📅 Wochenberichte"], ["sentences", `✍️ Sätze${openSentences() ? ` (${openSentences()})` : ""}`], ["students", "👧 Kinder"], ["settings", "⚙️ Einstellungen"]];
+  const tabs = [["overview", "📊 Übersicht"], ["lessons", "📚 Lektionen"], ["reports", "📅 Wochenberichte"], ["students", "👧 Kinder"], ["settings", "⚙️ Einstellungen"]];
   render(`<div class="wrap">
     <div class="t-head"><span class="logo">${art("parrot")}</span><h1>${esc(T.cls.name)} <span class="pill">${esc(Store.code)}</span></h1>
       <nav class="tabs">${tabs.map(([k, n]) => `<button data-t="${k}" class="${T.tab === k ? "on" : ""}">${n}</button>`).join("")}</nav>
@@ -152,7 +150,7 @@ async function dashboard() {
 
 function showTab() {
   const el = $("#tab");
-  ({ overview, lessons: lessonsTab, reports: reportsTab, sentences: sentencesTab, students: studentsTab, settings })[T.tab](el);
+  ({ overview, lessons: lessonsTab, reports: reportsTab, students: studentsTab, settings })[T.tab](el);
 }
 
 const assignedTo = (l, sid) => l.assigned === "all" || !l.assigned || (Array.isArray(l.assigned) && l.assigned.includes(sid));
@@ -630,9 +628,6 @@ function settings(el) {
       <div class="field"><label for="rw">Klassenbelohnungen fürs Glücksrad (eine pro Zeile, max. 12)</label><textarea class="input" id="rw" style="font-family:inherit;min-height:200px">${esc(rewardsOf(T.cls).join("\n"))}</textarea></div>
       <label class="check"><input type="checkbox" id="ao" ${T.cls.allOpen ? "checked" : ""}> Alle Inseln von Anfang an offen (sonst nacheinander)</label>
       <label class="check"><input type="checkbox" id="rep" ${T.cls.report?.enabled ? "checked" : ""}> Wochenbericht automatisch erstellen (jeden Montag ab 7:00)</label>
-      <label class="check"><input type="checkbox" id="olc" ${T.cls.onlineCheck !== false ? "checked" : ""}> Eigene Sätze online auf Grammatik und Rechtschreibung prüfen (LanguageTool; es wird nur der Satz gesendet, kein Name)</label>
-      <label class="check"><input type="checkbox" id="aic" ${T.cls.aiCheck ? "checked" : ""} ${isCloud ? "" : "disabled"}> Eigene Sätze zusätzlich von der KI (Claude) auf Sinn und Grammatik prüfen lassen ${isCloud ? "" : "(nur mit Online-Datenbank)"}</label>
-      ${isCloud ? `<div class="row"><button class="btn ghost small" id="aiTest">KI-Prüfung testen</button><span class="small muted" id="aiTestOut"></span></div>` : ""}
       <button class="btn green small" id="sv" style="justify-self:start">Speichern</button>
     </div>
     <div class="t-panel"><h2>Link für die Kinder</h2>
@@ -653,7 +648,7 @@ function settings(el) {
   </div>`;
   $("#sv").onclick = async () => {
     T.cls = { ...T.cls, name: $("#cn").value.trim() || T.cls.name, goal: { unit: "w3", start: Math.max(START_PER_KID * T.students.length, +$("#gs").value || 0), auto: $("#ga").checked, override: +$("#go").value > 0 ? Math.max(START_PER_KID * T.students.length, +$("#go").value) : null },
-      rewards: $("#rw").value.split("\n").map(x => x.trim()).filter(Boolean).slice(0, 12), allOpen: $("#ao").checked, report: { ...(T.cls.report || {}), enabled: $("#rep").checked }, onlineCheck: $("#olc").checked, aiCheck: !!$("#aic")?.checked };
+      rewards: $("#rw").value.split("\n").map(x => x.trim()).filter(Boolean).slice(0, 12), allOpen: $("#ao").checked, report: { ...(T.cls.report || {}), enabled: $("#rep").checked } };
     await Store.put("class", "main", T.cls); toast("Gespeichert ✔");
   };
   if ($("#bucketState")) Store.checkImageStorage().then(ok => {
@@ -661,11 +656,6 @@ function settings(el) {
     el.innerHTML = ok ? "✅ Bildspeicher eingerichtet: Bilder werden in hoher Auflösung gespeichert."
       : "⚠️ Bildspeicher noch nicht eingerichtet: Bilder werden verkleinert gespeichert. Zum Einrichten in Supabase im SQL Editor die Datei <b>supabase/setup-bilder.sql</b> ausführen.";
   });
-  if ($("#aiTest")) $("#aiTest").onclick = async () => {
-    const out = $("#aiTestOut"); out.textContent = "Teste … (kann ein paar Sekunden dauern)";
-    const r = await aiCheck({ code: Store.code, sentence: "Le chat mange la maison.", word: "le chat", meaning: "die Katze", lang: "de" });
-    out.textContent = r.ok ? `✅ Funktioniert! Beispiel „Le chat mange la maison.“ → Sinn ${r.meaning_ok ? "ok" : "nicht ok"}: ${r.tip}` : `⚠️ ${r.error} – siehe Anleitung (Schritt KI-Prüfung).`;
-  };
   $("#cp").onclick = async () => { try { await navigator.clipboard.writeText(link); toast("Link kopiert."); } catch { $("#lnk").select(); toast("Bitte den markierten Link kopieren."); } };
   $("#pinsv").onclick = async () => {
     const p = $("#np1").value.trim(); if (!/^\d{4,}$/.test(p)) return toast("Die PIN braucht mindestens 4 Ziffern.");
@@ -808,40 +798,3 @@ function showReport(r, live = false) {
   $("#print").onclick = () => window.print();
 }
 
-// ------------------------------------------------------------------
-//  Eigene Sätze der Kinder ansehen und Rückmeldung geben
-// ------------------------------------------------------------------
-function allSentences() {
-  const out = [];
-  for (const st of T.students) for (const x of (T.progs[st.id]?.sentences || [])) out.push({ ...x, sid: st.id, name: st.name });
-  return out.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-}
-function openSentences() { return allSentences().filter(x => !T.fb[x.sid]?.[x.id]).length; }
-function sentencesTab(el, onlyOpen = true) {
-  const list = allSentences().filter(x => !onlyOpen || !T.fb[x.sid]?.[x.id]);
-  el.innerHTML = `<div class="t-panel">
-    <div class="row between"><h2>Eigene Sätze der Kinder</h2><label class="check"><input type="checkbox" id="onlyOpen" ${onlyOpen ? "checked" : ""}> nur noch nicht angeschaute</label></div>
-    <p class="small muted" style="margin:0">Die App hat jeden Satz schon geprüft (Lernwort benutzt, Artikel, Großbuchstabe, Satzzeichen, Akzente). Den Inhalt beurteilst du: ✓ lobt den Satz, „Verbessern“ bittet das Kind um eine neue Fassung. Das Kind sieht deine Rückmeldung beim nächsten Öffnen.</p>
-    ${list.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Kind</th><th>Wort</th><th>Satz</th><th>App-Prüfung</th><th>Deine Rückmeldung</th></tr></thead><tbody>
-      ${list.map(x => { const f = T.fb[x.sid]?.[x.id]; return `<tr>
-        <td><b>${esc(x.name)}</b><br><span class="small muted">${new Date(x.date + "T12:00").toLocaleDateString("de")}</span></td>
-        <td>${esc(x.fr)}</td>
-        <td style="min-width:200px"><span style="font-size:1.05rem">„${esc(x.text)}“</span> <button class="btn ghost small" data-say="${esc(x.text)}" aria-label="Vorlesen">🔊</button></td>
-        <td>${x.auto === "perfect" ? `<span class="pill good">✓</span>` : `<span class="pill warn">ok</span>`}${x.ai ? `<br><span class="pill ${x.ai.verdict === "verbessern" ? "warn" : "good"}" title="${esc((x.ai.tip || "") + (x.ai.corrected ? " · Vorschlag: " + x.ai.corrected : ""))}">KI: ${esc(x.ai.verdict)}${x.ai.meaning_ok ? "" : " · Sinn?"}</span>` : ""}${x.auto === "override" ? `<br><span class="pill bad">trotzdem gespeichert</span>` : ""}${x.online ? (x.online.n ? `<br><span class="small" title="${esc(x.online.issues.join(" · "))}">online: ${x.online.n} Hinweis${x.online.n > 1 ? "e" : ""}</span>` : `<br><span class="small">online: keine Fehler</span>`) : ""}</td>
-        <td style="min-width:240px">${f ? `<span class="pill ${f.ok ? "good" : "warn"}">${f.ok ? "✓ gelobt" : "✎ verbessern"}</span> ${esc(f.comment || "")}` : `
-          <input class="input" data-cm="${esc(x.sid)}|${esc(x.id)}" placeholder="Kommentar (optional), z. B. Très bien!">
-          <div class="row" style="gap:6px;margin-top:6px"><button class="btn green small" data-ok="${esc(x.sid)}|${esc(x.id)}">✓ Super</button><button class="btn ghost small" data-fix="${esc(x.sid)}|${esc(x.id)}">✎ Verbessern</button></div>`}</td>
-      </tr>`; }).join("")}</tbody></table></div>` : `<p class="muted">${onlyOpen ? "Alle Sätze sind angeschaut. 🎉" : "Noch keine Sätze geschrieben."}</p>`}
-  </div>`;
-  $("#onlyOpen").onchange = e => sentencesTab(el, e.target.checked);
-  $$("[data-say]", el).forEach(b => b.onclick = () => say(b.dataset.say, "fr"));
-  const give = async (key, ok) => {
-    const [sid, id] = key.split("|");
-    const comment = (el.querySelector(`[data-cm="${CSS.escape(key)}"]`)?.value || "").trim().slice(0, 200);
-    const rec = { ...(T.fb[sid] || {}), [id]: { ok, comment, date: todayStr() } };
-    try { await Store.put("class", "fb-" + sid, rec); T.fb[sid] = rec; toast(ok ? "Gelobt ✓" : "Bitte um Verbesserung gesendet"); sentencesTab(el, onlyOpen); }
-    catch (e) { toast(e.message); }
-  };
-  $$("[data-ok]", el).forEach(b => b.onclick = () => give(b.dataset.ok, true));
-  $$("[data-fix]", el).forEach(b => b.onclick = () => give(b.dataset.fix, false));
-}

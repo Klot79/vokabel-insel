@@ -4,7 +4,6 @@ import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, IC
 import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js";
 import { currentGoal, der, unser, zum } from "./goal.js";
 import { buildingSvg } from "./buildings.js";
-import { checkSentence, STARTERS, onlineCheck, issueText, markSentence, aiCheck } from "./sentence.js";
 import { uid } from "./util.js";
 import { say, listen, canListen } from "./speech.js";
 import {
@@ -96,8 +95,7 @@ async function enter(student, back) {
   delete S.prog.id; delete S.prog._updated;
   S.lessons = sortLessons(lessons
     .filter(l => l.words?.length && (l.assigned === "all" || !l.assigned || (Array.isArray(l.assigned) && l.assigned.includes(student.id)))));
-  S.prog.memos = S.prog.memos || {}; S.prog.drawings = S.prog.drawings || {}; S.prog.sentences = S.prog.sentences || [];
-  try { S.fb = (await Store.getOne("class", "fb-" + student.id)) || {}; } catch { S.fb = {}; }
+  S.prog.memos = S.prog.memos || {}; S.prog.drawings = S.prog.drawings || {};
   const allProgs = all.filter(p => p.id !== student.id).concat([S.prog]);
   try { S.goal = await currentGoal(S.cls, allProgs, Math.max(1, (await Store.list("student")).length)); } catch (e) { S.goal = null; }
   // Gemeinsamer Klassenfortschritt (ohne Namen – keine Rangliste)
@@ -172,7 +170,6 @@ function home() {
       <button class="mode-btn test" id="test">${art("clipboard", "mode-art")}<span><b>Testen</b><small>Kann ich es schon?</small></span></button>
     </div>
     ${classPanel()}
-    ${sentenceNews()}
     ${hardCard()}
     <h2 class="section-title">Meine Inseln</h2>
     <div class="isle-grid">${S.lessons.length ? S.lessons.map(l => islandCard(l, unlocked.includes(l))).join("") : `<div class="panel">Deine Lehrkraft hat noch keine Lektion für dich freigegeben.</div>`}</div>
@@ -181,7 +178,6 @@ function home() {
   if ($("#weekTest")) $("#weekTest").onclick = () => startTest(S.lessons.find(l => l.id === $("#weekTest").dataset.id));
   if ($("#hardGo")) $("#hardGo").onclick = () => practiceHard();
   if ($("#wheelBtn")) $("#wheelBtn").onclick = () => showWheel(false);
-  if ($("#newsGo")) $("#newsGo").onclick = () => mySentences();
   maybeCelebrate();
   bindTop();
   $("#learn").onclick = () => startLearn(unlocked);
@@ -274,7 +270,6 @@ function islandView(l) {
     </div>
     <h2 class="section-title">Mehr</h2>
     <div class="acts">
-      <button class="act extra-act" data-k="sentence">${art("clipboard")}<b>Mein eigener Satz</b><small>Zusatzaufgabe · +3 Münzen</small></button>
       <button class="act" data-k="shower">${art("shower")}<b>Vokabeldusche</b><small>zuhören und nachsprechen</small></button>
       <button class="act" data-k="words">${art("telescope")}<b>Wörter ansehen</b><small>malen und Eselsbrücken</small></button>
       <button class="act" data-k="match">${art("postit")}<b>Post-its zuordnen</b><small>Wort zum Bild</small></button>
@@ -287,7 +282,7 @@ function islandView(l) {
   bindTop();
   $("#learn").onclick = () => startLearn(null, l);
   $("#test").onclick = () => startTest(l);
-  $$(".act").forEach(b => b.onclick = () => ({ words: wordList, memory: memoryGame, blitz, shower: vocabShower, match: matchGame, sort: sortGame, move: moveGame, sentence: l2 => sentenceTask(l2) })[b.dataset.k](l));
+  $$(".act").forEach(b => b.onclick = () => ({ words: wordList, memory: memoryGame, blitz, shower: vocabShower, match: matchGame, sort: sortGame, move: moveGame })[b.dataset.k](l));
 }
 function starHint(st) {
   if (st.stars === 0) return "Stern 1: Lerne alle Wörter einmal kennen.";
@@ -612,12 +607,9 @@ function runLearn(items, opts) {
       <div class="reward-row"><span class="reward">${art("coin", "ic")} +${st.coins}</span><span class="reward">${art("flame", "ic")} ${currentStreak(S.prog)}</span></div>
       ${newStars.map(l => `<div class="feedback ok">${art("star", "ic")} Neuer Stern auf „${esc(l.title)}“!</div>`).join("")}
       ${badges.map(b => `<div class="feedback ok">${art(b.icon, "ic")} Neues Abzeichen: ${esc(b.name)}</div>`).join("")}
-      <div class="extra-offer"><b>Zusatzaufgabe:</b> Schreib einen eigenen Satz mit einem deiner Wörter! <button class="btn blue small" id="extra">Mein Satz (+3 Münzen)</button></div>
       <button class="btn green big" id="done">Weiter</button>
     </div></div>`);
     $("#done").onclick = () => opts.lesson ? islandView(opts.lesson) : goHome();
-    const doneIt = q.filter(i => i.done && i.l);
-    $("#extra").onclick = () => { const it = (doneIt.length ? doneIt : q)[Math.floor(Math.random() * (doneIt.length || q.length))]; sentenceTask(it.l, it.w, () => opts.lesson ? islandView(opts.lesson) : goHome()); };
   };
 
   onQuit = () => { if (st.ans) finish(); else (opts.lesson ? islandView(opts.lesson) : goHome()); };
@@ -815,7 +807,6 @@ function blitz(l) {
 //  Mein Fortschritt
 // ------------------------------------------------------------------
 function myProgress() {
-  setTimeout(() => { if ($("#mySent")) $("#mySent").onclick = () => mySentences(); }, 0);
   const o = overallStats(S.prog, S.lessons);
   const wk = weekSummary(S.prog);
   const boxes = [0, 0, 0, 0, 0, 0];
@@ -847,8 +838,6 @@ function myProgress() {
     <div class="panel stack"><h3>Meine Inseln</h3>
       ${S.lessons.map(l => { const st = lessonStats(S.prog, l); return `<div class="stack" style="gap:4px"><div class="row between"><b>${esc(l.title)}</b><span class="row" style="gap:8px">${st.testBest != null ? `<span class="pill ${st.testPassed ? "green" : ""}">Test ${st.testBest} %</span>` : ""}${stars(st.stars, "sm")}</span></div><div class="bar"><i style="width:${st.knownPct}%"></i></div></div>`; }).join("") || `<span class="muted">Noch keine Inseln.</span>`}
     </div>
-    <div class="panel stack"><div class="row between"><h3>Meine Sätze</h3><button class="btn ghost small" id="mySent">Alle ansehen</button></div>
-      <span class="small muted">${S.prog.sentences.length} ${S.prog.sentences.length === 1 ? "Satz" : "Sätze"} geschrieben · ${S.prog.sentences.filter(x => S.fb[x.id]?.ok).length} von der Lehrkraft gelobt</span></div>
     <div class="panel stack"><h3>Abzeichen</h3>
       <div class="badges">${BADGES.map(b => `<div class="badge ${S.prog.badges.includes(b.id) ? "" : "off"}">${art(b.icon, "badge-art")}<b>${esc(b.name)}</b><small>${esc(b.desc)}</small></div>`).join("")}</div>
     </div>
@@ -1242,143 +1231,3 @@ function showWheel(first) {
   });
 }
 
-// ------------------------------------------------------------------
-//  Zusatzaufgabe: Mein eigener Satz
-// ------------------------------------------------------------------
-function sentenceTask(l, w, after) {
-  const back = after || (() => islandView(l));
-  if (!w) {
-    // Wort wählen: bevorzugt schon gelernte Wörter
-    const learned = l.words.filter(x => wstate(S.prog, l.id, x.id).b >= 1);
-    const pool = learned.length ? learned : l.words;
-    render(`<div class="wrap narrow">
-      <div class="ex-top"><button class="icon-btn" id="quit" aria-label="Zurück">${ICON.close}</button><b class="ex-title">Mein eigener Satz</b>${audioBtn()}</div>
-      <div class="card"><h2>Mit welchem Wort schreibst du einen Satz?</h2>
-        <div class="word-pick">${pool.map((x, k) => `<button class="choice" data-k="${k}">${hasPic(withDrawing(l, x)) ? `<span class="pic">${pic(withDrawing(l, x))}</span>` : ""}<span>${esc(x.fr)}</span></button>`).join("")}</div></div></div>`);
-    $("#quit").onclick = back;
-    $$("[data-k]").forEach(b => b.onclick = () => sentenceTask(l, pool[+b.dataset.k], after));
-    return;
-  }
-  const lessonWords = l.words.map(x => x.fr);
-  render(`<div class="wrap narrow">
-    <div class="ex-top"><button class="icon-btn" id="quit" aria-label="Zurück">${ICON.close}</button><b class="ex-title">Mein eigener Satz</b>${audioBtn()}</div>
-    <div class="card sentence-card">
-      <span class="task-q">Schreib einen Satz über dich oder deine Welt mit:</span>
-      <div class="row center-row">${picBox(w, l)}</div>
-      <div class="row center-row"><div class="word-fr">${esc(w.fr)}</div>${speakerBtn("hear")}</div>
-      <div class="word-tr">${esc(w.tr)}</div>
-      <div class="starters"><span class="small muted">Satzanfang antippen:</span>${STARTERS.map((st, k) => `<button class="starter" data-s="${k}" title="${esc(st.de)}"><b>${esc(st.fr.trim())} …</b><small>${esc(st.de)}</small></button>`).join("")}</div>
-      <textarea class="input sentence-in" id="sent" rows="2" placeholder="z. B. J'ai ${esc(w.fr)}." autocapitalize="sentences" spellcheck="false"></textarea>
-      <div class="accents">${["é", "è", "ê", "à", "ç", "ô", "î", "û", "ë", "œ", "'", "."].map(c => `<button data-c="${c}">${c}</button>`).join("")}</div>
-      <div class="row center-row"><button class="btn ghost" id="read">${ICON.speaker} Vorlesen</button><button class="btn green" id="chk">Prüfen</button></div>
-      <div id="res"></div>
-    </div></div>`);
-  $("#quit").onclick = back;
-  $("#hear").onclick = () => sayWord(w.fr);
-  const ta = $("#sent");
-  const insert = txt => { const p = ta.selectionStart ?? ta.value.length; ta.value = ta.value.slice(0, p) + txt + ta.value.slice(ta.selectionEnd ?? p); ta.focus(); ta.setSelectionRange(p + txt.length, p + txt.length); };
-  $$("[data-s]").forEach(b => b.onclick = () => { ta.value = STARTERS[+b.dataset.s].fr; ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); });
-  $$(".accents button").forEach(b => b.onclick = () => insert(b.dataset.c));
-  $("#read").onclick = () => ta.value.trim() && say(ta.value.trim(), "fr", 0.85);
-  let checking = false, aiTries = 0;
-  $("#chk").onclick = async () => {
-    const txt = ta.value.trim();
-    if (!txt) { toast("Schreib zuerst einen Satz."); ta.focus(); return; }
-    if (checking) return;
-    const r = checkSentence(txt, w, lessonWords);
-    const useLT = S.cls.onlineCheck !== false;
-    const useAI = !!S.cls.aiCheck;
-    const st = { lt: null, ai: null };     // null = läuft noch / nicht genutzt
-    const draw = () => {
-      const lt = st.lt, ai = st.ai;
-      const grammarErr = lt?.ok ? lt.issues.filter(i => i.kind === "grammar") : [];
-      const spellErr = lt?.ok ? lt.issues.filter(i => i.kind === "spelling") : [];
-      const pending = r.good && ((useLT && !lt) || (useAI && !ai));
-      const aiBad = ai?.ok && ai.verdict === "verbessern";
-      let good = r.good && grammarErr.length === 0 && !aiBad;
-      const override = aiBad && r.good && grammarErr.length === 0 && aiTries >= 2; // nach 2 Versuchen trotzdem speichern
-      const perfect = good && r.perfect && spellErr.length === 0 && (!ai?.ok || ai.verdict === "super");
-      const local = lt?.ok ? r.checks.filter(c => !c.info) : r.checks;
-      const ltHtml = !useLT || !r.good ? "" : !lt ? `<li class="info">⏳ Grammatik und Rechtschreibung werden geprüft …</li>` :
-        !lt.ok ? `<li class="info">ℹ ${esc(lt.error)}</li>` :
-        lt.issues.length === 0 ? `<li class="yes">✓ Grammatik und Rechtschreibung: keine Fehler gefunden.</li>` :
-        lt.issues.map(i => `<li class="${i.kind === "grammar" ? "no" : "soft"}">${i.kind === "grammar" ? "✗" : "!"} ${esc(issueText(i))}</li>`).join("");
-      const aiHtml = !useAI || !r.good || grammarErr.length ? "" : !ai ? `<div class="ai-box pending">⏳ Die KI-Lehrerin liest deinen Satz …</div>` :
-        !ai.ok ? `<div class="ai-box">ℹ ${esc(ai.error)} Deine Lehrkraft schaut sich den Satz an.</div>` :
-        `<div class="ai-box ${ai.verdict === "verbessern" ? "fix" : "good"}">
-          <div class="ai-head">${art("parrot", "ai-art")}<div class="stack" style="gap:4px;min-width:0">
-            <b>${ai.verdict === "super" ? "Super!" : ai.verdict === "gut" ? "Gut gemacht!" : "Fast!"}</b>
-            ${ai.praise ? `<span>${esc(ai.praise)}</span>` : ""}
-            ${ai.tip ? `<span class="ai-tip">${esc(ai.tip)}</span>` : ""}
-          </div></div>
-          <div class="ai-flags"><span class="${ai.meaning_ok ? "yes" : "no"}">${ai.meaning_ok ? "✓" : "✗"} Sinn</span><span class="${ai.grammar_ok ? "yes" : "no"}">${ai.grammar_ok ? "✓" : "✗"} Grammatik</span><span class="${ai.uses_word ? "yes" : "no"}">${ai.uses_word ? "✓" : "✗"} Lernwort</span></div>
-          ${ai.translation ? `<div class="small">So verstehe ich deinen Satz: „${esc(ai.translation)}“</div>` : ""}
-          ${ai.corrected && ai.corrected.trim() !== txt ? `<button class="btn ghost small" id="showCorr">Lösungsvorschlag zeigen</button><div id="corr" hidden class="corr"><span class="sol">${esc(ai.corrected)}</span><button class="round-btn blue mini" id="corrHear" aria-label="Anhören">${ICON.speaker}</button></div>` : ""}
-        </div>`;
-      $("#res").innerHTML = `<div class="feedback ${pending ? "" : good || override ? "ok" : "no"}">
-        <div class="fb-head"><span class="fb-icon">${pending ? "…" : good ? ICON.check : ICON.cross}</span><span class="fb-title">${pending ? "Ich prüfe deinen Satz …" : perfect ? "Super Satz!" : good ? "Guter Satz!" : "Fast! Verbessere noch:"}</span></div>
-        ${lt?.ok && lt.issues.length ? `<div class="marked">${markSentence(txt, lt.issues, esc)}</div>` : ""}
-        <ul class="checklist">${local.map(c => `<li class="${c.ok ? (c.info ? "info" : "yes") : c.soft ? "soft" : "no"}">${c.ok ? (c.info ? "ℹ" : "✓") : c.soft ? "!" : "✗"} ${esc(c.txt)}</li>`).join("")}${ltHtml}</ul>
-        ${aiHtml}
-        ${pending ? "" : good ? `<button class="btn green big" id="saveS">Satz speichern</button>` :
-          override ? `<span class="small">Die KI ist noch nicht ganz zufrieden. Du kannst den Satz trotzdem speichern – deine Lehrkraft schaut ihn an.</span><button class="btn green" id="saveS">Trotzdem speichern</button>` :
-          `<span class="small">Ändere deinen Satz oben und tippe nochmal auf „Prüfen“.</span>`}
-      </div>`;
-      if ($("#showCorr")) $("#showCorr").onclick = () => { $("#corr").hidden = false; $("#showCorr").remove(); if (isSound()) say(ai.corrected, "fr", 0.85); };
-      if ($("#corrHear")) $("#corrHear").onclick = () => say(ai.corrected, "fr", 0.85);
-      if (pending) return;
-      const card = $(".sentence-card"); card.classList.remove("flash-ok", "flash-no"); void card.offsetWidth; card.classList.add(good ? "flash-ok" : "flash-no");
-      good ? sfx.ok() : sfx.no();
-      if (!good && !override) return;
-      if (good && isSound()) setTimeout(() => say(txt, "fr", 0.85), 400);
-      $("#saveS").onclick = () => {
-        const entry = { id: uid("st-"), l: l.id, w: w.id, fr: w.fr, text: txt.slice(0, 200), date: todayStr(), auto: perfect ? "perfect" : good ? "good" : "override",
-          online: lt?.ok ? { n: lt.issues.length, issues: lt.issues.slice(0, 5).map(i => issueText(i)) } : null,
-          ai: ai?.ok ? { verdict: ai.verdict, meaning_ok: ai.meaning_ok, grammar_ok: ai.grammar_ok, tip: ai.tip, corrected: ai.corrected, translation: ai.translation } : null };
-        S.prog.sentences = [entry, ...(S.prog.sentences || [])].slice(0, 60);
-        S.prog.coins += 3;
-        logActivity(S.prog, { sec: 60 });
-        save(true); sfx.coin(); confetti(80);
-        modal(`<div class="center stack"><div class="result-art">${art("clipboard")}</div><h2>Satz gespeichert!</h2>
-          <p class="sentence-show">„${esc(txt)}“</p>
-          <div class="reward-row"><span class="reward">${art("coin", "ic")} +3</span></div>
-          <p class="small muted" style="margin:0">Deine Lehrkraft schaut sich deinen Satz an. Ihre Rückmeldung siehst du auf der Startseite.</p>
-          <div class="row center-row"><button class="btn blue" data-close="again">Noch ein Satz</button><button class="btn green" data-close="ok">Fertig</button></div></div>`).then(v => v === "again" ? sentenceTask(l, null, after) : back());
-      };
-    };
-    draw();
-    if (!r.good || (!useLT && !useAI)) return;
-    checking = true; $("#chk").disabled = true;
-    if (useLT) { st.lt = await onlineCheck(txt); draw(); }
-    const grammarBad = st.lt?.ok && st.lt.issues.some(i => i.kind === "grammar");
-    if (useAI && !grammarBad) {
-      st.ai = await aiCheck({ code: Store.code, sentence: txt, word: w.fr, meaning: w.tr, lang: l.lang });
-      if (st.ai?.ok && st.ai.verdict === "verbessern") aiTries++;
-    } else if (useAI) st.ai = { ok: false, error: "" };
-    checking = false; $("#chk").disabled = false;
-    if (ta.value.trim() === txt) draw();
-  };
-}
-
-// Rückmeldungen der Lehrkraft
-function sentenceNews() {
-  const fresh = (S.prog.sentences || []).filter(x => S.fb[x.id] && !x.seen);
-  if (!fresh.length) return "";
-  return `<div class="panel news-card">${art("medal", "news-art")}<div class="stack" style="gap:4px;flex:1;min-width:0"><b>Deine Lehrkraft hat ${fresh.length === 1 ? "deinen Satz" : `${fresh.length} Sätze`} angeschaut!</b><span class="small muted">„${esc(fresh[0].text)}“</span></div><button class="btn blue small" id="newsGo">Ansehen</button></div>`;
-}
-function mySentences() {
-  const list = S.prog.sentences || [];
-  list.forEach(x => { if (S.fb[x.id]) x.seen = true; });
-  save();
-  render(`<div class="wrap">${topbar()}
-    <div class="panel stack"><h1>Meine Sätze</h1>
-      ${list.length ? list.map(x => { const f = S.fb[x.id]; return `<div class="sent-row ${f ? (f.ok ? "good" : "fix") : ""}">
-        <div class="stack" style="gap:4px;min-width:0"><span class="small muted">${esc(x.fr)} · ${new Date(x.date + "T12:00").toLocaleDateString("de")}</span><span class="sentence-show">„${esc(x.text)}“</span>
-        ${x.ai?.tip ? `<span class="small">KI-Tipp: ${esc(x.ai.tip)}</span>` : ""}
-        ${f ? `<span class="teacher-fb">${f.ok ? "✓ Super!" : "✎ Bitte verbessern"}${f.comment ? ` – ${esc(f.comment)}` : ""}</span>` : `<span class="small muted">Noch nicht angeschaut.</span>`}</div>
-        <button class="round-btn blue mini" data-read="${esc(x.id)}" aria-label="Vorlesen">${ICON.speaker}</button></div>`; }).join("")
-      : `<p class="muted">Noch keine Sätze. Die Zusatzaufgabe findest du auf jeder Insel und nach dem Lernen.</p>`}
-    </div></div>`);
-  bindTop();
-  $$("[data-read]").forEach(b => b.onclick = () => { const x = list.find(y => y.id === b.dataset.read); if (x) say(x.text, "fr", 0.85); });
-}
