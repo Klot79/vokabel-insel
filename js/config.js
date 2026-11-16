@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------
-//  Vokabel-Insel – Einstellungen
+//  Plapperlapapp – Einstellungen
 // ---------------------------------------------------------------
 //  Ohne Eintrag hier läuft die App im DEMO-MODUS:
 //  Alle Daten bleiben nur auf dem jeweiligen Gerät gespeichert.

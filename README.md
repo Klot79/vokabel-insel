@@ -1,4 +1,4 @@
-# 🦜 Vokabeln lernen ist doch einfach
+# 🦜 Plapperlapapp
 
 Französisch-Vokabeln lernen für die 4. Klasse (FR → Deutsch und FR → Portugiesisch).
 Jede Lektion ist eine Insel vor einem ruhigen Naturbild. Die Kinder wählen zwischen **Lernen** (mit Hilfen) und **Testen** (ohne Hilfen).

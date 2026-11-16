@@ -1,5 +1,5 @@
 -- =============================================================
---  Vokabel-Insel – Bildspeicher einrichten (Supabase → SQL Editor)
+--  Plapperlapapp – Bildspeicher einrichten (Supabase → SQL Editor)
 --  Einmal komplett einfügen und auf "Run" klicken.
 -- =============================================================
 --  Legt einen öffentlichen Ordner "vokabel-bilder" an. Bilder werden

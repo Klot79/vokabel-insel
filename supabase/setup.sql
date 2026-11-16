@@ -1,5 +1,5 @@
 -- =============================================================
---  Vokabel-Insel – Datenbank einrichten (Supabase → SQL Editor)
+--  Plapperlapapp – Datenbank einrichten (Supabase → SQL Editor)
 --  Einmal komplett einfügen und auf "Run" klicken.
 -- =============================================================
 --  Alle Daten liegen in einer Tabelle. Direkter Zugriff ist

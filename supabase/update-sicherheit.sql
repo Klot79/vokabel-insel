@@ -1,5 +1,5 @@
 -- =============================================================
---  Vokabel-Insel – Sicherheits-Update (Supabase → SQL Editor)
+--  Plapperlapapp – Sicherheits-Update (Supabase → SQL Editor)
 --  Einmal komplett einfügen und auf "Run" klicken.
 --  Kann gefahrlos mehrmals ausgeführt werden.
 -- =============================================================

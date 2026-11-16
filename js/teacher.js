@@ -1,10 +1,10 @@
-import { Store, Device, isCloud } from "./store.js?v=20261116d";
-import { esc, uid, sha, pinHash, randomPin, LANG_FLAG, LANG_NAME, PIN_NAMES } from "./util.js?v=20261116d";
-import { art } from "./art.js?v=20261116d";
-import { currentGoal, DEFAULT_REWARDS, START_TARGET, START_PER_KID, rewardsOf, BUILDINGS } from "./goal.js?v=20261116d";
-import { render, $, $$, toast, modal, confirmBox, pic, avatarHtml, fmtMin, relDay } from "./ui.js?v=20261116d";
-import { lessonStats, weekSummary, currentStreak, emptyProgress, todayStr, DAY, wstate, stripArticle, norm, mondayOf, weekLabel, weekState, sortLessons, perDayFor } from "./srs.js?v=20261116d";
-import { fileToLines, splitLines, linesToPairs, prepareImage, matchImages, searchOpenverse, fetchImageBlob } from "./import.js?v=20261116d";
+import { Store, Device, isCloud } from "./store.js?v=20261116e";
+import { esc, uid, sha, pinHash, randomPin, LANG_FLAG, LANG_NAME, PIN_NAMES } from "./util.js?v=20261116e";
+import { art } from "./art.js?v=20261116e";
+import { currentGoal, DEFAULT_REWARDS, START_TARGET, START_PER_KID, rewardsOf, BUILDINGS } from "./goal.js?v=20261116e";
+import { render, $, $$, toast, modal, confirmBox, pic, avatarHtml, fmtMin, relDay } from "./ui.js?v=20261116e";
+import { lessonStats, weekSummary, currentStreak, emptyProgress, todayStr, DAY, wstate, stripArticle, norm, mondayOf, weekLabel, weekState, sortLessons, perDayFor } from "./srs.js?v=20261116e";
+import { fileToLines, splitLines, linesToPairs, prepareImage, matchImages, searchOpenverse, fetchImageBlob } from "./import.js?v=20261116e";
 
 // ---- Bilder speichern (hohe Auflösung, wenn der Online-Bildspeicher eingerichtet ist) ----
 async function storeImageFile(fileOrBlob) {
@@ -51,7 +51,7 @@ function searchImage(query, { title = "Bild suchen", alt = [], series = false } 
   });
 }
 const searchTerm = s => stripArticle(norm(String(s || "").split(/[\/;]/)[0]));
-import { say } from "./speech.js?v=20261116d";
+import { say } from "./speech.js?v=20261116e";
 
 const T = { cls: null, tab: "overview", students: [], lessons: [], progs: {}, back: null };
 // Fortschritt zurücksetzen: neuer Stand mit neuer Kennung – ein noch angemeldetes Kinder-Gerät
@@ -672,7 +672,7 @@ function settings(el) {
   $("#exp").onclick = async () => {
     const data = { app: "vokabel-insel", version: 1, code: Store.code, exported: new Date().toISOString(), class: T.cls, students: T.students, lessons: T.lessons, progress: Object.entries(T.progs).map(([id, p]) => ({ ...p, id })) };
     const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `vokabel-insel-${Store.code}-${todayStr()}.json`; a.click();
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `plapperlapapp-${Store.code}-${todayStr()}.json`; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   };
   $("#impf").onchange = async e => {
