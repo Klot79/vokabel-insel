@@ -121,7 +121,9 @@ async function loadAll() {
   const [students, lessons, progs, cls] = await Promise.all([Store.list("student"), Store.list("lesson"), Store.list("progress"), Store.getOne("class", "main")]);
   T.students = students.sort((a, b) => a.name.localeCompare(b.name, "de"));
   T.lessons = sortLessons(lessons);
-  T.reports = (await Store.list("class")).filter(r => r.id.startsWith("report-")).sort((a, b) => b.week.localeCompare(a.week));
+  const classRows = await Store.list("class");
+  T.reports = classRows.filter(r => r.id.startsWith("report-")).sort((a, b) => b.week.localeCompare(a.week));
+  T.fb = Object.fromEntries(classRows.filter(r => r.id.startsWith("fb-")).map(r => { const { id, _updated, ...rest } = r; return [id.slice(3), rest]; }));
   T.progs = Object.fromEntries(progs.map(p => [p.id, { ...emptyProgress(), ...p }]));
   if (cls) T.cls = cls;
 }
@@ -132,7 +134,7 @@ async function dashboard() {
   try { await loadAll(); } catch (e) { render(`<div class="wrap"><div class="t-panel">${esc(e.message)}</div></div>`); return; }
   try { T.goal = await currentGoal(T.cls, Object.values(T.progs), T.students.length); } catch { T.goal = null; }
   const fresh = await autoWeekReport();
-  const tabs = [["overview", "📊 Übersicht"], ["lessons", "📚 Lektionen"], ["reports", "📅 Wochenberichte"], ["students", "👧 Kinder"], ["settings", "⚙️ Einstellungen"]];
+  const tabs = [["overview", "📊 Übersicht"], ["lessons", "📚 Lektionen"], ["reports", "📅 Wochenberichte"], ["sentences", `✍️ Sätze${openSentences() ? ` (${openSentences()})` : ""}`], ["students", "👧 Kinder"], ["settings", "⚙️ Einstellungen"]];
   render(`<div class="wrap">
     <div class="t-head"><span class="logo">${art("parrot")}</span><h1>${esc(T.cls.name)} <span class="pill">${esc(Store.code)}</span></h1>
       <nav class="tabs">${tabs.map(([k, n]) => `<button data-t="${k}" class="${T.tab === k ? "on" : ""}">${n}</button>`).join("")}</nav>
@@ -149,7 +151,7 @@ async function dashboard() {
 
 function showTab() {
   const el = $("#tab");
-  ({ overview, lessons: lessonsTab, reports: reportsTab, students: studentsTab, settings })[T.tab](el);
+  ({ overview, lessons: lessonsTab, reports: reportsTab, sentences: sentencesTab, students: studentsTab, settings })[T.tab](el);
 }
 
 const assignedTo = (l, sid) => l.assigned === "all" || !l.assigned || (Array.isArray(l.assigned) && l.assigned.includes(sid));
@@ -795,4 +797,42 @@ function showReport(r, live = false) {
     </div></div>`;
   $("#back").onclick = () => reportsTab(el);
   $("#print").onclick = () => window.print();
+}
+
+// ------------------------------------------------------------------
+//  Eigene Sätze der Kinder ansehen und Rückmeldung geben
+// ------------------------------------------------------------------
+function allSentences() {
+  const out = [];
+  for (const st of T.students) for (const x of (T.progs[st.id]?.sentences || [])) out.push({ ...x, sid: st.id, name: st.name });
+  return out.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+}
+function openSentences() { return allSentences().filter(x => !T.fb[x.sid]?.[x.id]).length; }
+function sentencesTab(el, onlyOpen = true) {
+  const list = allSentences().filter(x => !onlyOpen || !T.fb[x.sid]?.[x.id]);
+  el.innerHTML = `<div class="t-panel">
+    <div class="row between"><h2>Eigene Sätze der Kinder</h2><label class="check"><input type="checkbox" id="onlyOpen" ${onlyOpen ? "checked" : ""}> nur noch nicht angeschaute</label></div>
+    <p class="small muted" style="margin:0">Die App hat jeden Satz schon geprüft (Lernwort benutzt, Artikel, Großbuchstabe, Satzzeichen, Akzente). Den Inhalt beurteilst du: ✓ lobt den Satz, „Verbessern“ bittet das Kind um eine neue Fassung. Das Kind sieht deine Rückmeldung beim nächsten Öffnen.</p>
+    ${list.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Kind</th><th>Wort</th><th>Satz</th><th>App</th><th>Deine Rückmeldung</th></tr></thead><tbody>
+      ${list.map(x => { const f = T.fb[x.sid]?.[x.id]; return `<tr>
+        <td><b>${esc(x.name)}</b><br><span class="small muted">${new Date(x.date + "T12:00").toLocaleDateString("de")}</span></td>
+        <td>${esc(x.fr)}</td>
+        <td style="min-width:200px"><span style="font-size:1.05rem">„${esc(x.text)}“</span> <button class="btn ghost small" data-say="${esc(x.text)}" aria-label="Vorlesen">🔊</button></td>
+        <td>${x.auto === "perfect" ? `<span class="pill good">✓</span>` : `<span class="pill warn">ok</span>`}</td>
+        <td style="min-width:240px">${f ? `<span class="pill ${f.ok ? "good" : "warn"}">${f.ok ? "✓ gelobt" : "✎ verbessern"}</span> ${esc(f.comment || "")}` : `
+          <input class="input" data-cm="${esc(x.sid)}|${esc(x.id)}" placeholder="Kommentar (optional), z. B. Très bien!">
+          <div class="row" style="gap:6px;margin-top:6px"><button class="btn green small" data-ok="${esc(x.sid)}|${esc(x.id)}">✓ Super</button><button class="btn ghost small" data-fix="${esc(x.sid)}|${esc(x.id)}">✎ Verbessern</button></div>`}</td>
+      </tr>`; }).join("")}</tbody></table></div>` : `<p class="muted">${onlyOpen ? "Alle Sätze sind angeschaut. 🎉" : "Noch keine Sätze geschrieben."}</p>`}
+  </div>`;
+  $("#onlyOpen").onchange = e => sentencesTab(el, e.target.checked);
+  $$("[data-say]", el).forEach(b => b.onclick = () => say(b.dataset.say, "fr"));
+  const give = async (key, ok) => {
+    const [sid, id] = key.split("|");
+    const comment = (el.querySelector(`[data-cm="${CSS.escape(key)}"]`)?.value || "").trim().slice(0, 200);
+    const rec = { ...(T.fb[sid] || {}), [id]: { ok, comment, date: todayStr() } };
+    try { await Store.put("class", "fb-" + sid, rec); T.fb[sid] = rec; toast(ok ? "Gelobt ✓" : "Bitte um Verbesserung gesendet"); sentencesTab(el, onlyOpen); }
+    catch (e) { toast(e.message); }
+  };
+  $$("[data-ok]", el).forEach(b => b.onclick = () => give(b.dataset.ok, true));
+  $$("[data-fix]", el).forEach(b => b.onclick = () => give(b.dataset.fix, false));
 }

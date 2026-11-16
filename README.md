@@ -21,6 +21,7 @@ Die Kinder brauchen kein Benutzerkonto, sie melden sich mit Klassencode, Namen u
 - **Vokabeldusche**: Wort hören → nachsprechen → Bedeutung hören, automatisch hintereinander
 - **Malen**: eigenes Bild zum Wort zeichnen (erscheint danach in den Übungen) · **Eselsbrücken** (von der Lehrkraft oder selbst geschrieben)
 - **Post-its zuordnen**, **Sortieren** (le oder la? bzw. kurz/lang), **Bewegungsrunde** (hüpfen, Hampelmann … und dabei das Wort sagen)
+- **Zusatzaufgabe „Mein eigener Satz“** (Selbstbezug-Effekt): Das Kind schreibt mit einem Lernwort einen eigenen französischen Satz, mit Satzanfängen zum Antippen. Die App prüft sofort Lernwort, Artikel (le/la, un/une), Großbuchstabe, Satzzeichen, Akzente und unbekannte Wörter, liest den Satz vor; die Lehrkraft gibt im Tab „Sätze“ ✓ oder „Verbessern“ mit Kommentar.
 - **Meine schwierigen Wörter**: eigene Liste mit Üben-Knopf
 - **Rechtschreibung im Test**: fehlender Akzent oder Artikel zählt nur halb
 - **Spiele**: Memory, Blitzrunde (60 Sekunden), „Wörter ansehen“ zum Nachschlagen
