@@ -1,15 +1,15 @@
 // ================================================================
 //  Klassenziel: wöchentlich, gemeinsam, selbst-anpassend
 // ----------------------------------------------------------------
-//  • Punkte = richtige Antworten in „Lernen“ und „Testen“ (Mo–So).
-//  • Erste Woche: Startziel (Standard 300).
+//  • Punkte = Wörter, die ein Kind 3× richtig GESCHRIEBEN hat (Lernen/Testen, Mo–So).
+//  • Erste Woche: Startziel = 7 Wörter pro Kind (bei 22 Kindern 154).
 //  • Jeden Montag passt sich das Ziel an die Vorwoche an:
 //      locker erreicht (≥150 %) → bis +50 %, höchstens 80 % des Erreichten
 //      erreicht            → bis +15 %, aber höchstens 90 % des Erreichten
 //      ≥ 70 % geschafft    → bleibt gleich
 //      < 70 % geschafft    → bis −15 % (nie unter 110 % des Erreichten)
 //      niemand geübt       → bleibt gleich (Ferien)
-//    Grenzen: 10–60 Punkte pro Kind und Woche.
+//    Grenzen: 7–30 Wörter pro Kind und Woche (mindestens 7 pro Kind).
 //  • Ergebnis des Glücksrads wird aus Klassencode + Woche berechnet –
 //    darum bleibt es bei jedem Kind auf demselben Feld stehen.
 // ================================================================
@@ -36,9 +36,10 @@ export const DEFAULT_REWARDS = [
   "Klassen-Karaoke: ein Lied mitsingen",
 ];
 
-export const START_TARGET = 300;
-const MIN_PER_KID = 10, MAX_PER_KID = 60;
-const round10 = x => Math.max(10, Math.round(x / 10) * 10);
+export const START_PER_KID = 7;
+export const START_TARGET = 154; // nur Anzeige-Fallback; tatsächlich 7 × Kinderzahl
+const MIN_PER_KID = 7, MAX_PER_KID = 30;
+const UNIT = "w3"; // Version der Zählweise (Wörter 3× geschrieben)
 
 export function weekDays(mon) {
   const a = new Date(mon + "T12:00").getTime();
@@ -47,14 +48,14 @@ export function weekDays(mon) {
 export function weekPoints(progs, mon) {
   const days = weekDays(mon);
   let sum = 0;
-  for (const p of progs) for (const d of days) sum += p.days?.[d]?.pts || 0;
+  for (const p of progs) for (const d of days) sum += p.days?.[d]?.wp || 0;
   return sum;
 }
 // An welchem Tag wurde das Ziel erreicht?
 export function reachedDay(progs, mon, target) {
   let cum = 0;
   for (const d of weekDays(mon)) {
-    for (const p of progs) cum += p.days?.[d]?.pts || 0;
+    for (const p of progs) cum += p.days?.[d]?.wp || 0;
     if (cum >= target) return d;
   }
   return null;
@@ -68,7 +69,7 @@ export function adapt(prevTarget, achieved, kids) {
   else if (achieved >= prevTarget) t = Math.min(prevTarget * 1.15, Math.max(prevTarget, achieved * 0.9));
   else if (achieved >= prevTarget * 0.7) t = prevTarget;
   else t = Math.max(prevTarget * 0.85, Math.min(prevTarget, achieved * 1.1));
-  return round10(Math.min(hi, Math.max(lo, t)));
+  return Math.min(hi, Math.max(lo, Math.round(t / 5) * 5));
 }
 
 function hash(str) { let h = 2166136261; for (const c of str) { h ^= c.codePointAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -83,9 +84,10 @@ export async function currentGoal(cls, progs, kids) {
   try { rec = await Store.getOne("class", "goals"); } catch {}
   rec = rec ? { weeks: {}, ...rec } : { weeks: {} };
   delete rec.id; delete rec._updated;
+  if (rec.unit !== UNIT) rec = { unit: UNIT, weeks: {} }; // neue Zählweise → neu beginnen
   const weeks = rec.weeks;
   let changed = false;
-  const start = cls.goal?.start || START_TARGET;
+  const start = Math.max(START_PER_KID * kids, (cls.goal?.unit === UNIT && cls.goal?.start) || START_PER_KID * kids);
   const auto = cls.goal?.auto !== false;
   const known = Object.keys(weeks).sort();
   if (!weeks[mon]) {
@@ -101,7 +103,7 @@ export async function currentGoal(cls, progs, kids) {
     weeks[mon] = { target, n: known.length };
     changed = true;
   }
-  if (cls.goal?.override && weeks[mon].target !== cls.goal.override) { weeks[mon].target = cls.goal.override; changed = true; }
+  if (cls.goal?.unit === UNIT && cls.goal?.override && weeks[mon].target !== cls.goal.override) { weeks[mon].target = cls.goal.override; changed = true; }
   // Wochen vor der laufenden: Ergebnis festhalten (falls noch offen)
   for (const k of Object.keys(weeks)) if (k < mon && weeks[k].achieved == null) {
     weeks[k].achieved = weekPoints(progs, k); weeks[k].reached = weeks[k].achieved >= weeks[k].target; weeks[k].day = reachedDay(progs, k, weeks[k].target); changed = true;

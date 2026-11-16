@@ -1,7 +1,7 @@
 import { Store, Device, isCloud } from "./store.js";
 import { esc, uid, sha, pinHash, randomPin, LANG_FLAG, LANG_NAME, PIN_NAMES } from "./util.js";
 import { art } from "./art.js";
-import { currentGoal, DEFAULT_REWARDS, START_TARGET, rewardsOf, BUILDINGS } from "./goal.js";
+import { currentGoal, DEFAULT_REWARDS, START_TARGET, START_PER_KID, rewardsOf, BUILDINGS } from "./goal.js";
 import { render, $, $$, toast, modal, confirmBox, pic, avatarHtml, fmtMin, relDay } from "./ui.js";
 import { lessonStats, weekSummary, currentStreak, emptyProgress, todayStr, DAY, wstate, stripArticle, norm, mondayOf, weekLabel, weekState, sortLessons, perDayFor } from "./srs.js";
 import { fileToLines, splitLines, linesToPairs, prepareImage, matchImages, searchOpenverse, fetchImageBlob } from "./import.js";
@@ -138,7 +138,7 @@ async function dashboard() {
       <nav class="tabs">${tabs.map(([k, n]) => `<button data-t="${k}" class="${T.tab === k ? "on" : ""}">${n}</button>`).join("")}</nav>
       <button class="btn ghost small" id="logout">Abmelden</button></div>
     ${!isCloud ? `<div class="banner no-print">Demo-Modus: Daten werden nur auf diesem Gerät gespeichert. Für die ganze Klasse auf allen Geräten bitte Supabase einrichten (siehe Anleitung).</div>` : ""}
-    ${T.goal && T.goal.achieved >= T.goal.target ? `<div class="banner no-print good-banner">🎉 Klassenziel erreicht${T.goal.day ? ` am ${new Date(T.goal.day + "T12:00").toLocaleDateString("de", { weekday: "long" })}` : ""}: ${esc(T.goal.building.name)} fertig (${T.goal.achieved}/${T.goal.target} Punkte). Belohnung laut Glücksrad: <b>${esc(T.goal.rewards[T.goal.rewardIdx])}</b></div>` : ""}
+    ${T.goal && T.goal.achieved >= T.goal.target ? `<div class="banner no-print good-banner">🎉 Klassenziel erreicht${T.goal.day ? ` am ${new Date(T.goal.day + "T12:00").toLocaleDateString("de", { weekday: "long" })}` : ""}: ${esc(T.goal.building.name)} fertig (${T.goal.achieved}/${T.goal.target} Wörter). Belohnung laut Glücksrad: <b>${esc(T.goal.rewards[T.goal.rewardIdx])}</b></div>` : ""}
     ${fresh ? `<div class="banner no-print row between"><span>📅 Neuer Wochenbericht: ${esc(weekLabel(fresh.week))}</span><button class="btn blue small" id="openRep">Ansehen</button></div>` : ""}
     <div id="tab"></div></div>`);
   if ($("#openRep")) $("#openRep").onclick = () => { T.tab = "reports"; $$(".tabs button").forEach(x => x.classList.toggle("on", x.dataset.t === "reports")); showReport(fresh); };
@@ -198,7 +198,7 @@ function overview(el) {
       <div class="kpi"><span class="l">Diese Woche aktiv</span><span class="v">${active} / ${rows.length}</span><span class="s">Kinder mit mind. 1 Übung</span></div>
       <div class="kpi"><span class="l">Wörter sicher (Ø)</span><span class="v">${avgPct} %</span><span class="s">der zugewiesenen Wörter</span></div>
       <div class="kpi"><span class="l">Übungszeit diese Woche</span><span class="v">${fmtMin(weekSec)}</span><span class="s">Ø ${fmtMin(weekSec / n)} pro Kind</span></div>
-      <div class="kpi"><span class="l">Klassenziel: ${esc(G.building.name)}</span><span class="v">${Math.min(100, Math.round(G.achieved / Math.max(1, G.target) * 100))} %</span><span class="s">${G.achieved} / ${G.target} Punkte (Lernen + Testen)</span></div>
+      <div class="kpi"><span class="l">Klassenziel: ${esc(G.building.name)}</span><span class="v">${Math.min(100, Math.round(G.achieved / Math.max(1, G.target) * 100))} %</span><span class="s">${G.achieved} / ${G.target} Wörter (3× richtig geschrieben)</span></div>
     </div>
     <div class="t-panel">
       <div class="row between"><h2>Fortschritt der Klasse</h2>
@@ -619,10 +619,10 @@ function settings(el) {
     <div class="t-panel"><h2>Klasse</h2>
       <div class="field"><label for="cn">Name</label><input class="input" id="cn" value="${esc(T.cls.name)}"></div>
       <h3 style="margin-top:6px">Klassenziel (pro Woche)</h3>
-      <p class="small muted" style="margin:0">Punkte = richtige Antworten der ganzen Klasse in „Lernen“ und „Testen“ (Mo–So). Jede Woche wird ein neues Bauwerk gebaut. Diese Woche: <b>${T.goal ? `${esc(T.goal.building.name)}, Ziel ${T.goal.target} Punkte, erreicht ${T.goal.achieved}` : "–"}</b>.</p>
-      <div class="field"><label for="gs">Startziel (erste Woche)</label><input class="input" id="gs" type="number" min="10" value="${g.start || START_TARGET}"></div>
+      <p class="small muted" style="margin:0">Gezählt werden Wörter, die ein Kind in „Lernen“ oder „Testen“ <b>3× richtig geschrieben</b> hat (pro Wort höchstens 1× pro Woche, Mo–So). Mindestziel: 7 Wörter pro Kind = <b>${START_PER_KID * T.students.length}</b> für ${T.students.length} Kinder. Diese Woche: <b>${T.goal ? `${esc(T.goal.building.name)}, Ziel ${T.goal.target} Wörter, erreicht ${T.goal.achieved}` : "–"}</b>.</p>
+      <div class="field"><label for="gs">Startziel (erste Woche, mindestens ${START_PER_KID * T.students.length})</label><input class="input" id="gs" type="number" min="7" value="${g.unit === "w3" && g.start ? g.start : START_PER_KID * T.students.length}"></div>
       <label class="check"><input type="checkbox" id="ga" ${g.auto !== false ? "checked" : ""}> Ziel jeden Montag automatisch an die Klasse anpassen (empfohlen)</label>
-      <div class="field"><label for="go">Ziel diese Woche selbst festlegen (leer = automatisch)</label><input class="input" id="go" type="number" min="10" value="${g.override || ""}" placeholder="automatisch"></div>
+      <div class="field"><label for="go">Ziel diese Woche selbst festlegen (leer = automatisch)</label><input class="input" id="go" type="number" min="7" value="${g.unit === "w3" && g.override ? g.override : ""}" placeholder="automatisch"></div>
       ${hist.length > 1 ? `<div class="small muted">Verlauf: ${hist.map(h => `${h.mon.slice(8, 10)}.${h.mon.slice(5, 7)}.: ${h.achieved ?? "läuft"}/${h.target}${h.reached ? " ✓" : ""}`).join(" · ")}</div>` : ""}
       <div class="field"><label for="rw">Klassenbelohnungen fürs Glücksrad (eine pro Zeile, max. 12)</label><textarea class="input" id="rw" style="font-family:inherit;min-height:200px">${esc(rewardsOf(T.cls).join("\n"))}</textarea></div>
       <label class="check"><input type="checkbox" id="ao" ${T.cls.allOpen ? "checked" : ""}> Alle Inseln von Anfang an offen (sonst nacheinander)</label>
@@ -646,7 +646,7 @@ function settings(el) {
     </div>
   </div>`;
   $("#sv").onclick = async () => {
-    T.cls = { ...T.cls, name: $("#cn").value.trim() || T.cls.name, goal: { start: Math.max(10, +$("#gs").value || START_TARGET), auto: $("#ga").checked, override: +$("#go").value > 0 ? Math.max(10, +$("#go").value) : null },
+    T.cls = { ...T.cls, name: $("#cn").value.trim() || T.cls.name, goal: { unit: "w3", start: Math.max(START_PER_KID * T.students.length, +$("#gs").value || 0), auto: $("#ga").checked, override: +$("#go").value > 0 ? Math.max(START_PER_KID * T.students.length, +$("#go").value) : null },
       rewards: $("#rw").value.split("\n").map(x => x.trim()).filter(Boolean).slice(0, 12), allOpen: $("#ao").checked, report: { ...(T.cls.report || {}), enabled: $("#rep").checked } };
     await Store.put("class", "main", T.cls); toast("Gespeichert ✔");
   };
@@ -735,7 +735,7 @@ function buildWeekReport(mon) {
   };
 }
 
-function rowsPts(mon) { const a = new Date(mon + "T12:00").getTime(); let s = 0; for (const p of Object.values(T.progs)) for (let i = 0; i < 7; i++) s += p.days?.[todayStr(new Date(a + i * DAY))]?.pts || 0; return s; }
+function rowsPts(mon) { const a = new Date(mon + "T12:00").getTime(); let s = 0; for (const p of Object.values(T.progs)) for (let i = 0; i < 7; i++) s += p.days?.[todayStr(new Date(a + i * DAY))]?.wp || 0; return s; }
 // Jeden Montag ab 7:00: Bericht der vergangenen Woche automatisch erstellen und speichern
 async function autoWeekReport() {
   if (!T.cls.report?.enabled) return null;
@@ -780,7 +780,7 @@ function showReport(r, live = false) {
         <div class="kpi"><span class="l">Übungszeit gesamt</span><span class="v">${s.min} min</span><span class="s">Ø ${Math.round(s.min / Math.max(1, s.kids))} min pro Kind</span></div>
         <div class="kpi"><span class="l">Ø Übungstage</span><span class="v">${s.avgDays}</span><span class="s">Ziel: 5 Tage à 5 Minuten</span></div>
         <div class="kpi"><span class="l">Trefferquote</span><span class="v">${s.acc == null ? "–" : s.acc + " %"}</span></div>
-        ${r.goal ? `<div class="kpi"><span class="l">Klassenziel</span><span class="v">${r.goal.reached ? "✓ erreicht" : Math.round(r.goal.achieved / Math.max(1, r.goal.target) * 100) + " %"}</span><span class="s">${r.goal.achieved} / ${r.goal.target} Punkte${r.goal.day ? ` · am ${new Date(r.goal.day + "T12:00").toLocaleDateString("de", { weekday: "long" })}` : ""}</span></div>` : ""}
+        ${r.goal ? `<div class="kpi"><span class="l">Klassenziel</span><span class="v">${r.goal.reached ? "✓ erreicht" : Math.round(r.goal.achieved / Math.max(1, r.goal.target) * 100) + " %"}</span><span class="s">${r.goal.achieved} / ${r.goal.target} Wörter${r.goal.day ? ` · am ${new Date(r.goal.day + "T12:00").toLocaleDateString("de", { weekday: "long" })}` : ""}</span></div>` : ""}
       </div>
     </div>
     <div class="t-panel"><h2>Kinder</h2>

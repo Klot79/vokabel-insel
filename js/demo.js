@@ -68,7 +68,7 @@ export async function seedDemo(local) {
       const date = todayStr(new Date(Date.now() - d * DAY));
       const ans = 10 + Math.floor(Math.random() * 25);
       const ok = Math.round(ans * (0.55 + k.skill * 0.4));
-      p.days[date] = { sec: 240 + Math.floor(Math.random() * 600), ans, ok, pts: Math.round(ok * 0.35) };
+      p.days[date] = { sec: 240 + Math.floor(Math.random() * 600), ans, ok, pts: Math.round(ok * 0.35), wp: Math.round(ok / 9) };
       p.coins += ok; p.xp += ok * 10;
       streak = last === todayStr(new Date(Date.now() - (d + 1) * DAY)) ? streak + 1 : 1; last = date;
     }

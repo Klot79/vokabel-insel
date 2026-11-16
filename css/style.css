@@ -413,6 +413,32 @@ body:not(.teacher-mode) .hero h1, body:not(.teacher-mode) .section-title { text-
 .reward-result { font-family: var(--f-display); font-size: 1.5rem; background: var(--sun-l); border-radius: 16px; padding: 10px 16px; display: inline-flex; gap: 8px; align-items: center; justify-self: center; }
 .good-banner { background: var(--green-l); border-color: #8fd6a8; }
 
+/* Deutliche Rückmeldung richtig/falsch */
+.card.flash-ok { animation: flashOk .9s ease-out; border-color: var(--green) !important; }
+.card.flash-no { animation: flashNo .6s ease-out; border-color: var(--coral) !important; }
+@keyframes flashOk { 0% { box-shadow: 0 0 0 0 rgba(47,179,106,.7); } 100% { box-shadow: 0 0 0 26px rgba(47,179,106,0); } }
+@keyframes flashNo { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-10px); } 40%, 80% { transform: translateX(10px); } }
+.feedback { font-weight: 400; }
+.feedback.ok { border: 3px solid var(--green); }
+.feedback.no { border: 3px solid var(--coral); }
+.fb-head { display: flex; align-items: center; gap: 12px; justify-content: center; }
+.fb-icon { width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center; color: #fff; flex: none; animation: pop .35s ease-out; }
+.fb-icon svg { width: 48px; height: 48px; }
+.feedback.ok .fb-icon { background: var(--green); box-shadow: 0 4px 0 var(--green-d); }
+.feedback.no .fb-icon { background: var(--coral); box-shadow: 0 4px 0 var(--coral-d); }
+@keyframes pop { 0% { transform: scale(.3); } 70% { transform: scale(1.15); } 100% { transform: scale(1); } }
+.fb-title { font-family: var(--f-display); font-size: 1.8rem; font-weight: 700; }
+.fb-heard { font-size: 1.05rem; }
+.fb-sol { display: grid; justify-items: center; gap: 4px; background: #fff; border-radius: 16px; padding: 10px 16px; color: var(--ink); }
+.fb-sol .sol { font-size: 2rem; color: var(--blue-d); }
+.fb-sol .small { color: var(--ink-soft); }
+.wc-dots { display: flex; align-items: center; gap: 6px; justify-content: center; flex-wrap: wrap; }
+.wc-dots span { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: #fff; border: 2px solid var(--line); color: var(--ink-soft); font-size: 1rem; }
+.wc-dots span.on { background: var(--blue); border-color: var(--blue-d); color: #fff; }
+.wc-dots small { width: 100%; text-align: center; font-size: .85rem; color: var(--ink); }
+.fb-point { display: inline-flex; gap: 8px; align-items: center; justify-content: center; background: var(--sun-l); border: 2px solid #ffe08a; border-radius: 14px; padding: 6px 14px; font-family: var(--f-display); font-size: 1.15rem; font-weight: 700; color: var(--ink); animation: pop .4s ease-out; }
+.ex-top .audio-toggle, .topbar .audio-toggle { flex: none; }
+
 /* Eselsbrücke */
 .memo { display: inline-flex; gap: 8px; align-items: center; justify-content: center; background: var(--sun-l); border-radius: 14px; padding: 8px 12px; font-size: 1rem; font-weight: 400; color: var(--ink); }
 

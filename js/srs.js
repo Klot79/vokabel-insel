@@ -239,10 +239,10 @@ export function checkSpoken(alternatives, target) {
 }
 
 // ---- Tagebuch & Belohnungen ------------------------------------
-export function logActivity(prog, { sec = 0, ans = 0, ok = 0, pts = 0 } = {}) {
+export function logActivity(prog, { sec = 0, ans = 0, ok = 0, pts = 0, wp = 0 } = {}) {
   const t = todayStr();
   const d = prog.days[t] || { sec: 0, ans: 0, ok: 0 };
-  d.sec += sec; d.ans += ans; d.ok += ok; d.pts = (d.pts || 0) + pts; // pts = Punkte fürs Klassenziel (nur Lernen/Testen)
+  d.sec += sec; d.ans += ans; d.ok += ok; d.pts = (d.pts || 0) + pts; d.wp = (d.wp || 0) + wp; // wp = Wörter fürs Klassenziel // pts = Punkte fürs Klassenziel (nur Lernen/Testen)
   prog.days[t] = d;
   if (prog.streak.last !== t) {
     const y = todayStr(new Date(Date.now() - DAY));
@@ -286,4 +286,22 @@ export function checkBadges(prog, lessons) {
   const fresh = [];
   for (const b of BADGES) if (!prog.badges.includes(b.id) && b.test(prog, o)) { prog.badges.push(b.id); fresh.push(b); }
   return fresh;
+}
+
+// ---- Klassenziel: ein Wort zählt, wenn es 3× richtig GESCHRIEBEN wurde ----
+// (pro Wort höchstens 1 Klassenpunkt pro Woche – Wiederholen in späteren Wochen zählt wieder)
+export const WRITES_FOR_POINT = 3;
+export function writePoint(prog, l, w) {
+  const k = wkey(l.id, w.id);
+  const s = { ...wstate(prog, l.id, w.id) };
+  s.wc = (s.wc || 0) + 1;
+  const mon = mondayOf();
+  let point = 0, shown = s.wc, already = false;
+  if (s.wc >= WRITES_FOR_POINT) {
+    shown = WRITES_FOR_POINT;
+    if (s.cpw !== mon) { point = 1; s.cpw = mon; } else already = true;
+    s.wc = 0;
+  }
+  prog.words[k] = s;
+  return { point, count: shown, already };
 }

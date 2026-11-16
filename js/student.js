@@ -1,6 +1,6 @@
 import { Store, Device } from "./store.js";
 import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js";
-import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars } from "./ui.js";
+import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js";
 import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js";
 import { currentGoal, der, unser, zum } from "./goal.js";
 import { buildingSvg } from "./buildings.js";
@@ -10,7 +10,20 @@ import {
   checkWritten, checkSpoken, logActivity, currentStreak, weekSummary, checkBadges, BADGES, wstate, shuffle,
   stripArticle, todayStr, DAY, NEEDED_TODAY, MIN_GAP, BOX_NAMES, wkey,
   weekState, weekLabel, schoolDay, perDayFor, newAllowed, sortLessons, DAILY_GOAL_SEC, todaySeconds, mondayOf,
+  writePoint, WRITES_FOR_POINT,
 } from "./srs.js";
+
+// ---- Ton an/aus (gilt auf diesem Gerät, überall) ----
+setSound(!Device.get("audioOff", false));
+const autoSay = (t, lang = "fr") => isSound() ? sayWord(t, lang) : null;   // automatisches Vorlesen nur bei Ton an
+const audioBtn = () => `<button class="icon-btn audio-toggle" aria-label="${isSound() ? "Ton ausschalten" : "Ton einschalten"}" title="Ton an/aus">${isSound() ? ICON.speaker : ICON.mute}</button>`;
+document.addEventListener("click", e => {
+  const b = e.target.closest(".audio-toggle"); if (!b) return;
+  const on = !isSound(); setSound(on); Device.set("audioOff", !on);
+  if (!on) { try { window.speechSynthesis?.cancel(); } catch {} }
+  $$(".audio-toggle").forEach(x => { x.innerHTML = on ? ICON.speaker : ICON.mute; x.setAttribute("aria-label", on ? "Ton ausschalten" : "Ton einschalten"); });
+  toast(on ? "Ton an" : "Ton aus – Wörter werden nur vorgelesen, wenn du auf den Lautsprecher tippst.", 2600);
+});
 
 const S = { cls: null, student: null, prog: null, lessons: [], classWeekOk: 0 };
 let goHome = () => {};
@@ -118,6 +131,7 @@ function topbar() {
     <span class="name">${esc(S.student.name)}</span>
     <span class="chip fire" title="Tage hintereinander geübt">${art("flame", "ic")} ${currentStreak(S.prog)}</span>
     <span class="chip coin" title="Münzen">${art("coin", "ic")} ${S.prog.coins}</span>
+    ${audioBtn()}
     <nav class="navbtns">
       <button class="nav-btn" id="tb-home" aria-label="Start">${art("map")}</button>
       <button class="nav-btn" id="tb-me" aria-label="Mein Fortschritt">${art("telescope")}</button>
@@ -295,6 +309,7 @@ function exFrame({ mode, label, progress, coins }, inner) {
     <div class="ex-top">
       <button class="icon-btn" id="quit" aria-label="Beenden">${ICON.close}</button>
       <div class="ex-progress"><i style="width:${progress}%"></i></div>
+      ${audioBtn()}
       <span class="chip coin">${art("coin", "ic")} ${coins}</span>
     </div>
     <div class="card ${mode}" id="card"><div class="card-tag"><span class="pill ${mode === "test" ? "orange" : "green"}">${mode === "test" ? "Testen" : "Lernen"}</span><span class="small muted">${esc(label || "")}</span></div>${inner}</div></div>`);
@@ -319,23 +334,34 @@ async function useMic(btn, out) {
   return r.alts;
 }
 
-function feedbackBox(ok, w, msg, onNext, auto, memo) {
+// Deutliche Rückmeldung: großes ✓/✗, Farbe, Klang, immer Schreibweise + Aussprache
+function feedbackBox(ok, w, msg, onNext, auto, memo, x = {}) {
+  const card = $("#card");
+  card.classList.remove("flash-ok", "flash-no"); void card.offsetWidth; card.classList.add(ok ? "flash-ok" : "flash-no");
   const fb = document.createElement("div");
   fb.className = `feedback ${ok ? "ok" : "no"}`;
-  fb.innerHTML = ok
-    ? `<span>${esc(msg || ["Richtig!", "Super!", "Genau!", "Klasse!"][Math.floor(Math.random() * 4)])}</span>`
-    : `<span>${esc(msg || "Nicht ganz. So heißt es:")}</span><span class="sol">${esc(w.fr)} <button class="round-btn blue mini" id="solHear" aria-label="Anhören">${ICON.speaker}</button></span>${memo ? `<span class="memo">${art("bulbArt", "ic")} ${esc(memo)}</span>` : ""}`;
+  const dots = x.wc ? `<div class="wc-dots" title="richtig geschrieben">${Array.from({ length: WRITES_FOR_POINT }, (_, i) => `<span class="${i < x.wc ? "on" : ""}">✍</span>`).join("")}<small>${x.wc} von ${WRITES_FOR_POINT}× richtig geschrieben</small></div>` : "";
+  fb.innerHTML = `
+    <div class="fb-head"><span class="fb-icon">${ok ? ICON.check : ICON.cross}</span><span class="fb-title">${esc(msg || (ok ? ["Richtig!", "Super!", "Genau!", "Klasse!"][Math.floor(Math.random() * 4)] : "Nicht ganz."))}</span></div>
+    ${x.heard ? `<div class="fb-heard">Du hast gesagt: „${esc(x.heard)}“</div>` : x.typed && !ok ? `<div class="fb-heard">Du hast geschrieben: „${esc(x.typed)}“</div>` : ""}
+    <div class="fb-sol"><span class="small">So schreibt man es:</span><span class="sol">${esc(w.fr)}</span><button class="round-btn blue" id="solHear" aria-label="So spricht man es aus">${ICON.speaker}</button><span class="small">So spricht man es aus</span></div>
+    ${dots}
+    ${x.point ? `<div class="fb-point">${art("rocket", "ic")} +1 Wort für die Klasse!</div>` : x.already ? `<div class="small">Dieses Wort hat diese Woche schon für die Klasse gezählt.</div>` : ""}
+    ${!ok && memo ? `<span class="memo">${art("bulbArt", "ic")} ${esc(memo)}</span>` : ""}`;
   const btn = document.createElement("button");
-  btn.className = "btn green"; btn.textContent = "Weiter";
+  btn.className = `btn ${ok ? "green" : "coral"} big`; btn.textContent = "Weiter";
   let gone = false;
   const go = () => { if (gone) return; gone = true; onNext(); };
   btn.onclick = go;
   fb.appendChild(btn);
-  $("#card").appendChild(fb);
+  card.appendChild(fb);
   ok ? sfx.ok() : sfx.no();
-  if (!ok) { sayWord(w.fr); fb.querySelector("#solHear").onclick = () => sayWord(w.fr); }
-  if (ok && auto) setTimeout(go, auto);
-  btn.focus();
+  if (x.point) setTimeout(() => sfx.coin(), 450);
+  fb.querySelector("#solHear").onclick = () => sayWord(w.fr);
+  setTimeout(() => autoSay(w.fr), 500);        // richtige Aussprache – nur wenn Ton an
+  if (ok && auto) setTimeout(go, Math.max(auto, 2200));
+  fb.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  btn.focus({ preventScroll: true });
 }
 
 // Eine Abruf-Aufgabe (Schreiben / Sprechen / Buchstabensalat).
@@ -352,7 +378,7 @@ function recallTask(item, type, ctx, cb, { test = false } = {}) {
     $("#hear").onclick = help;
     if (!canListen) {
       $("#reveal").onclick = () => {
-        sayWord(w.fr);
+        autoSay(w.fr);
         $("#reveal").outerHTML = `<div class="word-fr">${esc(w.fr)}</div><div class="row center-row"><button class="btn green" id="sOk">Hatte ich richtig</button><button class="btn coral" id="sNo">Noch nicht</button></div>`;
         $("#sOk").onclick = () => cb({ ok: true, helped, how: "speak" });
         $("#sNo").onclick = () => cb({ ok: false, helped, how: "speak" });
@@ -365,7 +391,7 @@ function recallTask(item, type, ctx, cb, { test = false } = {}) {
       if (!alts) return; // nichts gehört → zählt nicht als Versuch
       tries++;
       const ok = checkSpoken(alts, w.fr);
-      if (ok || test || tries >= 2) { $("#mic").disabled = true; cb({ ok, helped, how: "speak" }); return; }
+      if (ok || test || tries >= 2) { $("#mic").disabled = true; cb({ ok, helped, how: "speak", heard: alts[0] }); return; }
       sfx.no(); $("#heard").textContent += " Fast! Hör nochmal genau hin und versuch es nochmal.";
     };
     return;
@@ -395,7 +421,7 @@ function recallTask(item, type, ctx, cb, { test = false } = {}) {
       const ok = placed.map(o => o.c).join("").toLowerCase() === letters.join("").toLowerCase();
       if (!ok && tries === 0 && !test) { tries++; sfx.no(); toast("Noch nicht ganz – tippe oben einen Buchstaben an, um ihn zurückzulegen."); return; }
       $$(".tile").forEach(t => t.disabled = true);
-      cb({ ok, helped, how: "write" });
+      cb({ ok, helped, how: "scramble" });
     };
     draw();
     return;
@@ -412,7 +438,8 @@ function recallTask(item, type, ctx, cb, { test = false } = {}) {
   $$(".accents button").forEach(b => b.onclick = () => { const p = inp.selectionStart ?? inp.value.length; inp.value = inp.value.slice(0, p) + b.dataset.c + inp.value.slice(inp.selectionEnd ?? p); inp.focus(); inp.setSelectionRange(p + 1, p + 1); });
   let hints = 0, tries = 0, finished = false;
   if ($("#hint")) $("#hint").onclick = () => { hints++; helped = true; const t = w.fr.split(/\s*\/\s*/)[0]; inp.value = t.slice(0, Math.min(t.length - 1, hints * Math.max(1, Math.ceil(t.length / 4)))); inp.focus(); };
-  const finish = (ok, how, note, kind) => { if (finished) return; finished = true; $("#chk").disabled = true; inp.disabled = true; cb({ ok, helped, how, note, spelling: kind === "accent" || kind === "article" }); };
+  let heardText = "";
+  const finish = (ok, how, note, kind) => { if (finished) return; finished = true; $("#chk").disabled = true; inp.disabled = true; cb({ ok, helped, how, note, spelling: kind === "accent" || kind === "article", heard: heardText, typed: inp.value }); };
   const check = () => {
     const r = checkWritten(inp.value, w.fr);
     if (r === "almost" && tries === 0 && !test) { tries++; sfx.no(); toast("Fast! Schau nochmal genau hin."); inp.focus(); return; }
@@ -425,8 +452,8 @@ function recallTask(item, type, ctx, cb, { test = false } = {}) {
     const alts = await useMic($("#mic"), $("#heard"));
     if (!alts) return;
     const ok = checkSpoken(alts, w.fr);
-    if (ok) { inp.value = w.fr; finish(true, "speak"); }
-    else if (test) finish(false, "speak");
+    if (ok) { inp.value = w.fr; heardText = alts[0]; finish(true, "speak"); }
+    else if (test) { heardText = alts[0]; finish(false, "speak"); }
     else { sfx.no(); $("#heard").textContent += " Versuch es nochmal oder schreib es."; }
   };
 }
@@ -445,11 +472,11 @@ function recogTask(item, ctx, cb) {
   else head = `<span class="task-q">Hör gut zu! Was passt?</span><div class="row center-row">${speakerBtn("hear", true)}</div>`;
   exFrame(ctx, `${head}<div class="choices">${opts.map((o, i) => `<button class="choice" data-i="${i}">${usePics ? `<span class="pic">${pic(o.w)}</span>` : esc(o.w[field])}</button>`).join("")}</div>`);
   if ($("#hear")) $("#hear").onclick = () => sayWord(w.fr);
-  if (type !== "pic2fr") sayWord(w.fr);
+  if (type !== "pic2fr") autoSay(w.fr);
   let done = false;
   $$(".choice").forEach(b => b.onclick = () => {
     const o = opts[+b.dataset.i];
-    if (field === "fr") say(o.w.fr, "fr");
+    if (field === "fr" && isSound()) say(o.w.fr, "fr");
     if (done) return; done = true;
     const ok = o.w === w;
     b.classList.add(ok ? "right" : "wrong");
@@ -469,7 +496,7 @@ function introCard(item, ctx, cb) {
     <div id="heard" class="heard"></div>
     <button class="btn green big" id="nxt">Weiter</button>`);
   $("#hear").onclick = () => sayWord(w.fr);
-  sayWord(w.fr);
+  autoSay(w.fr);
   if ($("#mic")) $("#mic").onclick = async () => {
     const alts = await useMic($("#mic"), $("#heard"));
     if (!alts) return;
@@ -495,7 +522,7 @@ function runLearn(items, opts) {
     need: it.kind === "review" || it.kind === "extra" ? 1 : NEEDED_TODAY,
     last: -100 + i, recalls: 0, done: false,
   }));
-  const st = { pos: 0, ok: 0, ans: 0, coins: 0, t0: Date.now(), doneWords: 0, lastItem: null,
+  const st = { pos: 0, ok: 0, ans: 0, coins: 0, wp: 0, t0: Date.now(), doneWords: 0, lastItem: null,
     starsBefore: Object.fromEntries(S.lessons.map(l => [l.id, lessonStats(S.prog, l).stars])) };
   const totalSteps = () => q.reduce((s, it) => s + (it.done ? 0 : (it.phase === "intro" ? 2 : it.phase === "recog" ? 1 : 0) + it.need), 0);
   const startSteps = totalSteps();
@@ -535,34 +562,36 @@ function runLearn(items, opts) {
         else { after(); feedbackBox(false, it.w, "", next); }
       });
     }
-    recallTask(it, recallType(it), ctx, ({ ok, helped, how, note }) => {
+    recallTask(it, recallType(it), ctx, ({ ok, helped, how, note, heard, typed }) => {
       st.ans++;
       countAnswer(S.prog, it.l, it.w, ok);
+      const fx = { heard: how === "speak" ? heard : "", typed };
       if (ok) {
         st.ok++; st.coins += 1;
         if (how === "speak") S.prog.spoken++; else S.prog.typed++;
-        if (helped) { after(); return feedbackBox(true, it.w, "Mit Hilfe geschafft! Das Wort kommt gleich nochmal – dann ohne Hilfe.", next); }
+        if (how === "write" && !helped) { const r = writePoint(S.prog, it.l, it.w); st.wp += r.point; fx.wc = r.count; fx.point = r.point; fx.already = r.already; }
+        if (helped) { after(); return feedbackBox(true, it.w, "Mit Hilfe geschafft! Das Wort kommt gleich nochmal – dann ohne Hilfe.", next, 0, "", fx); }
         it.recalls++; it.need--;
         if (it.need <= 0) {
           it.done = true; st.doneWords++; st.coins += 2; sfx.coin();
           let msg = "Für heute geschafft!";
-          if (!extra) { const s = promote(S.prog, it.l, it.w); msg += ` Das Wort kommt ${s.b === 2 ? "morgen" : `in ${BOX_NAMES[s.b]}`} wieder.`; }
-          after(); return feedbackBox(true, it.w, note || msg, next, 1500);
+          if (!extra) { const s = promote(S.prog, it.l, it.w); msg += ` Das Wort kommt ${({ 2: "morgen", 3: "in 3 Tagen", 4: "in einer Woche", 5: "in einem Monat" })[s.b] || "später"} wieder.`; }
+          after(); return feedbackBox(true, it.w, note || msg, next, 2600, "", fx);
         }
-        after(); return feedbackBox(true, it.w, note || "Richtig! Gleich nochmal – nach ein paar anderen Wörtern.", next, 1200);
+        after(); return feedbackBox(true, it.w, note || "Richtig! Gleich nochmal – nach ein paar anderen Wörtern.", next, 2400, "", fx);
       }
       // Fehler: zurück auf „heute lernen“, wieder 2× richtig nötig
       if (!extra) fallBack(S.prog, it.l, it.w);
       it.need = extra ? 1 : NEEDED_TODAY; it.kind = it.kind === "extra" ? "extra" : "learn";
-      after(); feedbackBox(false, it.w, "Nicht ganz – das Wort kommt gleich nochmal. So heißt es:", next, 0, memoOf(it.l, it.w));
+      after(); feedbackBox(false, it.w, "Nicht ganz – das Wort kommt gleich nochmal.", next, 0, memoOf(it.l, it.w), fx);
     });
   };
 
   const finish = () => {
     const sec = Math.round((Date.now() - st.t0) / 1000);
-    logActivity(S.prog, { sec, ans: st.ans, ok: st.ok, pts: st.ok });
+    logActivity(S.prog, { sec, ans: st.ans, ok: st.ok, pts: st.ok, wp: st.wp });
     S.prog.coins += st.coins; S.prog.xp += st.ok * 10;
-    if (S.goal) S.goal.achieved += st.ok;
+    if (S.goal) S.goal.achieved += st.wp;
     if (opts.mission && planLearn(S.prog, unlockedLessons(S.prog, S.lessons, S.cls.allOpen)).length === 0) S.prog.missionDay = todayStr();
     const newStars = S.lessons.filter(l => lessonStats(S.prog, l).stars > (st.starsBefore[l.id] || 0));
     const badges = checkBadges(S.prog, S.lessons);
@@ -572,6 +601,7 @@ function runLearn(items, opts) {
       <div class="result-art">${art("trophy")}</div>
       <h1>Super gemacht!</h1>
       <p class="muted" style="margin:0">${st.doneWords} ${st.doneWords === 1 ? "Wort" : "Wörter"} für heute geschafft · ${st.ok} von ${st.ans} Antworten richtig.</p>
+      ${st.wp ? `<div class="fb-point">${art("rocket", "ic")} ${st.wp} ${st.wp === 1 ? "Wort" : "Wörter"} für das Klassenziel!</div>` : ""}
       <p class="small muted" style="margin:0">Die geschafften Wörter machen jetzt Pause und kommen später wieder. So bleiben sie im Kopf.</p>
       <div class="reward-row"><span class="reward">${art("coin", "ic")} +${st.coins}</span><span class="reward">${art("flame", "ic")} ${currentStreak(S.prog)}</span></div>
       ${newStars.map(l => `<div class="feedback ok">${art("star", "ic")} Neuer Stern auf „${esc(l.title)}“!</div>`).join("")}
@@ -591,27 +621,28 @@ function runLearn(items, opts) {
 function runTest(l, mode) {
   const words = shuffle(l.words).slice(0, 25);
   const res = [];
-  let i = 0, coins = 0;
+  let i = 0, coins = 0, wp = 0;
   const t0 = Date.now();
   const typeFor = k => mode === "write" ? "write" : mode === "speak" ? (canListen ? "speak" : "write") : (canListen && k % 2 ? "speak" : "write");
   const next = () => {
     if (i >= words.length) return finish();
     const w = words[i];
     const ctx = { mode: "test", label: `Test: ${l.title} · ${i + 1} von ${words.length}`, progress: Math.round(i / words.length * 100), coins };
-    recallTask({ l, w }, typeFor(i), ctx, ({ ok, helped, how, spelling }) => {
+    recallTask({ l, w }, typeFor(i), ctx, ({ ok, helped, how, spelling, heard, typed }) => {
       if (ok && spelling) helped = true; // Rechtschreibung: Akzent/Artikel fehlt = halber Punkt
       res.push({ w, ok, helped, spelling });
       countAnswer(S.prog, l, w, ok);
+      const fx = { heard: how === "speak" ? heard : "", typed };
       if (ok && !helped) {
         coins += 2;
+        if (how === "write") { const r = writePoint(S.prog, l, w); wp += r.point; fx.wc = r.count; fx.point = r.point; fx.already = r.already; }
         const s = wstate(S.prog, l.id, w.id);
         if (s.b < 2 || s.d <= Date.now()) promote(S.prog, l, w);
         if (how === "speak") S.prog.spoken++; else S.prog.typed++;
       } else fallBack(S.prog, l, w);
       i++; save();
-      // im Test keine Lösung zeigen – nur kurz weiter
-      if (ok) { sfx.ok(); setTimeout(next, 500); }
-      else { sfx.no(); setTimeout(next, 500); }
+      const title = ok ? (spelling ? "Fast richtig – achte auf die Schreibweise." : helped ? "Richtig – mit Hilfe (zählt halb)." : "Richtig!") : "Leider falsch.";
+      feedbackBox(ok, w, title, next, ok && !helped ? 2200 : 0, ok ? "" : memoOf(l, w), fx);
     }, { test: true });
   };
   const finish = () => {
@@ -622,8 +653,8 @@ function runTest(l, mode) {
     if (passed) coins += 10;
     S.prog.coins += coins;
     const ok = res.filter(r => r.ok && !r.helped).length;
-    logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: res.length, ok, pts: ok });
-    if (S.goal) S.goal.achieved += ok;
+    logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: res.length, ok, pts: ok, wp });
+    if (S.goal) S.goal.achieved += wp;
     const badges = checkBadges(S.prog, S.lessons);
     save(true);
     if (passed) { sfx.win(); confetti(200); }
@@ -692,7 +723,7 @@ function memoryGame(l) {
   let open = [], pairs = 0, moves = 0, lock = false;
   const t0 = Date.now();
   render(`<div class="wrap narrow">
-    <div class="ex-top"><button class="icon-btn" id="quit" aria-label="Beenden">${ICON.close}</button><b class="ex-title">Memory – ${esc(l.title)}</b><span class="chip" id="mv">Züge: 0</span></div>
+    <div class="ex-top"><button class="icon-btn" id="quit" aria-label="Beenden">${ICON.close}</button><b class="ex-title">Memory – ${esc(l.title)}</b>${audioBtn()}<span class="chip" id="mv">Züge: 0</span></div>
     <div class="memory" id="mem">${cards.map((c, i) => `<button class="mem" data-i="${i}" aria-label="Karte ${i + 1}">${art("parrot")}</button>`).join("")}</div></div>`);
   $("#quit").onclick = () => islandView(l);
   $$(".mem").forEach(b => b.onclick = () => {
@@ -700,7 +731,7 @@ function memoryGame(l) {
     if (lock || b.classList.contains("open") || b.classList.contains("done")) return;
     b.classList.add("open");
     b.innerHTML = c.side === "fr" ? `<span class="t">${esc(c.w.fr)}</span>` : hasPic(c.w) ? (c.w.img ? `<img src="${esc(c.w.img)}" alt="">` : `<span class="e">${esc(c.w.emoji)}</span>`) : `<span class="t">${esc(c.w.tr)}</span>`;
-    if (c.side === "fr") sayWord(c.w.fr);
+    if (c.side === "fr") autoSay(c.w.fr);
     open.push(b);
     if (open.length === 2) {
       moves++; $("#mv").textContent = `Züge: ${moves}`;
@@ -732,7 +763,7 @@ function blitz(l) {
   const t0 = Date.now();
   render(`<div class="wrap narrow">
     <div class="ex-top"><button class="icon-btn" id="quit" aria-label="Beenden">${ICON.close}</button>
-      <div class="ex-progress"><i id="tbar" style="width:100%"></i></div><span class="chip" id="sc">${art("flame", "ic")} 0</span></div>
+      <div class="ex-progress"><i id="tbar" style="width:100%"></i></div>${audioBtn()}<span class="chip" id="sc">${art("flame", "ic")} 0</span></div>
     <div class="card" id="card"></div></div>`);
   const end = () => {
     clearInterval(timer);
@@ -947,14 +978,14 @@ function matchGame(l) {
   const t0 = Date.now();
   const colors = ["#fff3a8", "#ffd6e7", "#d3f9d8", "#d0ebff", "#ffe8cc"];
   render(`<div class="wrap narrow">
-    <div class="ex-top"><button class="icon-btn" id="quit" aria-label="Beenden">${ICON.close}</button><b class="ex-title">Post-its zuordnen</b><span class="chip" id="pt">0 / ${words.length}</span></div>
+    <div class="ex-top"><button class="icon-btn" id="quit" aria-label="Beenden">${ICON.close}</button><b class="ex-title">Post-its zuordnen</b>${audioBtn()}<span class="chip" id="pt">0 / ${words.length}</span></div>
     <p class="center muted" style="margin:0">Tippe ein Post-it an und dann das passende Bild.</p>
     <div class="match">
       <div class="postits">${words.map((w, k) => `<button class="postit" data-p="${k}" style="background:${colors[k % 5]};transform:rotate(${(k % 2 ? 2 : -2)}deg)">${esc(w.fr)}</button>`).join("")}</div>
       <div class="targets">${right.map((w, k) => `<button class="target" data-t="${k}">${hasPic(withDrawing(l, w)) ? `<span class="pic">${pic(withDrawing(l, w))}</span>` : ""}<span>${esc(w.tr)}</span></button>`).join("")}</div>
     </div></div>`);
   $("#quit").onclick = () => islandView(l);
-  $$(".postit").forEach(b => b.onclick = () => { if (b.classList.contains("done")) return; $$(".postit").forEach(x => x.classList.remove("sel")); b.classList.add("sel"); pick = +b.dataset.p; sayWord(words[pick].fr); });
+  $$(".postit").forEach(b => b.onclick = () => { if (b.classList.contains("done")) return; $$(".postit").forEach(x => x.classList.remove("sel")); b.classList.add("sel"); pick = +b.dataset.p; autoSay(words[pick].fr); });
   $$(".target").forEach(b => b.onclick = () => {
     if (pick == null || b.classList.contains("done")) return;
     const w = words[pick], t = right[+b.dataset.t];
@@ -1011,7 +1042,7 @@ function sortGame(l) {
       if (good) { ok++; sfx.ok(); } else sfx.no();
       b.classList.add(good ? "right" : "wrong");
       toast(good ? `Richtig: ${w.fr}` : `Es heißt: ${w.fr}`, 1400);
-      if (!good) sayWord(w.fr);
+      if (!good) autoSay(w.fr);
       setTimeout(() => { i++; draw(); }, good ? 700 : 1500);
     });
   };
@@ -1039,7 +1070,7 @@ function moveGame(l) {
     }
     const w = words[i], [mv, txt] = MOVES[i % MOVES.length];
     render(`<div class="wrap narrow">
-      <div class="ex-top"><button class="icon-btn" id="quit" aria-label="Beenden">${ICON.close}</button><b class="ex-title">Bewegungsrunde</b><span class="chip">${i + 1} / ${words.length}</span></div>
+      <div class="ex-top"><button class="icon-btn" id="quit" aria-label="Beenden">${ICON.close}</button><b class="ex-title">Bewegungsrunde</b>${audioBtn()}<span class="chip">${i + 1} / ${words.length}</span></div>
       <div class="card"><div class="move-art">${art(mv)}</div><h2>${esc(txt)}</h2>
         <p style="margin:0">… und sag dabei laut auf Französisch:</p>${picBox(w, l)}<div class="word-tr">${esc(w.tr)}</div>
         <div class="row center-row">${micBtn("mic", true)}${speakerBtn("hear")}</div><div id="heard" class="heard"></div>
@@ -1052,11 +1083,11 @@ function moveGame(l) {
       const alts = await useMic($("#mic"), $("#heard")); if (!alts) return;
       const good = checkSpoken(alts, w.fr);
       $("#heard").textContent += good ? " Super!" : ` Es heißt: ${w.fr}`;
-      good ? sfx.ok() : (sfx.no(), sayWord(w.fr));
+      good ? sfx.ok() : (sfx.no(), autoSay(w.fr));
       next(good && !used);
     };
     $("#show").onclick = () => {
-      sayWord(w.fr);
+      autoSay(w.fr);
       $("#show").outerHTML = `<div class="word-fr">${esc(w.fr)}</div><div class="row center-row"><button class="btn green" id="y">Hatte ich richtig</button><button class="btn coral" id="n">Noch nicht</button></div>`;
       $("#y").onclick = () => next(!used); $("#n").onclick = () => next(false);
     };
@@ -1119,12 +1150,12 @@ function classPanel() {
   const myPts = weekDaysPts(S.prog, g.mon);
   const B = g.building, Unser = unser(B)[0].toUpperCase() + unser(B).slice(1);
   const msg = reached ? `Geschafft! ${Unser} ${B.name} ist fertig!` :
-    gp >= 75 ? `Fast fertig! Nur noch ${left} Punkte.` :
-    gp >= 50 ? `Mehr als die Hälfte steht! Noch ${left} Punkte.` :
-    gp >= 25 ? `Das Fundament steht! Noch ${left} Punkte.` :
-    `Noch ${left} Punkte bis ${zum(B)} ${B.name}. Jede richtige Antwort beim Lernen und Testen zählt!`;
+    gp >= 75 ? `Fast fertig! Nur noch ${left} Wörter.` :
+    gp >= 50 ? `Mehr als die Hälfte steht! Noch ${left} Wörter.` :
+    gp >= 25 ? `Das Fundament steht! Noch ${left} Wörter.` :
+    `Noch ${left} Wörter bis ${zum(B)} ${B.name}.`;
   return `<div class="panel class-panel ${reached ? "reached" : ""}">
-    <div class="row between"><h2 class="cp-title">Unsere Klasse baut: ${esc(g.building.name)}</h2><span class="chip">${g.achieved} / ${g.target} Punkte</span></div>
+    <div class="row between"><h2 class="cp-title">Unsere Klasse baut: ${esc(g.building.name)}</h2><span class="chip">${g.achieved} / ${g.target} Wörter</span></div>
     <div class="cp-main">
       <div class="cp-build">${buildingSvg(g.building.key, gp)}</div>
       <div class="stack" style="gap:10px;min-width:0">
@@ -1141,12 +1172,12 @@ function classPanel() {
       <div><b>${g.built.length}</b><span>${g.built.length === 1 ? "Bauwerk steht" : "Bauwerke stehen"} schon auf der Klassen-Insel</span></div>
     </div>
     ${g.built.length ? `<div class="class-isle"><b>Unsere Klassen-Insel</b><div class="built">${g.built.map(b => `<div class="built-item" title="${esc(b.name)} – ${esc(b.reward)}">${buildingSvg(b.key, 100, "small")}<small>${esc(b.name)}</small></div>`).join("")}</div></div>` : ""}
-    <span class="small muted">Dein Beitrag diese Woche: <b>${myPts}</b> Punkte. Danke!</span>
+    <span class="small muted">So zählt es: Ein Wort hilft der Klasse, wenn du es <b>3× richtig geschrieben</b> hast. Dein Beitrag diese Woche: <b>${myPts}</b> ${myPts === 1 ? "Wort" : "Wörter"} – jedes Kind schafft mindestens 7!</span>
   </div>`;
 }
 function weekDaysPts(p, mon) {
   const a = new Date(mon + "T12:00").getTime(); let s = 0;
-  for (let i = 0; i < 7; i++) s += p.days?.[todayStr(new Date(a + i * DAY))]?.pts || 0;
+  for (let i = 0; i < 7; i++) s += p.days?.[todayStr(new Date(a + i * DAY))]?.wp || 0;
   return s;
 }
 

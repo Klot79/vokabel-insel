@@ -61,13 +61,20 @@ export const ICON = {
   mic: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/></svg>`,
   close: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>`,
   back: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>`,
+  mute: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M17 9l5 6M22 9l-5 6"/></svg>`,
+  check: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>`,
+  cross: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>`,
   bulb: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg>`,
 };
 export function stars(n, size = "") { return `<span class="stars ${size}" aria-label="${n} von 3 Sternen">${[0, 1, 2].map(i => art(i < n ? "star" : "starEmpty")).join("")}</span>`; }
 
 // ---- Töne (ohne Dateien, WebAudio) ----
 let ac;
+let soundOn = true;
+export function setSound(v) { soundOn = !!v; }
+export const isSound = () => soundOn;
 function tone(freq, dur = .12, type = "sine", when = 0, vol = .18) {
+  if (!soundOn) return;
   try {
     ac = ac || new (window.AudioContext || window.webkitAudioContext)();
     const o = ac.createOscillator(), g = ac.createGain();
@@ -79,8 +86,8 @@ function tone(freq, dur = .12, type = "sine", when = 0, vol = .18) {
   } catch {}
 }
 export const sfx = {
-  ok() { tone(660, .1, "triangle"); tone(990, .16, "triangle", .09); },
-  no() { tone(220, .18, "sawtooth", 0, .08); },
+  ok() { tone(660, .12, "triangle", 0, .22); tone(880, .12, "triangle", .1, .22); tone(1320, .22, "triangle", .2, .22); },
+  no() { tone(392, .16, "square", 0, .07); tone(262, .32, "square", .16, .07); },
   coin() { tone(1200, .07, "square", 0, .06); tone(1600, .1, "square", .07, .06); },
   win() { [523, 659, 784, 1046].forEach((f, i) => tone(f, .18, "triangle", i * .12)); },
   tap() { tone(500, .04, "sine", 0, .06); },
