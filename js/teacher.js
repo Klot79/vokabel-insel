@@ -52,6 +52,7 @@ function searchImage(query, { title = "Bild suchen", alt = [], series = false } 
 }
 const searchTerm = s => stripArticle(norm(String(s || "").split(/[\/;]/)[0]));
 import { say } from "./speech.js";
+import { aiCheck } from "./sentence.js";
 
 const T = { cls: null, tab: "overview", students: [], lessons: [], progs: {}, back: null };
 
@@ -630,6 +631,8 @@ function settings(el) {
       <label class="check"><input type="checkbox" id="ao" ${T.cls.allOpen ? "checked" : ""}> Alle Inseln von Anfang an offen (sonst nacheinander)</label>
       <label class="check"><input type="checkbox" id="rep" ${T.cls.report?.enabled ? "checked" : ""}> Wochenbericht automatisch erstellen (jeden Montag ab 7:00)</label>
       <label class="check"><input type="checkbox" id="olc" ${T.cls.onlineCheck !== false ? "checked" : ""}> Eigene Sätze online auf Grammatik und Rechtschreibung prüfen (LanguageTool; es wird nur der Satz gesendet, kein Name)</label>
+      <label class="check"><input type="checkbox" id="aic" ${T.cls.aiCheck ? "checked" : ""} ${isCloud ? "" : "disabled"}> Eigene Sätze zusätzlich von der KI (Claude) auf Sinn und Grammatik prüfen lassen ${isCloud ? "" : "(nur mit Online-Datenbank)"}</label>
+      ${isCloud ? `<div class="row"><button class="btn ghost small" id="aiTest">KI-Prüfung testen</button><span class="small muted" id="aiTestOut"></span></div>` : ""}
       <button class="btn green small" id="sv" style="justify-self:start">Speichern</button>
     </div>
     <div class="t-panel"><h2>Link für die Kinder</h2>
@@ -650,7 +653,7 @@ function settings(el) {
   </div>`;
   $("#sv").onclick = async () => {
     T.cls = { ...T.cls, name: $("#cn").value.trim() || T.cls.name, goal: { unit: "w3", start: Math.max(START_PER_KID * T.students.length, +$("#gs").value || 0), auto: $("#ga").checked, override: +$("#go").value > 0 ? Math.max(START_PER_KID * T.students.length, +$("#go").value) : null },
-      rewards: $("#rw").value.split("\n").map(x => x.trim()).filter(Boolean).slice(0, 12), allOpen: $("#ao").checked, report: { ...(T.cls.report || {}), enabled: $("#rep").checked }, onlineCheck: $("#olc").checked };
+      rewards: $("#rw").value.split("\n").map(x => x.trim()).filter(Boolean).slice(0, 12), allOpen: $("#ao").checked, report: { ...(T.cls.report || {}), enabled: $("#rep").checked }, onlineCheck: $("#olc").checked, aiCheck: !!$("#aic")?.checked };
     await Store.put("class", "main", T.cls); toast("Gespeichert ✔");
   };
   if ($("#bucketState")) Store.checkImageStorage().then(ok => {
@@ -658,6 +661,11 @@ function settings(el) {
     el.innerHTML = ok ? "✅ Bildspeicher eingerichtet: Bilder werden in hoher Auflösung gespeichert."
       : "⚠️ Bildspeicher noch nicht eingerichtet: Bilder werden verkleinert gespeichert. Zum Einrichten in Supabase im SQL Editor die Datei <b>supabase/setup-bilder.sql</b> ausführen.";
   });
+  if ($("#aiTest")) $("#aiTest").onclick = async () => {
+    const out = $("#aiTestOut"); out.textContent = "Teste … (kann ein paar Sekunden dauern)";
+    const r = await aiCheck({ code: Store.code, sentence: "Le chat mange la maison.", word: "le chat", meaning: "die Katze", lang: "de" });
+    out.textContent = r.ok ? `✅ Funktioniert! Beispiel „Le chat mange la maison.“ → Sinn ${r.meaning_ok ? "ok" : "nicht ok"}: ${r.tip}` : `⚠️ ${r.error} – siehe Anleitung (Schritt KI-Prüfung).`;
+  };
   $("#cp").onclick = async () => { try { await navigator.clipboard.writeText(link); toast("Link kopiert."); } catch { $("#lnk").select(); toast("Bitte den markierten Link kopieren."); } };
   $("#pinsv").onclick = async () => {
     const p = $("#np1").value.trim(); if (!/^\d{4,}$/.test(p)) return toast("Die PIN braucht mindestens 4 Ziffern.");
@@ -819,7 +827,7 @@ function sentencesTab(el, onlyOpen = true) {
         <td><b>${esc(x.name)}</b><br><span class="small muted">${new Date(x.date + "T12:00").toLocaleDateString("de")}</span></td>
         <td>${esc(x.fr)}</td>
         <td style="min-width:200px"><span style="font-size:1.05rem">„${esc(x.text)}“</span> <button class="btn ghost small" data-say="${esc(x.text)}" aria-label="Vorlesen">🔊</button></td>
-        <td>${x.auto === "perfect" ? `<span class="pill good">✓</span>` : `<span class="pill warn">ok</span>`}${x.online ? (x.online.n ? `<br><span class="small" title="${esc(x.online.issues.join(" · "))}">online: ${x.online.n} Hinweis${x.online.n > 1 ? "e" : ""}</span>` : `<br><span class="small">online: keine Fehler</span>`) : ""}</td>
+        <td>${x.auto === "perfect" ? `<span class="pill good">✓</span>` : `<span class="pill warn">ok</span>`}${x.ai ? `<br><span class="pill ${x.ai.verdict === "verbessern" ? "warn" : "good"}" title="${esc((x.ai.tip || "") + (x.ai.corrected ? " · Vorschlag: " + x.ai.corrected : ""))}">KI: ${esc(x.ai.verdict)}${x.ai.meaning_ok ? "" : " · Sinn?"}</span>` : ""}${x.auto === "override" ? `<br><span class="pill bad">trotzdem gespeichert</span>` : ""}${x.online ? (x.online.n ? `<br><span class="small" title="${esc(x.online.issues.join(" · "))}">online: ${x.online.n} Hinweis${x.online.n > 1 ? "e" : ""}</span>` : `<br><span class="small">online: keine Fehler</span>`) : ""}</td>
         <td style="min-width:240px">${f ? `<span class="pill ${f.ok ? "good" : "warn"}">${f.ok ? "✓ gelobt" : "✎ verbessern"}</span> ${esc(f.comment || "")}` : `
           <input class="input" data-cm="${esc(x.sid)}|${esc(x.id)}" placeholder="Kommentar (optional), z. B. Très bien!">
           <div class="row" style="gap:6px;margin-top:6px"><button class="btn green small" data-ok="${esc(x.sid)}|${esc(x.id)}">✓ Super</button><button class="btn ghost small" data-fix="${esc(x.sid)}|${esc(x.id)}">✎ Verbessern</button></div>`}</td>

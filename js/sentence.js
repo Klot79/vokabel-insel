@@ -149,3 +149,27 @@ export function markSentence(text, issues, esc) {
   }
   return out + esc(text.slice(pos));
 }
+
+// ---------------------------------------------------------------
+//  KI-Prüfung (Claude) über die Supabase Edge Function „satz-pruefen“
+//  Prüft zusätzlich den SINN. Gesendet werden Satz, Lernwort und
+//  Klassencode – kein Name.
+// ---------------------------------------------------------------
+export async function aiCheck({ code, sentence, word, meaning, lang }) {
+  const cfg = window.VOKABEL_CONFIG || {};
+  if (!cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY) return { ok: false, error: "Die KI-Prüfung braucht die Online-Datenbank." };
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 25000);
+  try {
+    const r = await fetch(`${cfg.SUPABASE_URL.replace(/\/$/, "")}/functions/v1/satz-pruefen`, {
+      method: "POST", signal: ctl.signal,
+      headers: { apikey: cfg.SUPABASE_ANON_KEY, Authorization: `Bearer ${cfg.SUPABASE_ANON_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ code, sentence, word, meaning, lang }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.ok) return { ok: false, error: d.error ? `KI: ${d.error}` : `KI nicht erreichbar (${r.status}).` };
+    return d;
+  } catch (e) {
+    return { ok: false, error: "Die KI hat nicht rechtzeitig geantwortet." };
+  } finally { clearTimeout(timer); }
+}
