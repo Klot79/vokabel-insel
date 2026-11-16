@@ -58,6 +58,13 @@ export function countAnswer(prog, l, w, ok) {
   ok ? s.r++ : s.w++;
   return put(prog, l, w, s);
 }
+// Lernkarten: Selbsteinschätzung getrennt zählen (cr/cw) – nicht in „Treffer“
+export function countCard(prog, l, w, knew) {
+  const s = { ...wstate(prog, l.id, w.id) };
+  knew ? (s.cr = (s.cr || 0) + 1) : (s.cw = (s.cw || 0) + 1);
+  prog.cards = (prog.cards || 0) + 1;
+  return put(prog, l, w, s);
+}
 // Fehler: zurück auf „heute lernen“
 export function fallBack(prog, l, w) {
   const s = { ...wstate(prog, l.id, w.id) };

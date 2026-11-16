@@ -1,4 +1,4 @@
-import { Store, Device } from "./store.js";
+import { Store, Device, isCloud } from "./store.js";
 import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js";
 import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js";
 import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js";
@@ -12,7 +12,7 @@ import {
   checkWritten, checkSpoken, logActivity, currentStreak, weekSummary, checkBadges, BADGES, wstate, shuffle,
   stripArticle, todayStr, DAY, NEEDED_TODAY, MIN_GAP, BOX_NAMES, wkey,
   weekState, weekLabel, schoolDay, perDayFor, newAllowed, sortLessons, DAILY_GOAL_SEC, todaySeconds, mondayOf,
-  writePoint, WRITES_FOR_POINT,
+  writePoint, WRITES_FOR_POINT, countCard,
 } from "./srs.js";
 
 // ---- Ton an/aus (gilt auf diesem Gerät, überall) ----
@@ -68,6 +68,7 @@ export async function studentLogin(cls, back) {
   let students = [], progs = [];
   try { [students, progs] = await Promise.all([Store.list("student"), Store.list("progress")]); }
   catch (e) { render(`<div class="wrap narrow"><div class="panel">${esc(e.message)}</div></div>`); return; }
+  S.cache = { students, progs };
   const pmap = Object.fromEntries(progs.map(p => [p.id, p]));
   students.sort((a, b) => a.name.localeCompare(b.name, "de"));
   render(`<div class="wrap narrow">
@@ -102,7 +103,8 @@ function pinScreen(student, prog, cls, back) {
     if (pin.length >= 3) return;
     sfx.tap(); pin.push(b.dataset.e); dots();
     if (pin.length === 3) {
-      const ok = (await pinHash(Store.code, pin)) === student.pinHash;
+      let ok = false;
+      try { ok = await Store.checkKidPin(student, await pinHash(Store.code, pin)); } catch (e) { toast(e.message); }
       if (ok) { Device.set("lastStudent", student.id); await enter(student, back); }
       else { sfx.no(); $("#dots").classList.add("shake"); setTimeout(() => { pin = []; dots(); $("#dots")?.classList.remove("shake"); }, 450); toast(t("Das war nicht ganz richtig. Probier es nochmal!")); }
     }
@@ -111,20 +113,28 @@ function pinScreen(student, prog, cls, back) {
 
 async function enter(student, back) {
   S.student = student;
-  const [lessons, prog, all] = await Promise.all([Store.list("lesson"), Store.getOne("progress", student.id), Store.list("progress")]);
+  const cache = S.cache || {};
+  const [lessons, all, students] = await Promise.all([Store.list("lesson"), cache.progs || Store.list("progress"), cache.students || Store.list("student")]);
+  S.cache = null;
+  const prog = all.find(p => p.id === student.id);
   S.prog = { ...emptyProgress(), ...(prog || {}) };
+  // Offline gespeicherter Stand, der noch nicht gesendet wurde?
+  const pend = Device.get(pendKey());
+  if (pend && (pend.gen ?? null) === (S.prog.gen ?? null) && (pend.savedAt || 0) > (S.prog.savedAt || 0)) { S.prog = { ...emptyProgress(), ...pend }; setTimeout(() => save(true), 500); }
+  else if (pend) Device.del(pendKey());
   S.prog.tests = S.prog.tests || {};
   if (S.prog.uiLang) { setLang(S.prog.uiLang); document.documentElement.lang = getLang(); }
   delete S.prog.id; delete S.prog._updated;
   S.lessons = sortLessons(lessons
     .filter(l => l.words?.length && (l.assigned === "all" || !l.assigned || (Array.isArray(l.assigned) && l.assigned.includes(student.id)))));
-  S.prog.memos = S.prog.memos || {}; S.prog.drawings = S.prog.drawings || {};
+  S.prog.memos = S.prog.memos || {};
+  await loadDrawings();
   const allProgs = all.filter(p => p.id !== student.id).concat([S.prog]);
-  try { S.goal = await currentGoal(S.cls, allProgs, Math.max(1, (await Store.list("student")).length)); } catch (e) { S.goal = null; }
+  try { S.goal = await currentGoal(S.cls, allProgs, Math.max(1, students.length)); } catch (e) { S.goal = null; }
   // Gemeinsamer Klassenfortschritt (ohne Namen – keine Rangliste)
   const others = all.filter(p => p.id !== student.id);
   S.classInfo = {
-    kids: Math.max(1, (await Store.list("student")).length),
+    kids: Math.max(1, students.length),
     othersWeek: others.filter(p => weekSummary({ days: p.days || {} }).ans > 0).length,
     othersToday: others.filter(p => (p.days?.[todayStr()]?.ans || 0) > 0).length,
     othersKnown: others.reduce((sum, p) => sum + Object.values(p.words || {}).filter(s => s.b >= 2).length, 0),
@@ -134,16 +144,70 @@ async function enter(student, back) {
   home(back);
 }
 
-let saveT;
+let saveT, retryT, offlineToast = false;
+const pendKey = () => `pend:${Store.code}:${S.student?.id}`;
 function save(now = false) {
   clearTimeout(saveT);
   const go = async () => {
+    if (!S.student) return;
     for (const l of S.lessons) S.prog.stars[l.id] = lessonStats(S.prog, l).stars;
-    try { await Store.put("progress", S.student.id, S.prog); }
-    catch (e) { toast(t("Speichern hat nicht geklappt. Ist das Internet an?")); }
+    S.prog.savedAt = Date.now();
+    try {
+      await Store.put("progress", S.student.id, S.prog);
+      Device.del(pendKey()); offlineToast = false; clearTimeout(retryT);
+    } catch (e) {
+      if (e.reset) return wasReset();
+      // Auf dem Gerät zwischenspeichern und später nachsenden
+      Device.set(pendKey(), S.prog);
+      if (!offlineToast) { offlineToast = true; toast(t("Kein Internet – dein Fortschritt ist auf diesem Gerät gespeichert und wird später gesendet.")); }
+      clearTimeout(retryT); retryT = setTimeout(() => save(true), 20000);
+    }
   };
   if (now) return go();
   saveT = setTimeout(go, 1200);
+}
+window.addEventListener("online", () => { if (S.student && Device.get(pendKey())) save(true); });
+
+// Die Lehrkraft hat den Fortschritt zurückgesetzt, während das Kind angemeldet war
+let resetShown = false;
+async function wasReset() {
+  if (resetShown) return; resetShown = true;
+  Device.del(pendKey());
+  await modal(`<div class="center stack"><div class="result-art">${art("rocket")}</div><h2>${t("Neustart!")}</h2>
+    <p style="margin:0">${t("Deine Lehrkraft hat deinen Fortschritt zurückgesetzt. Du beginnst jetzt ganz neu – viel Spaß!")}</p>
+    <button class="btn green" data-close="ok">${t("Weiter")}</button></div>`);
+  resetShown = false;
+  const st = S.student; S.cache = null;
+  await enter(st, backToStart);
+}
+
+// ---- Zeichnungen: getrennt vom Fortschritt gespeichert (lädt schneller) ----
+const artSeparate = () => Store.v2;
+async function loadDrawings() {
+  S.drawings = S.prog.drawings || {};
+  if (!artSeparate()) { S.prog.drawings = S.drawings; return; }
+  try {
+    const a = await Store.getOne("art", S.student.id);
+    const merged = { ...(a?.drawings || {}), ...S.drawings };
+    const moved = Object.keys(S.drawings).length > 0;
+    S.drawings = merged; delete S.prog.drawings;
+    if (moved) { await Store.put("art", S.student.id, { drawings: merged }); save(true); }   // alte Zeichnungen umziehen
+  } catch { S.prog.drawings = S.drawings; }
+}
+async function saveDrawings() {
+  if (!artSeparate()) { S.prog.drawings = S.drawings; return save(); }
+  try { await Store.put("art", S.student.id, { drawings: S.drawings }); } catch (e) { toast(e.message); }
+}
+
+// ---- Münzen aus Spielen: höchstens eine bestimmte Zahl pro Tag ----
+function earn(kind, n, cap) {
+  const k = todayStr(); const d = S.prog.days[k] || (S.prog.days[k] = { sec: 0, ans: 0, ok: 0 });
+  d.gc = d.gc || {};
+  const used = d.gc[kind] || 0, give = Math.max(0, Math.min(n, cap - used));
+  d.gc[kind] = used + give;
+  S.prog.coins += give;
+  if (give < n) setTimeout(() => toast(t("Für heute gibt es hier keine Münzen mehr – aber Üben hilft dir trotzdem!"), 3200), 900);
+  return give;
 }
 
 // ------------------------------------------------------------------
@@ -235,8 +299,8 @@ function encouragement() {
   return t("Ein paar Minuten jeden Tag – so merkt sich dein Kopf die Wörter am besten.");
 }
 
-async function askAnswerMode(title, learn = false) {
-  return modal(`<h2 class="center">${esc(title)}</h2>
+async function askAnswerMode(title, learn = false, rec = "") {
+  const v = await modal(`<h2 class="center">${esc(title)}</h2>
     <div class="choose ${learn ? "choose4" : ""}">
       <button class="choose-btn" data-close="mix">${art("games")}<b>${t("Gemischt")}</b><small>${t("Schreiben und Sprechen")}</small></button>
       ${learn ? `<button class="choose-btn" data-close="cards">${art("book")}<b>${t("Lernkarten")}</b><small>${t("Karte umdrehen und merken")}</small></button>
@@ -244,8 +308,14 @@ async function askAnswerMode(title, learn = false) {
       <button class="choose-btn" data-close="write">${art("clipboard")}<b>${t("Aus dem Kopf schreiben")}</b><small>${t("ohne das Wort zu sehen")}</small></button>`
         : `<button class="choose-btn" data-close="write">${art("clipboard")}<b>${t("Schreiben")}</b><small>${t("mit der Tastatur")}</small></button>`}
       ${canListen ? `<button class="choose-btn" data-close="speak">${art("parrot")}<b>${t("Sprechen")}</b><small>${t("ins Mikrofon")}</small></button>` : ""}
-    </div>`);
+    </div>`, { onMount: m => {
+      const b = rec && m.querySelector(`[data-close="${rec}"]`);
+      if (b) { b.classList.add("rec"); b.insertAdjacentHTML("afterbegin", `<span class="rec-tag">⭐ ${t("Empfohlen")}</span>`); }
+    } });
+  return v;
 }
+// Was passt gerade am besten? Neue Wörter: erst Lernkarten, sonst aus dem Kopf schreiben
+const recommendFor = items => items.some(i => i.kind === "new") ? "cards" : "write";
 
 async function startLearn(lessons, onlyLesson) {
   const pool = onlyLesson ? [onlyLesson] : lessons;
@@ -256,7 +326,7 @@ async function startLearn(lessons, onlyLesson) {
     if (!items.length) return toast(t("Hier gibt es noch keine Wörter."));
     toast(t("Alles für heute geschafft! Jetzt übst du freiwillig."), 3500);
   }
-  const pref = await askAnswerMode(t("Wie möchtest du üben?"), true);
+  const pref = await askAnswerMode(t("Wie möchtest du üben?"), true, recommendFor(items));
   if (!pref) return;
   S.prog.pref = pref;
   runLearn(items, { pref, lesson: onlyLesson, mission: !onlyLesson });
@@ -347,7 +417,7 @@ function exFrame({ mode, label, progress, coins }, inner) {
 const speakerBtn = (id = "hear", big = false) => `<button class="round-btn blue ${big ? "big" : ""}" id="${id}" aria-label="${t("Wort anhören")}" title="${t("Wort anhören")}">${ICON.speaker}</button>`;
 const micBtn = (id = "mic", big = false) => canListen ? `<button class="round-btn coral ${big ? "big" : ""}" id="${id}" aria-label="${t("Sprechen")}" title="${t("Antwort sprechen")}">${ICON.mic}</button>` : "";
 // Wort-Bild: Bild der Lehrkraft, sonst eigene Zeichnung des Kindes
-const withDrawing = (l, w) => (w.img || w.emoji || !l) ? w : (S.prog.drawings?.[wkey(l.id, w.id)] ? { ...w, img: S.prog.drawings[wkey(l.id, w.id)] } : w);
+const withDrawing = (l, w) => (w.img || w.emoji || !l) ? w : (S.drawings?.[wkey(l.id, w.id)] ? { ...w, img: S.drawings[wkey(l.id, w.id)] } : w);
 const picBox = (w, l) => { const x = withDrawing(l, w); return hasPic(x) ? `<div class="prompt-pic">${pic(x)}</div>` : ""; };
 const memoOf = (l, w) => S.prog.memos?.[wkey(l.id, w.id)] || w.memo || "";
 
@@ -669,12 +739,14 @@ function runLearn(items, opts) {
         // Selbsteinschätzung fließt in die Wiederholungen ein (wie beim Schreiben/Sprechen)
         if (!extra && it.kind === "new") markSeen(S.prog, it.l, it.w);
         st.ans++;
-        countAnswer(S.prog, it.l, it.w, knew);          // merkt sich gewusst / nicht gewusst
+        countCard(S.prog, it.l, it.w, knew);            // eigene Zählung: Selbsteinschätzung, nicht „Treffer“
         if (knew) {
           st.ok++; st.coins += 1; sfx.ok(); it.recalls++; it.need--;
           if (it.need <= 0) {
             it.done = true; st.doneWords++;
-            if (!extra) { const s2 = promote(S.prog, it.l, it.w); toast(t(`Für heute geschafft! Das Wort kommt ${({ 2: "morgen", 3: "in 3 Tagen", 4: "in einer Woche", 5: "in einem Monat" })[s2.b] || "später"} wieder.`), 2200); }
+            // Lernkarten bringen ein Wort höchstens bis „morgen wieder“ – weiter nur mit Schreiben/Sprechen
+            if (!extra && wstate(S.prog, it.l.id, it.w.id).b <= 1) { promote(S.prog, it.l, it.w); toast(t("Für heute geschafft! Das Wort kommt morgen wieder."), 2200); }
+            else toast(t("Gut gewusst! Schreib das Wort jetzt noch aus dem Kopf – dann wandert es weiter."), 2600);
           } else toast(t("Gut! Die Karte kommt gleich nochmal – nach ein paar anderen Karten."), 2200);
         } else {
           sfx.no();
@@ -731,9 +803,11 @@ function runLearn(items, opts) {
 
   const finish = () => {
     const sec = Math.round((Date.now() - st.t0) / 1000);
-    logActivity(S.prog, { sec, ans: st.ans, ok: st.ok, pts: st.ok, wp: st.wp });
     const copy = opts.pref === "copy", cards = opts.pref === "cards";
-    S.prog.coins += st.coins; S.prog.xp += st.ok * 10;
+    logActivity(S.prog, { sec, ans: cards || copy ? 0 : st.ans, ok: cards || copy ? 0 : st.ok, pts: st.ok, wp: st.wp });
+    if (cards || copy) st.coins = earn(opts.pref, st.coins, 10);
+    else S.prog.coins += st.coins;
+    S.prog.xp += st.ok * 10;
     if (S.goal) S.goal.achieved += st.wp;
     if (opts.mission && planLearn(S.prog, unlockedLessons(S.prog, S.lessons, S.cls.allOpen)).length === 0) S.prog.missionDay = todayStr();
     const newStars = S.lessons.filter(l => lessonStats(S.prog, l).stars > (st.starsBefore[l.id] || 0));
@@ -780,7 +854,8 @@ function runTest(l, mode) {
         coins += 2;
         if (how === "write") { const r = writePoint(S.prog, l, w); wp += r.point; fx.wc = r.count; fx.point = r.point; fx.already = r.already; }
         const s = wstate(S.prog, l.id, w.id);
-        if (s.b < 2 || s.d <= Date.now()) promote(S.prog, l, w);
+        if (s.b === 0) markSeen(S.prog, l, w);            // noch nie gelernt → erst „heute lernen“
+        else if (s.b < 2 || s.d <= Date.now()) promote(S.prog, l, w);
         if (how === "speak") S.prog.spoken++; else S.prog.typed++;
       } else fallBack(S.prog, l, w);
       i++; save();
@@ -813,7 +888,7 @@ function runTest(l, mode) {
     </div></div>`);
     $$("[data-say]").forEach(b => b.onclick = () => sayWord(wrong[+b.dataset.say].w.fr));
     if ($("#learnWrong")) $("#learnWrong").onclick = async () => {
-      const pref = await askAnswerMode(t("Wie möchtest du üben?"), true);
+      const pref = await askAnswerMode(t("Wie möchtest du üben?"), true, "write");
       if (!pref) return;
       runLearn(wrong.map(r => ({ l, w: r.w, s: wstate(S.prog, l.id, r.w.id), kind: "learn" })), { pref, lesson: l });
     };
@@ -882,8 +957,7 @@ function memoryGame(l) {
       if (a.w === d.w && a.side !== d.side) {
         sfx.ok(); open.forEach(x => x.classList.replace("open", "done")); open = []; pairs++;
         if (pairs === words.length) {
-          const coins = Math.max(3, words.length * 2 - Math.max(0, moves - words.length));
-          S.prog.coins += coins;
+          const coins = earn("memory", Math.max(3, words.length * 2 - Math.max(0, moves - words.length)), 15);
           logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: words.length, ok: words.length });
           checkBadges(S.prog, S.lessons); save(true);
           setTimeout(() => { sfx.win(); confetti(); modal(`<div class="center stack"><div class="result-art">${art("trophy")}</div><h2>${t("Alle Paare gefunden!")}</h2><p class="muted" style="margin:0">${t("{n} Züge", { n: moves })}</p><div class="reward-row"><span class="reward">${art("coin", "ic")} +${coins}</span></div><button class="btn green" data-close="ok">${t("Weiter")}</button></div>`).then(() => islandView(l)); }, 500);
@@ -913,14 +987,14 @@ function blitz(l) {
     const best = S.prog.best["blitz:" + l.id] || 0;
     const rec = score > best;
     if (rec) S.prog.best["blitz:" + l.id] = score;
-    S.prog.coins += score;
+    const got = earn("blitz", score, 15);
     logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: score + wrong, ok: score });
     checkBadges(S.prog, S.lessons); save(true);
     if (rec && score > 0) { sfx.win(); confetti(); }
     render(`<div class="wrap narrow"><div class="card result"><div class="result-art">${art("flame")}</div>
       <h1>${t("{n} richtig!", { n: score })}</h1>
       <p class="muted" style="margin:0">${rec && score ? t("Neuer persönlicher Rekord!") : t("Dein Rekord: {n}", { n: best })}</p>
-      <div class="reward-row"><span class="reward">${art("coin", "ic")} +${score}</span></div>
+      <div class="reward-row"><span class="reward">${art("coin", "ic")} +${got}</span></div>
       <div class="row center-row"><button class="btn blue" id="again">${t("Nochmal")}</button><button class="btn green" id="back">${t("Zur Insel")}</button></div></div></div>`);
     $("#again").onclick = () => blitz(l);
     $("#back").onclick = () => islandView(l);
@@ -1057,7 +1131,7 @@ function weekCard(unlocked) {
 }
 function hardWords() {
   const out = [];
-  for (const l of S.lessons) for (const w of l.words) { const s = wstate(S.prog, l.id, w.id); if (s.w >= 2 || (s.b === 1 && s.w >= 1)) out.push({ l, w, s }); }
+  for (const l of S.lessons) for (const w of l.words) { const s = wstate(S.prog, l.id, w.id), wr = (s.w || 0) + (s.cw || 0); if (wr >= 2 || (s.b === 1 && wr >= 1)) out.push({ l, w, s: { ...s, w: wr } }); }
   return out.sort((a, b) => b.s.w - a.s.w);
 }
 function hardCard() {
@@ -1069,7 +1143,7 @@ function hardCard() {
 }
 async function practiceHard() {
   const h = hardWords().slice(0, 8);
-  const pref = await askAnswerMode(t("Schwierige Wörter üben"), true);
+  const pref = await askAnswerMode(t("Schwierige Wörter üben"), true, "write");
   if (!pref) return;
   runLearn(h.map(x => ({ ...x, kind: x.s.b === 1 ? "learn" : "extra" })), { pref });
 }
@@ -1140,8 +1214,7 @@ function matchGame(l) {
       b.classList.add("done"); b.insertAdjacentHTML("beforeend", `<span class="stuck" style="background:${pb.style.background}">${esc(w.fr)}</span>`);
       pick = null; $("#pt").textContent = `${done} / ${words.length}`;
       if (done === words.length) {
-        const coins = Math.max(2, words.length * 2 - errors);
-        S.prog.coins += coins; logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: words.length + errors, ok: words.length });
+        const coins = earn("match", Math.max(2, words.length * 2 - errors), 15); logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: words.length + errors, ok: words.length });
         save(true);
         setTimeout(() => { sfx.win(); confetti(); modal(`<div class="center stack"><div class="result-art">${art("postit")}</div><h2>${t("Alle Post-its kleben!")}</h2><div class="reward-row"><span class="reward">${art("coin", "ic")} +${coins}</span></div><button class="btn green" data-close="ok">${t("Weiter")}</button></div>`).then(() => islandView(l)); }, 500);
       }
@@ -1165,7 +1238,7 @@ function sortGame(l) {
   const t0 = Date.now();
   const draw = () => {
     if (i >= pool.length) {
-      const coins = ok * 2; S.prog.coins += coins;
+      const coins = earn("sort", ok * 2, 15);
       logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: pool.length, ok }); save(true);
       sfx.win(); if (ok >= pool.length - 1) confetti();
       return render(`<div class="wrap narrow"><div class="card result"><div class="result-art">${art("baskets")}</div><h1>${t("{ok} von {n} richtig sortiert!", { ok, n: pool.length })}</h1>
@@ -1205,10 +1278,10 @@ function moveGame(l) {
   const t0 = Date.now();
   const show = () => {
     if (i >= words.length) {
-      S.prog.coins += ok * 2; logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: words.length, ok }); save(true);
+      const got = earn("move", ok * 2, 15); logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: words.length, ok }); save(true);
       sfx.win(); confetti();
       render(`<div class="wrap narrow"><div class="card result"><div class="result-art">${art("jump")}</div><h1>${t("Super bewegt!")}</h1><p class="muted" style="margin:0">${t("{ok} von {n} Wörtern richtig gesagt.", { ok, n: words.length })}</p><p class="small muted" style="margin:0">${t("Bewegung hilft dem Kopf beim Merken.")}</p>
-        <div class="reward-row"><span class="reward">${art("coin", "ic")} +${ok * 2}</span></div><button class="btn green big" id="back">${t("Zur Insel")}</button></div></div>`);
+        <div class="reward-row"><span class="reward">${art("coin", "ic")} +${got}</span></div><button class="btn green big" id="back">${t("Zur Insel")}</button></div></div>`);
       return $("#back").onclick = () => islandView(l);
     }
     const w = words[i], [mv, txt] = MOVES[i % MOVES.length];
@@ -1252,7 +1325,7 @@ function drawWord(l, w, after) {
     onMount: (m, close) => {
       const cv = m.querySelector("#cv"), x = cv.getContext("2d");
       x.fillStyle = "#fff"; x.fillRect(0, 0, 480, 480); x.lineCap = "round"; x.lineJoin = "round"; x.strokeStyle = COLS[0]; x.lineWidth = 10;
-      const old = S.prog.drawings[key];
+      const old = S.drawings[key];
       if (old) { const im = new Image(); im.onload = () => x.drawImage(im, 0, 0, 480, 480); im.src = old; }
       let down = false;
       const pos = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * 480 / r.width, (e.clientY - r.top) * 480 / r.height]; };
@@ -1266,10 +1339,10 @@ function drawWord(l, w, after) {
       m.querySelector("#ok").onclick = () => {
         const small = document.createElement("canvas"); small.width = small.height = 200;
         small.getContext("2d").drawImage(cv, 0, 0, 200, 200);
-        const keys = Object.keys(S.prog.drawings);
-        if (!S.prog.drawings[key] && keys.length >= 40) delete S.prog.drawings[keys[0]]; // Platz sparen
-        S.prog.drawings[key] = small.toDataURL("image/jpeg", 0.7);
-        S.prog.coins += 2; save(); sfx.coin(); toast(t("Bild gespeichert! Es erscheint jetzt bei diesem Wort."));
+        const keys = Object.keys(S.drawings);
+        if (!S.drawings[key] && keys.length >= 40) delete S.drawings[keys[0]]; // Platz sparen
+        S.drawings[key] = small.toDataURL("image/jpeg", 0.7);
+        saveDrawings(); earn("draw", 2, 10); save(); sfx.coin(); toast(t("Bild gespeichert! Es erscheint jetzt bei diesem Wort."));
         close("ok"); after && after();
       };
     },

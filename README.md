@@ -14,7 +14,10 @@ Die Kinder brauchen kein Benutzerkonto, sie melden sich mit Klassencode, Namen u
 **Für die Kinder**
 
 - **Anweisungen auf Deutsch, Französisch oder Portugiesisch**: Jedes Kind wählt die Sprache auf der Namensseite (Flaggen) oder oben über die Flagge; die App merkt sich die Wahl pro Kind.
-- **Lernkarten**: vorne Bedeutung (Deutsch bzw. Portugiesisch) mit Bild, Antippen dreht die Karte um (Französisch mit Bild, 🔊 auf Wunsch). „Wusste ich“ / „Wusste ich nicht“ – die App merkt sich die Antwort: Nicht gewusste Wörter kommen in derselben Runde und an den nächsten Tagen öfter (und erscheinen bei „Meine schwierigen Wörter“), gewusste Wörter bekommen nach 2× „Wusste ich“ (mit Abstand) längere Pausen. Lernkarten zählen nicht fürs Klassenziel.
+- **Empfohlene Übungsart** (⭐): bei neuen Wörtern Lernkarten, sonst „Aus dem Kopf schreiben“.
+- **Ohne Internet weiterüben**: Fällt das WLAN aus, bleibt der Fortschritt auf dem Gerät und wird automatisch nachgesendet.
+- **Münzen aus Spielen** sind pro Spiel und Tag begrenzt (Lernen und Testen nicht).
+- **Lernkarten**: vorne Bedeutung (Deutsch bzw. Portugiesisch) mit Bild, Antippen dreht die Karte um (Französisch mit Bild, 🔊 auf Wunsch). „Wusste ich“ / „Wusste ich nicht“ – die App merkt sich die Antwort: Nicht gewusste Wörter kommen in derselben Runde und an den nächsten Tagen öfter (und erscheinen bei „Meine schwierigen Wörter“), gewusste Wörter bekommen nach 2× „Wusste ich“ (mit Abstand) höchstens „morgen wieder“ – weiter wandern Wörter nur durch Schreiben oder Sprechen. Lernkarten zählen nicht fürs Klassenziel.
 - **Lernen mit Schreiben**: entweder **Abschreiben** (Wort sehen und abschreiben – ändert die Lernpausen nicht) oder **Aus dem Kopf schreiben** (ohne das französische Wort zu sehen).
 - **Lernen**: Die App stellt jeden Tag die passenden Wörter zusammen (fällige Wiederholungen + höchstens 5 neue). Neue Wörter: kennenlernen (Bild, Wort, Ton) → wiedererkennen → **2× richtig schreiben oder sprechen**.
 - **Testen**: Jedes Wort der Insel einmal, ohne Tipps, ein Versuch. Ergebnis in Prozent, ab 80 % gibt es den Test-Stern. Falsche Wörter kommen automatisch zurück ins Lernen.
@@ -114,6 +117,8 @@ Jetzt läuft die App, aber noch im Demo-Modus. Für die Klassenübersicht folgt 
 
 > Hinweis: Kostenlose Supabase-Projekte werden nach 7 Tagen **ohne jede Nutzung** pausiert (z. B. in den Ferien). Dann im Supabase-Dashboard auf **Restore** klicken; die Daten bleiben erhalten.
 
+7. **Sicherheits-Update (empfohlen):** Im **SQL Editor** zusätzlich den Inhalt von `supabase/update-sicherheit.sql` einfügen und **Run** klicken. Danach können Kinder-Geräte nur noch ihren eigenen Lernfortschritt speichern; Lektionen, Kinder und Einstellungen ändert nur, wer die Lehrer-PIN kennt (die Datenbank prüft sie). Lehrer-PIN und Bild-PINs sind auf Kinder-Geräten nicht mehr sichtbar, Zeichnungen werden getrennt gespeichert (schnelleres Anmelden), und ein zurückgesetztes Kind kann den alten Stand nicht zurückschreiben. Ob es aktiv ist, zeigt die App unter **Einstellungen → Speicherort**.
+
 ### Schritt 3: Klasse anlegen
 
 1. App öffnen → **Lehrkraft** → **Neue Klasse anlegen** (Name, Klassencode, Lehrer-PIN).
@@ -135,6 +140,7 @@ Jetzt läuft die App, aber noch im Demo-Modus. Für die Klassenübersicht folgt 
 - Gespeichert werden nur **Vornamen**, Bild-PIN und Lernfortschritt. Keine E-Mail, kein Foto der Kinder.
 - Die Datenbank liegt bei Supabase in der EU-Region, die du in Schritt 2 wählst.
 - Ohne den Klassencode kann niemand die Daten der Klasse sehen. Den Klassencode deshalb nicht öffentlich posten.
+- Mit dem Sicherheits-Update werden PINs nur in der Datenbank geprüft und nie an Kinder-Geräte geschickt.
 - Die Bild-PIN ist kindgerecht einfach. Sie verhindert Verwechslungen, ist aber kein starker Schutz.
 - Bitte die Vorgaben eurer Schule bzw. des Ministeriums zum Einsatz von Online-Diensten beachten.
 
@@ -156,4 +162,5 @@ js/store.js           Speicher (Supabase oder Gerät)
 js/demo.js            Beispielklasse DEMO
 supabase/setup.sql    Datenbank einrichten
 supabase/setup-bilder.sql  Bildspeicher einrichten (hohe Auflösung)
+supabase/update-sicherheit.sql  Sicherheits-Update (Lehrer-PIN-Prüfung in der Datenbank)
 ```

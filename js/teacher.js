@@ -54,6 +54,12 @@ const searchTerm = s => stripArticle(norm(String(s || "").split(/[\/;]/)[0]));
 import { say } from "./speech.js";
 
 const T = { cls: null, tab: "overview", students: [], lessons: [], progs: {}, back: null };
+// Fortschritt zurücksetzen: neuer Stand mit neuer Kennung – ein noch angemeldetes Kinder-Gerät
+// kann den alten Stand dann nicht mehr zurückschreiben (mit Sicherheits-Update)
+async function resetProgress(sid) {
+  await Store.put("progress", sid, { gen: uid("g-") });
+  try { await Store.del("art", sid); } catch {}
+}
 
 // ------------------------------------------------------------------
 //  Anmeldung / Klasse anlegen
@@ -87,8 +93,8 @@ export function teacherLogin(back) {
     try {
       const cls = await Store.classExists(c);
       if (!cls) return toast("Diese Klasse gibt es nicht. Bitte den Code prüfen.");
-      if ((await sha(`${c}#teacher#${p}`)) !== cls.teacherPinHash) return toast("Die PIN stimmt nicht.");
-      Store.code = c; Device.set("classCode", c);
+      if (!(await Store.teacherLogin(c, p))) return toast("Die PIN stimmt nicht.");
+      Device.set("classCode", c);
       T.cls = cls; dashboard();
     } catch (e) { toast(e.message); }
   };
@@ -100,8 +106,8 @@ export function teacherLogin(back) {
     if (!/^\d{4,}$/.test(p)) return toast("Die PIN braucht mindestens 4 Ziffern.");
     try {
       if (await Store.classExists(c)) return toast("Diesen Klassencode gibt es schon. Bitte einen anderen wählen.");
-      const cls = { name, teacherPinHash: await sha(`${c}#teacher#${p}`), goal: { title: "Leuchtturm bauen", target: 300 }, allOpen: false, created: Date.now() };
-      await Store.createClass(c, cls);
+      const cls = { name, goal: { title: "Leuchtturm bauen", target: 300 }, allOpen: false, created: Date.now() };
+      await Store.createClass(c, cls, p);
       Device.set("classCode", c);
       T.cls = cls; T.tab = "students"; dashboard();
       toast("Klasse angelegt! Lege jetzt die Kinder an.");
@@ -144,7 +150,7 @@ async function dashboard() {
     <div id="tab"></div></div>`);
   if ($("#openRep")) $("#openRep").onclick = () => { T.tab = "reports"; $$(".tabs button").forEach(x => x.classList.toggle("on", x.dataset.t === "reports")); showReport(fresh); };
   $$(".tabs button").forEach(b => b.onclick = () => { T.tab = b.dataset.t; $$(".tabs button").forEach(x => x.classList.toggle("on", x === b)); showTab(); });
-  $("#logout").onclick = () => { document.body.classList.remove("teacher-mode"); T.back(); };
+  $("#logout").onclick = () => { document.body.classList.remove("teacher-mode"); Store.teacherLogout(); T.back(); };
   showTab();
 }
 
@@ -254,10 +260,10 @@ async function studentDetail(r) {
     <div class="stack" style="gap:8px">${r.my.map(l => { const st = lessonStats(r.p, l); return `<div><div class="row between small"><span>${esc(l.icon || "")} ${esc(l.title)} ${"⭐".repeat(st.stars)}</span><span>${st.known}/${st.total} sicher · ${st.master} gemeistert · ${st.due} fällig</span></div><div class="bar"><i style="width:${st.knownPct}%"></i></div></div>`; }).join("") || "Keine Lektionen zugewiesen."}</div>
     <div><b>Übt gerade schwer:</b> ${hardWords.slice(0, 8).map(h => `<span class="pill bad">${esc(h.w.fr)}</span>`).join(" ") || `<span class="muted">nichts Auffälliges</span>`}</div>
     <div><b>Tests:</b> ${r.my.map(l => { const t = r.p.tests?.[l.id]; return t ? `<span class="pill ${t.best >= 80 ? "good" : "warn"}">${esc(l.title)}: ${t.last} % (bestes ${t.best} %, ${t.count}×)</span>` : ""; }).join(" ") || `<span class="muted">noch kein Test</span>`}</div>
-    <div><b>Diese Woche:</b> ${r.wk.daysActive} Tage, ${fmtMin(r.wk.sec)}, ${r.wk.ok}/${r.wk.ans} richtig · 🎤 ${r.p.spoken} gesprochen · ✍️ ${r.p.typed} geschrieben</div>
+    <div><b>Diese Woche:</b> ${r.wk.daysActive} Tage, ${fmtMin(r.wk.sec)}, ${r.wk.ok}/${r.wk.ans} richtig · 🎤 ${r.p.spoken} gesprochen · ✍️ ${r.p.typed} geschrieben · 🃏 ${r.p.cards || 0} Lernkarten (Selbsteinschätzung, zählt nicht in „Treffer“)</div>
     <div class="row" style="justify-content:flex-end"><button class="btn ghost small" data-close="reset">Fortschritt zurücksetzen</button><button class="btn green small" data-close="ok">Schließen</button></div>`);
   if (res === "reset" && await confirmBox(`Den gesamten Fortschritt von ${r.s.name} löschen? Das kann nicht rückgängig gemacht werden.`, "Löschen", "Abbrechen", true)) {
-    await Store.del("progress", r.s.id); toast("Fortschritt gelöscht."); dashboard();
+    await resetProgress(r.s.id); toast("Fortschritt gelöscht."); dashboard();
   }
 }
 
@@ -594,18 +600,18 @@ function studentsTab(el) {
   $$("[data-reset]", el).forEach(b => b.onclick = async () => {
     const s = T.students.find(x => x.id === b.dataset.reset);
     if (!await confirmBox(`Den gesamten Lernfortschritt von ${s.name} zurücksetzen? ${s.name} beginnt wieder ganz von vorn. Das kann nicht rückgängig gemacht werden.`, "Zurücksetzen", "Abbrechen", true)) return;
-    await Store.del("progress", s.id); await loadAll(); studentsTab(el);
+    await resetProgress(s.id); await loadAll(); studentsTab(el);
     toast(`${s.name} wurde zurückgesetzt.`);
   });
   if ($("#resetAll")) $("#resetAll").onclick = async () => {
     if (!await confirmBox(`Den Lernfortschritt ALLER ${T.students.length} Kinder zurücksetzen? Alle beginnen wieder von vorn. Lektionen, Kinder und Wochenberichte bleiben erhalten. Das kann nicht rückgängig gemacht werden.`, "Alle zurücksetzen", "Abbrechen", true)) return;
-    for (const s of T.students) await Store.del("progress", s.id);
+    for (const s of T.students) await resetProgress(s.id);
     await loadAll(); studentsTab(el); toast("Die ganze Klasse wurde zurückgesetzt.");
   };
   $$("[data-delk]", el).forEach(b => b.onclick = async () => {
     const s = T.students.find(x => x.id === b.dataset.delk);
     if (!await confirmBox(`${s.name} und den ganzen Lernfortschritt entfernen?`, "Entfernen", "Abbrechen", true)) return;
-    await Store.del("student", s.id); await Store.del("progress", s.id); await loadAll(); studentsTab(el);
+    await Store.del("student", s.id); await Store.del("progress", s.id); try { await Store.del("art", s.id); } catch {} await loadAll(); studentsTab(el);
   });
 }
 
@@ -643,7 +649,8 @@ function settings(el) {
       <div class="row"><button class="btn blue small" id="exp">⬇ Sicherung herunterladen</button><label class="btn ghost small" for="impf">⬆ Sicherung einspielen</label><input type="file" id="impf" class="hidden" accept=".json"></div>
       <h2 style="margin-top:8px">Speicherort</h2>
       <p class="small" style="margin:0">${isCloud ? "✅ Online-Datenbank (Supabase) ist verbunden. Alle Geräte sehen dieselben Daten." : "⚠️ Demo-Modus: Daten liegen nur auf diesem Gerät. Für die Klassenübersicht Supabase einrichten (README, Schritt 2)."}</p>
-      ${isCloud ? `<p class="small" style="margin:0" id="bucketState">Bildspeicher: wird geprüft …</p>` : ""}
+      ${isCloud ? `<p class="small" style="margin:0" id="bucketState">Bildspeicher: wird geprüft …</p>
+      <p class="small" style="margin:0">${Store.v2 ? "🔒 Sicherheits-Update aktiv: Nur mit Lehrer-PIN lassen sich Lektionen, Kinder und Einstellungen ändern; PINs sind auf Kinder-Geräten unsichtbar." : "⚠️ Sicherheits-Update noch nicht installiert. In Supabase im SQL Editor die Datei <b>supabase/update-sicherheit.sql</b> ausführen (siehe Anleitung)."}</p>` : ""}
     </div>
   </div>`;
   $("#sv").onclick = async () => {
@@ -659,7 +666,8 @@ function settings(el) {
   $("#cp").onclick = async () => { try { await navigator.clipboard.writeText(link); toast("Link kopiert."); } catch { $("#lnk").select(); toast("Bitte den markierten Link kopieren."); } };
   $("#pinsv").onclick = async () => {
     const p = $("#np1").value.trim(); if (!/^\d{4,}$/.test(p)) return toast("Die PIN braucht mindestens 4 Ziffern.");
-    T.cls = { ...T.cls, teacherPinHash: await sha(`${Store.code}#teacher#${p}`) }; await Store.put("class", "main", T.cls); $("#np1").value = ""; toast("PIN geändert ✔");
+    const nh = await sha(`${Store.code}#teacher#${p}`);
+    T.cls = { ...T.cls, teacherPinHash: nh }; await Store.put("class", "main", T.cls); Store.teacherHash = nh; $("#np1").value = ""; toast("PIN geändert ✔");
   };
   $("#exp").onclick = async () => {
     const data = { app: "vokabel-insel", version: 1, code: Store.code, exported: new Date().toISOString(), class: T.cls, students: T.students, lessons: T.lessons, progress: Object.entries(T.progs).map(([id, p]) => ({ ...p, id })) };
