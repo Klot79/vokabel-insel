@@ -395,7 +395,6 @@ function feedbackBox(ok, w, msg, onNext, auto, memo, x = {}) {
   ok ? sfx.ok() : sfx.no();
   if (x.point) setTimeout(() => sfx.coin(), 450);
   fb.querySelector("#solHear").onclick = () => sayWord(w.fr);
-  setTimeout(() => autoSay(w.fr), 500);        // richtige Aussprache – nur wenn Ton an
   if (ok && auto) setTimeout(go, Math.max(auto, 3200));   // Zeit zum Lesen des Spruchs
   fb.scrollIntoView({ block: "nearest", behavior: "smooth" });
   btn.focus({ preventScroll: true });
@@ -415,7 +414,6 @@ function recallTask(item, type, ctx, cb, { test = false } = {}) {
     $("#hear").onclick = help;
     if (!canListen) {
       $("#reveal").onclick = () => {
-        autoSay(w.fr);
         $("#reveal").outerHTML = `<div class="word-fr">${esc(w.fr)}</div><div class="row center-row"><button class="btn green" id="sOk">Hatte ich richtig</button><button class="btn coral" id="sNo">Noch nicht</button></div>`;
         $("#sOk").onclick = () => cb({ ok: true, helped, how: "speak" });
         $("#sNo").onclick = () => cb({ ok: false, helped, how: "speak" });
@@ -511,7 +509,6 @@ function recogTask(item, ctx, cb) {
   else head = `<span class="task-q">Hör gut zu! Was passt?</span><div class="row center-row">${speakerBtn("hear", true)}</div>`;
   exFrame(ctx, `${head}<div class="choices">${opts.map((o, i) => `<button class="choice" data-i="${i}">${usePics ? `<span class="pic">${pic(o.w)}</span>` : esc(o.w[field])}</button>`).join("")}</div>`);
   if ($("#hear")) $("#hear").onclick = () => sayWord(w.fr);
-  if (type !== "pic2fr") autoSay(w.fr);
   let done = false;
   $$(".choice").forEach(b => b.onclick = () => {
     const o = opts[+b.dataset.i];
@@ -524,7 +521,7 @@ function recogTask(item, ctx, cb) {
   });
 }
 
-function introCard(item, ctx, cb) {
+function introCard(item, ctx, cb, writeMode = false) {
   const { w, l } = item;
   exFrame(ctx, `<span class="task-q">Neues Wort</span>${picBox(w, l)}
     <div class="row center-row"><div class="word-fr">${esc(w.fr)}</div>${speakerBtn("hear")}</div>
@@ -533,9 +530,12 @@ function introCard(item, ctx, cb) {
     ${memoOf(l, w) ? `<div class="memo">${art("bulbArt", "ic")} <span>${esc(memoOf(l, w))}</span></div>` : ""}
     <div class="row center-row">${canListen ? micBtn("mic") + `<span class="small muted">Sprich es nach!</span>` : `<span class="small muted">Sprich das Wort laut nach!</span>`}<button class="btn ghost small" id="draw">Malen</button></div>
     <div id="heard" class="heard"></div>
-    <button class="btn green big" id="nxt">Weiter</button>`);
-  $("#hear").onclick = () => sayWord(w.fr);
-  autoSay(w.fr);
+    ${writeMode ? `<div class="copy-box"><span class="small"><b>Schreib das Wort ab:</b></span>
+      <div class="write-row"><input class="input write-in" id="cpy" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Wort abschreiben"></div>
+      <div class="accents">${["é", "è", "ê", "à", "ç", "ô", "î", "û", "ë", "œ", "'"].map(c => `<button data-c="${c}">${c}</button>`).join("")}</div>
+      <div id="cpyRes" class="small"></div></div>` : ""}
+    <button class="btn green big" id="nxt">${writeMode ? "Prüfen" : "Weiter"}</button>`);
+  $("#hear").onclick = () => sayWord(w.fr);   // nur auf Knopfdruck vorlesen
   if ($("#mic")) $("#mic").onclick = async () => {
     const alts = await useMic($("#mic"), $("#heard"));
     if (!alts) return;
@@ -543,7 +543,27 @@ function introCard(item, ctx, cb) {
     else $("#heard").textContent += " Hör nochmal hin und versuch es nochmal.";
   };
   $("#draw").onclick = () => drawWord(l, w, () => {});
-  $("#nxt").onclick = cb;
+  if (!writeMode) { $("#nxt").onclick = cb; return; }
+  const inp = $("#cpy");
+  $$(".copy-box .accents button").forEach(b => b.onclick = () => { const p = inp.selectionStart ?? inp.value.length; inp.value = inp.value.slice(0, p) + b.dataset.c + inp.value.slice(inp.selectionEnd ?? p); inp.focus(); inp.setSelectionRange(p + 1, p + 1); });
+  let checked = false;
+  const check = () => {
+    if (checked) return cb();
+    if (!inp.value.trim()) { toast("Schreib das Wort zuerst ab."); inp.focus(); return; }
+    const r = checkWritten(inp.value, w.fr);
+    if (r === "perfect") {
+      checked = true; inp.disabled = true; sfx.ok();
+      $(".copy-box").classList.add("ok");
+      $("#cpyRes").innerHTML = `<b>🌟 Richtig abgeschrieben!</b>`;
+      $("#nxt").textContent = "Weiter";
+    } else {
+      sfx.no(); $(".copy-box").classList.remove("ok"); $(".copy-box").classList.add("no");
+      $("#cpyRes").innerHTML = `<b>Schau nochmal genau hin – Buchstabe für Buchstabe.</b> 💪`;
+      inp.focus();
+    }
+  };
+  $("#nxt").onclick = check;
+  inp.onkeydown = e => { if (e.key === "Enter") check(); };
 }
 
 // ------------------------------------------------------------------
@@ -577,7 +597,7 @@ function runLearn(items, opts) {
   };
   const recallType = it => {
     const p = opts.pref;
-    if (p === "write") return it.recalls === 0 && it.kind !== "review" && Math.random() < 0.4 ? "scramble" : "write";
+    if (p === "write") return "write";
     if (p === "speak") return canListen ? "speak" : "write";
     if (it.recalls === 0 && it.kind !== "review") return Math.random() < 0.5 ? "scramble" : "write";
     return canListen && Math.random() < 0.5 ? "speak" : "write";
@@ -591,8 +611,9 @@ function runLearn(items, opts) {
     const after = () => { it.last = st.pos; st.pos++; save(); };
 
     if (it.phase === "intro") {
-      return introCard(it, ctx, () => { if (!extra) markSeen(S.prog, it.l, it.w); it.phase = "recog"; after(); next(); });
+      return introCard(it, ctx, () => { if (!extra) markSeen(S.prog, it.l, it.w); it.phase = opts.pref === "write" ? "recall" : "recog"; after(); next(); }, opts.pref === "write");
     }
+    if (it.phase === "recog" && opts.pref === "write") it.phase = "recall";
     if (it.phase === "recog") {
       return recogTask(it, ctx, ok => {
         st.ans++; if (ok) st.ok++;
