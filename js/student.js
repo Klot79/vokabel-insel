@@ -1,19 +1,19 @@
-import { Store, Device, isCloud } from "./store.js";
-import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js";
-import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js";
-import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js";
-import { currentGoal, der, unser, zum } from "./goal.js";
-import { buildingSvg } from "./buildings.js";
-import { uid } from "./util.js";
-import { say, listen, canListen } from "./speech.js";
-import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js";
+import { Store, Device, isCloud } from "./store.js?v=20261116b";
+import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261116b";
+import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261116b";
+import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js?v=20261116b";
+import { currentGoal, der, unser, zum } from "./goal.js?v=20261116b";
+import { buildingSvg } from "./buildings.js?v=20261116b";
+import { uid } from "./util.js?v=20261116b";
+import { say, listen, canListen } from "./speech.js?v=20261116b";
+import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261116b";
 import {
   emptyProgress, lessonStats, overallStats, unlockedLessons, planLearn, markSeen, countAnswer, fallBack, promote,
   checkWritten, checkSpoken, logActivity, currentStreak, weekSummary, checkBadges, BADGES, wstate, shuffle,
   stripArticle, todayStr, DAY, NEEDED_TODAY, MIN_GAP, BOX_NAMES, wkey,
   weekState, weekLabel, schoolDay, perDayFor, newAllowed, sortLessons, DAILY_GOAL_SEC, todaySeconds, mondayOf,
   writePoint, WRITES_FOR_POINT, countCard,
-} from "./srs.js";
+} from "./srs.js?v=20261116b";
 
 // ---- Ton an/aus (gilt auf diesem Gerät, überall) ----
 setSound(!Device.get("audioOff", false));
