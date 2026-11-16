@@ -146,7 +146,8 @@ export const Store = {
   async teacherLogin(code, pin) {
     code = this.normCode(code);
     const hash = await sha(`${code}#teacher#${pin}`);
-    if (isCloud && (await this.ready(), this.v2)) {
+    if (isCloud && !this.v2) { this._probe = null; await this.ready(); }   // Update evtl. erst nach dem Öffnen der Seite installiert
+    if (isCloud && this.v2) {
       if (!(await rpc("vs_teacher_ok", { p_code: code, p_hash: hash }))) return false;
     } else {
       const cls = await this.classExists(code);
@@ -160,7 +161,7 @@ export const Store = {
   // Kinder-PIN prüfen (mit Update: in der Datenbank, die PIN ist auf dem Gerät nicht sichtbar)
   async checkKidPin(student, hash) {
     if (student.pinHash) return student.pinHash === hash;
-    if (isCloud && this.v2) return !!(await rpc("vs_kid_ok", { p_code: this.code, p_id: student.id, p_hash: hash }));
+    if (isCloud) return !!(await rpc("vs_kid_ok", { p_code: this.code, p_id: student.id, p_hash: hash }));
     return false;
   },
 
