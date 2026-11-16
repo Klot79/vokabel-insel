@@ -3,7 +3,7 @@
 //  t("deutscher Text {x}", {x}) liefert den Text in der gewählten Sprache.
 //  Fehlt eine Übersetzung, bleibt der deutsche Text stehen.
 // ---------------------------------------------------------------
-import { Device } from "./store.js?v=20261116b";
+import { Device } from "./store.js?v=20261116c";
 
 export const UI_LANGS = [
   { k: "de", flag: "🇩🇪", name: "Deutsch" },
@@ -118,6 +118,12 @@ const D = {
   "Wusste ich nicht": ["Je ne savais pas", "Não sabia"],
   "Gut gewusst! Schreib das Wort jetzt noch aus dem Kopf – dann wandert es weiter.": ["Bien ! Écris maintenant le mot de mémoire – il avancera ensuite.", "Boa! Agora escreve a palavra de memória – depois ela avança."],
   "Empfohlen": ["Conseillé", "Recomendado"],
+  "Überspringen": ["Passer", "Saltar"],
+  "Übungsart": ["Exercice", "Exercício"],
+  "Übungsart wechseln": ["Changer d'exercice", "Mudar de exercício"],
+  "Das Wort kommt später nochmal.": ["Le mot reviendra plus tard.", "A palavra volta mais tarde."],
+  "Im Test kommt das Wort am Ende nochmal.": ["Dans le test, le mot revient à la fin.", "No teste, a palavra volta no fim."],
+  "Tippe zuerst auf „Weiter“.": ["Appuie d'abord sur « Continuer ».", "Toca primeiro em «Continuar»."],
   "Kein Internet – dein Fortschritt ist auf diesem Gerät gespeichert und wird später gesendet.": ["Pas d'internet – tes progrès sont gardés sur cet appareil et seront envoyés plus tard.", "Sem internet – o teu progresso fica guardado neste aparelho e é enviado mais tarde."],
   "Neustart!": ["On recommence !", "Recomeçar!"],
   "Deine Lehrkraft hat deinen Fortschritt zurückgesetzt. Du beginnst jetzt ganz neu – viel Spaß!": ["Ton enseignant a remis tes progrès à zéro. Tu recommences depuis le début – amuse-toi bien !", "O teu professor reiniciou o teu progresso. Começas agora do início – diverte-te!"],

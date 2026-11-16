@@ -519,3 +519,8 @@ body:not(.teacher-mode) .hero h1, body:not(.teacher-mode) .section-title { text-
 .choose-btn { position: relative; }
 .choose-btn.rec { border-color: var(--green); box-shadow: 0 4px 0 var(--green); background: var(--green-l); }
 .rec-tag { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: var(--sun, #ffc531); color: #24323f; font-size: .75rem; font-weight: 700; border-radius: 999px; padding: 2px 10px; white-space: nowrap; box-shadow: 0 2px 0 rgba(0,0,0,.12); }
+
+/* Überspringen / Übungsart wechseln */
+.ex-foot { display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
+.skip-btn { font-size: 1rem; }
+.switch-btn { white-space: nowrap; }

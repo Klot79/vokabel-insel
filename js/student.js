@@ -1,19 +1,19 @@
-import { Store, Device, isCloud } from "./store.js?v=20261116b";
-import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261116b";
-import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261116b";
-import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js?v=20261116b";
-import { currentGoal, der, unser, zum } from "./goal.js?v=20261116b";
-import { buildingSvg } from "./buildings.js?v=20261116b";
-import { uid } from "./util.js?v=20261116b";
-import { say, listen, canListen } from "./speech.js?v=20261116b";
-import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261116b";
+import { Store, Device, isCloud } from "./store.js?v=20261116c";
+import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261116c";
+import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261116c";
+import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js?v=20261116c";
+import { currentGoal, der, unser, zum } from "./goal.js?v=20261116c";
+import { buildingSvg } from "./buildings.js?v=20261116c";
+import { uid } from "./util.js?v=20261116c";
+import { say, listen, canListen } from "./speech.js?v=20261116c";
+import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261116c";
 import {
   emptyProgress, lessonStats, overallStats, unlockedLessons, planLearn, markSeen, countAnswer, fallBack, promote,
   checkWritten, checkSpoken, logActivity, currentStreak, weekSummary, checkBadges, BADGES, wstate, shuffle,
   stripArticle, todayStr, DAY, NEEDED_TODAY, MIN_GAP, BOX_NAMES, wkey,
   weekState, weekLabel, schoolDay, perDayFor, newAllowed, sortLessons, DAILY_GOAL_SEC, todaySeconds, mondayOf,
   writePoint, WRITES_FOR_POINT, countCard,
-} from "./srs.js?v=20261116b";
+} from "./srs.js?v=20261116c";
 
 // ---- Ton an/aus (gilt auf diesem Gerät, überall) ----
 setSound(!Device.get("audioOff", false));
@@ -403,16 +403,22 @@ function distractors(item, n, field) {
 const norm = s => String(s || "").trim().toLowerCase();
 
 let onQuit = null;
-function exFrame({ mode, label, progress, coins }, inner) {
+function exFrame({ mode, label, progress, coins, skip, skipNote, switchMode }, inner) {
   render(`<div class="wrap narrow ex">
     <div class="ex-top">
       <button class="icon-btn" id="quit" aria-label="${t("Beenden")}">${ICON.close}</button>
       <div class="ex-progress"><i style="width:${progress}%"></i></div>
+      ${switchMode ? `<button class="btn ghost small switch-btn" id="switchMode" title="${t("Übungsart wechseln")}">⇄ ${t("Übungsart")}</button>` : ""}
       ${audioBtn()}
       <span class="chip coin">${art("coin", "ic")} ${coins}</span>
     </div>
-    <div class="card ${mode}" id="card"><div class="card-tag"><span class="pill ${mode === "test" ? "orange" : "green"}">${mode === "test" ? t("Testen") : t("Lernen")}</span><span class="small muted">${esc(label || "")}</span></div>${inner}</div></div>`);
+    <div class="card ${mode}" id="card"><div class="card-tag"><span class="pill ${mode === "test" ? "orange" : "green"}">${mode === "test" ? t("Testen") : t("Lernen")}</span><span class="small muted">${esc(label || "")}</span></div>${inner}</div>
+    ${skip ? `<div class="ex-foot"><button class="btn ghost skip-btn" id="skip">${t("Überspringen")} ⏭</button><span class="small muted">${esc(skipNote || "")}</span></div>` : ""}</div>`);
   $("#quit").onclick = () => onQuit && onQuit();
+  // Überspringen / Übungsart wechseln – nur solange die Aufgabe noch offen ist
+  const open = () => !$("#card .feedback") && !$("#card .flash-after:not([hidden])") && !$("#card .copy-box.ok");
+  if (skip) $("#skip").onclick = () => { if (!open()) return; sfx.tap(); skip(); };
+  if (switchMode) $("#switchMode").onclick = () => { if (!open()) return toast(t("Tippe zuerst auf „Weiter“.")); switchMode(); };
 }
 const speakerBtn = (id = "hear", big = false) => `<button class="round-btn blue ${big ? "big" : ""}" id="${id}" aria-label="${t("Wort anhören")}" title="${t("Wort anhören")}">${ICON.speaker}</button>`;
 const micBtn = (id = "mic", big = false) => canListen ? `<button class="round-btn coral ${big ? "big" : ""}" id="${id}" aria-label="${t("Sprechen")}" title="${t("Antwort sprechen")}">${ICON.mic}</button>` : "";
@@ -731,7 +737,16 @@ function runLearn(items, opts) {
     const it = pick();
     if (!it) return finish();
     st.lastItem = it;
-    const ctx = { mode: "learn", label: opts.lesson ? opts.lesson.title : t("Lernen"), progress: Math.round((1 - totalSteps() / Math.max(1, startSteps)) * 100), coins: st.coins };
+    const ctx = { mode: "learn", label: opts.lesson ? opts.lesson.title : t("Lernen"), progress: Math.round((1 - totalSteps() / Math.max(1, startSteps)) * 100), coins: st.coins,
+      // Überspringen: Wort kommt später in dieser Runde wieder, zählt nicht als Fehler
+      skip: q.filter(x => !x.done).length > 1 ? () => { it.last = st.pos; st.pos++; next(); } : null,
+      skipNote: t("Das Wort kommt später nochmal."),
+      // Übungsart wechseln, ohne die Runde zu beenden
+      switchMode: async () => {
+        const p = await askAnswerMode(t("Übungsart wechseln"), true, opts.pref);
+        if (!p || p === opts.pref) return;
+        opts.pref = p; S.prog.pref = p; st.lastItem = null; next();
+      } };
     const after = () => { it.last = st.pos; st.pos++; save(); };
 
     if (opts.pref === "cards") {
@@ -837,6 +852,7 @@ function runLearn(items, opts) {
 // ------------------------------------------------------------------
 function runTest(l, mode) {
   const words = shuffle(l.words).slice(0, 25);
+  const skipped = new Set();
   const res = [];
   let i = 0, coins = 0, wp = 0;
   const t0 = Date.now();
@@ -844,7 +860,11 @@ function runTest(l, mode) {
   const next = () => {
     if (i >= words.length) return finish();
     const w = words[i];
-    const ctx = { mode: "test", label: t("Test: {t} · {i} von {n}", { t: l.title, i: i + 1, n: words.length }), progress: Math.round(i / words.length * 100), coins };
+    const ctx = { mode: "test", label: t("Test: {t} · {i} von {n}", { t: l.title, i: i + 1, n: words.length }), progress: Math.round(i / words.length * 100), coins,
+      // Überspringen: das Wort kommt am Ende des Tests (einmal) nochmal
+      skip: !skipped.has(w) && i < words.length - 1 ? () => { skipped.add(w); words.splice(i, 1); words.push(w); next(); } : null,
+      skipNote: t("Im Test kommt das Wort am Ende nochmal."),
+      switchMode: async () => { const p = await askAnswerMode(t("Übungsart wechseln")); if (p && p !== mode) { mode = p; next(); } } };
     recallTask({ l, w }, typeFor(i), ctx, ({ ok, helped, how, spelling, heard, typed }) => {
       if (ok && spelling) helped = true; // Rechtschreibung: Akzent/Artikel fehlt = halber Punkt
       res.push({ w, ok, helped, spelling });
