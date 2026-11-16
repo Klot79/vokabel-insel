@@ -608,7 +608,7 @@ function flashCard(item, ctx, cb) {
     </button>
     <div id="after" class="flash-after" hidden>
       <div class="row center-row">${speakerBtn("hear", true)}<span class="small muted">${t("Wort vorlesen lassen")}</span></div>
-      <div class="row center-row"><button class="btn green big" id="knew">${t("Wusste ich")}</button><button class="btn coral big" id="notyet">${t("Noch nicht")}</button></div>
+      <div class="row center-row"><button class="btn green big" id="knew">${t("Wusste ich")}</button><button class="btn coral big" id="notyet">${t("Wusste ich nicht")}</button></div>
     </div>`);
   const card = $("#flash");
   card.onclick = () => {
@@ -666,10 +666,22 @@ function runLearn(items, opts) {
 
     if (opts.pref === "cards") {
       return flashCard(it, ctx, knew => {
+        // Selbsteinschätzung fließt in die Wiederholungen ein (wie beim Schreiben/Sprechen)
         if (!extra && it.kind === "new") markSeen(S.prog, it.l, it.w);
         st.ans++;
-        if (knew) { it.done = true; st.doneWords++; st.ok++; st.coins += 1; sfx.ok(); }
-        else sfx.no();
+        countAnswer(S.prog, it.l, it.w, knew);          // merkt sich gewusst / nicht gewusst
+        if (knew) {
+          st.ok++; st.coins += 1; sfx.ok(); it.recalls++; it.need--;
+          if (it.need <= 0) {
+            it.done = true; st.doneWords++;
+            if (!extra) { const s2 = promote(S.prog, it.l, it.w); toast(t(`Für heute geschafft! Das Wort kommt ${({ 2: "morgen", 3: "in 3 Tagen", 4: "in einer Woche", 5: "in einem Monat" })[s2.b] || "später"} wieder.`), 2200); }
+          } else toast(t("Gut! Die Karte kommt gleich nochmal – nach ein paar anderen Karten."), 2200);
+        } else {
+          sfx.no();
+          if (!extra) fallBack(S.prog, it.l, it.w);     // nicht gewusst → wieder öfter üben
+          it.need = extra ? 1 : NEEDED_TODAY; if (it.kind !== "extra") it.kind = "learn";
+          toast(t("Kein Problem – die Karte kommt gleich nochmal."), 2200);
+        }
         after(); next();
       });
     }
