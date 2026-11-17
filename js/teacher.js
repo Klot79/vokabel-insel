@@ -1,10 +1,10 @@
-import { Store, Device, isCloud } from "./store.js?v=20261117p";
-import { esc, uid, sha, pinHash, randomPin, LANG_FLAG, LANG_NAME, PIN_NAMES } from "./util.js?v=20261117p";
-import { art, hat } from "./art.js?v=20261117p";
-import { currentGoal, DEFAULT_REWARDS, START_TARGET, START_PER_KID, rewardsOf, BUILDINGS } from "./goal.js?v=20261117p";
-import { render, $, $$, toast, modal, confirmBox, pic, avatarHtml, fmtMin, relDay } from "./ui.js?v=20261117p";
-import { lessonStats, weekSummary, currentStreak, emptyProgress, todayStr, DAY, wstate, stripArticle, norm, mondayOf, weekLabel, weekState, sortLessons, perDayFor } from "./srs.js?v=20261117p";
-import { fileToLines, splitLines, linesToPairs, prepareImage, matchImages, searchOpenverse, fetchImageBlob } from "./import.js?v=20261117p";
+import { Store, Device, isCloud } from "./store.js?v=20261117q";
+import { esc, uid, sha, pinHash, randomPin, LANG_FLAG, LANG_NAME, PIN_NAMES } from "./util.js?v=20261117q";
+import { art, hat } from "./art.js?v=20261117q";
+import { currentGoal, DEFAULT_REWARDS, START_TARGET, START_PER_KID, rewardsOf, BUILDINGS } from "./goal.js?v=20261117q";
+import { render, $, $$, toast, modal, confirmBox, pic, avatarHtml, fmtMin, relDay } from "./ui.js?v=20261117q";
+import { lessonStats, weekSummary, currentStreak, emptyProgress, todayStr, DAY, wstate, stripArticle, norm, mondayOf, weekLabel, weekState, sortLessons, perDayFor } from "./srs.js?v=20261117q";
+import { fileToLines, splitLines, linesToPairs, prepareImage, matchImages, searchOpenverse, fetchImageBlob } from "./import.js?v=20261117q";
 
 // ---- Bilder speichern (hohe Auflösung, wenn der Online-Bildspeicher eingerichtet ist) ----
 async function storeImageFile(fileOrBlob) {
@@ -51,7 +51,7 @@ function searchImage(query, { title = "Bild suchen", alt = [], series = false } 
   });
 }
 const searchTerm = s => stripArticle(norm(String(s || "").split(/[\/;]/)[0]));
-import { say } from "./speech.js?v=20261117p";
+import { say } from "./speech.js?v=20261117q";
 
 const T = { cls: null, tab: "overview", students: [], lessons: [], progs: {}, back: null };
 // Fortschritt zurücksetzen: neuer Stand mit neuer Kennung – ein noch angemeldetes Kinder-Gerät
@@ -687,9 +687,10 @@ function studentsTab(el) {
     </div>
   </div>
   <div class="t-panel no-print" style="margin-top:16px"><div class="row between"><h2>Alle Kinder (${T.students.length})</h2>${T.students.length ? `<button class="btn ghost small" id="resetAll">Ganze Klasse zurücksetzen</button>` : ""}</div>
+    <p class="small muted" style="margin:0"><b>Lernhilfen:</b> 🎯 <b>Fokus-Hilfe</b> (z. B. bei ADHS): Runden mit höchstens 6 Wörtern, Tagesziel 3 Min., Bonus nach jeder 3. richtigen Antwort, Bewegungspause nach jeder 3. Aufgabe, ruhiger Hintergrund, abwechselnde Aufgaben. 🔤 <b>Lese-Schreib-Hilfe</b> (z. B. bei LRS): Vorlesen, große Schrift, farbige Silben, Buchstaben-Kacheln statt Tippen (Vorlesen, Schrift und Kacheln kann das Kind selbst an- und ausschalten), gesprochene Wörter zählen fürs Klassenziel, Blitzrunde mit 120 statt 60 Sekunden. Das Kind sieht keinen Namen der Hilfe – bitte hier keine Diagnosen eintragen.</p>
     <p class="small muted" style="margin:0"><b>Zurücksetzen</b> löscht den gesamten Lernfortschritt eines Kindes (Lernkartei, Sterne, Tests, Münzen, Avatar, Zeichnungen, Eselsbrücken) – das Kind beginnt wieder ganz von vorn. Name und Bild-PIN bleiben.</p>
-    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Name</th><th>Bild-PIN</th><th></th></tr></thead><tbody>
-    ${T.students.map(s => `<tr><td><b>${esc(s.name)}</b></td><td><span class="pin-inline">${(s.pinHint || []).map(e => art(e)).join("")}</span> <span class="small muted">${(s.pinHint || []).map(e => PIN_NAMES[e] || e).join(", ")}</span></td><td class="row" style="gap:6px;justify-content:flex-end"><button class="btn ghost small" data-pin="${esc(s.id)}">Neue PIN</button><button class="btn ghost small" data-ren="${esc(s.id)}">Umbenennen</button><button class="btn ghost small" data-reset="${esc(s.id)}">Zurücksetzen</button><button class="btn ghost small" data-delk="${esc(s.id)}">Entfernen</button></td></tr>`).join("")}
+    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Name</th><th>Bild-PIN</th><th>Lernhilfen</th><th></th></tr></thead><tbody>
+    ${T.students.map(s => `<tr><td><b>${esc(s.name)}</b></td><td><span class="pin-inline">${(s.pinHint || []).map(e => art(e)).join("")}</span> <span class="small muted">${(s.pinHint || []).map(e => PIN_NAMES[e] || e).join(", ")}</span></td><td><label class="check small" title="Kurze Runden, Bonus, Bewegungspausen, ruhige Ansicht, Abwechslung"><input type="checkbox" data-help="focus" data-sid="${esc(s.id)}" ${s.help?.focus ? "checked" : ""}> 🎯 Fokus-Hilfe</label><label class="check small" title="Vorlesen, große Schrift, Silben, Buchstaben-Kacheln, Sprechen zählt fürs Klassenziel, mehr Zeit"><input type="checkbox" data-help="lrs" data-sid="${esc(s.id)}" ${s.help?.lrs ? "checked" : ""}> 🔤 Lese-Schreib-Hilfe</label></td><td class="row" style="gap:6px;justify-content:flex-end"><button class="btn ghost small" data-pin="${esc(s.id)}">Neue PIN</button><button class="btn ghost small" data-ren="${esc(s.id)}">Umbenennen</button><button class="btn ghost small" data-reset="${esc(s.id)}">Zurücksetzen</button><button class="btn ghost small" data-delk="${esc(s.id)}">Entfernen</button></td></tr>`).join("")}
     </tbody></table></div></div>`;
   $("#print").onclick = () => window.print();
   $("#addk").onclick = async () => {
@@ -701,6 +702,12 @@ function studentsTab(el) {
     }
     toast(`${names.length} Kinder angelegt.`); await loadAll(); studentsTab(el);
   };
+  $$("[data-help]", el).forEach(c => c.onchange = async () => {
+    const s = T.students.find(x => x.id === c.dataset.sid);
+    const help = { ...(s.help || {}), [c.dataset.help]: c.checked };
+    try { await Store.put("student", s.id, { ...s, help }); s.help = help; toast(`${s.name}: ${c.dataset.help === "focus" ? "Fokus-Hilfe" : "Lese-Schreib-Hilfe"} ${c.checked ? "an" : "aus"}.`); }
+    catch (e) { c.checked = !c.checked; toast(e.message, 4000); }
+  });
   $$("[data-pin]", el).forEach(b => b.onclick = async () => {
     const s = T.students.find(x => x.id === b.dataset.pin); const pin = randomPin();
     await Store.put("student", s.id, { ...s, pinHash: await pinHash(Store.code, pin), pinHint: pin });

@@ -3,7 +3,7 @@
 //  t("deutscher Text {x}", {x}) liefert den Text in der gewählten Sprache.
 //  Fehlt eine Übersetzung, bleibt der deutsche Text stehen.
 // ---------------------------------------------------------------
-import { Device } from "./store.js?v=20261117p";
+import { Device } from "./store.js?v=20261117q";
 
 export const UI_LANGS = [
   { k: "de", flag: "🇩🇪", name: "Deutsch" },
@@ -527,4 +527,18 @@ const D = {
   "Hören & Sprechen": ["Écouter & parler", "Ouvir & falar"],
   "Spielen": ["Jouer", "Jogar"],
   "Schreiben, Malen & Zuhause": ["Écrire, dessiner & à la maison", "Escrever, desenhar & em casa"],
+  "Bewegungspause!": ["Pause sportive !", "Pausa para mexer!"],
+  "Geschafft!": ["C'est fait !", "Feito!"],
+  "Meine Hilfen": ["Mes aides", "As minhas ajudas"],
+  "Hilfen": ["Aides", "Ajudas"],
+  "Vorlesen": ["Lire à voix haute", "Ler em voz alta"],
+  "Aufgabe und Wort werden automatisch vorgelesen": ["La consigne et le mot sont lus automatiquement", "A tarefa e a palavra são lidas automaticamente"],
+  "Große Schrift": ["Grande écriture", "Letra grande"],
+  "größere Buchstaben mit mehr Abstand": ["lettres plus grandes et plus espacées", "letras maiores e mais espaçadas"],
+  "Mit Buchstaben-Kacheln schreiben": ["Écrire avec des lettres à placer", "Escrever com peças de letras"],
+  "aus: mit der Tastatur tippen": ["désactivé : taper au clavier", "desligado: escrever com o teclado"],
+  "Fertig": ["Terminé", "Pronto"],
+  "Bonus! 3 richtig – +1 Münze": ["Bonus ! 3 bonnes réponses – +1 pièce", "Bónus! 3 certas – +1 moeda"],
+  "Noch {n} Wort!": ["Encore {n} mot !", "Falta {n} palavra!"],
+  "Noch {n} Wörter!": ["Encore {n} mots !", "Faltam {n} palavras!"],
 };

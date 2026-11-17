@@ -675,3 +675,16 @@ body:not(.teacher-mode) .hero h1, body:not(.teacher-mode) .section-title { text-
 .dip-total b { font-family: var(--f-display); font-size: 1.5em; color: #e8590c; }
 .dip-fox { max-width: 58%; }
 @media print { body.print-diploma .dip-total { font-size: 18pt; } body.print-diploma .dip-fox { width: 112mm; } }
+
+/* Lernhilfen */
+body.calm:not(.teacher-mode)::before { background: #f3f6f8 !important; }
+html.big-text { font-size: 113%; }
+html.big-text body { letter-spacing: .03em; word-spacing: .12em; line-height: 1.6; }
+html.big-text .word-fr, html.big-text .flash-word { letter-spacing: .06em; }
+html.big-text .task-q { font-size: 1.15em; }
+.help-opt { display: grid; grid-template-columns: auto auto 1fr; gap: 10px; align-items: center; padding: 10px 12px; border: 2px solid var(--line); border-radius: 14px; background: #fff; cursor: pointer; }
+.help-opt input { width: 24px; height: 24px; }
+.help-opt .ic { font-size: 1.6rem; }
+.help-opt b { display: block; } .help-opt small { color: var(--ink-soft); }
+.check.small { font-size: .85rem; white-space: nowrap; }
+.check.small input { width: 18px; height: 18px; }

@@ -1,19 +1,19 @@
-import { Store, Device, isCloud } from "./store.js?v=20261117p";
-import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261117p";
-import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261117p";
-import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js?v=20261117p";
-import { currentGoal, der, unser, zum } from "./goal.js?v=20261117p";
-import { buildingSvg } from "./buildings.js?v=20261117p";
-import { uid } from "./util.js?v=20261117p";
-import { say, listen, canListen } from "./speech.js?v=20261117p";
-import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261117p";
+import { Store, Device, isCloud } from "./store.js?v=20261117q";
+import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261117q";
+import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261117q";
+import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js?v=20261117q";
+import { currentGoal, der, unser, zum } from "./goal.js?v=20261117q";
+import { buildingSvg } from "./buildings.js?v=20261117q";
+import { uid } from "./util.js?v=20261117q";
+import { say, listen, canListen } from "./speech.js?v=20261117q";
+import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261117q";
 import {
   emptyProgress, lessonStats, overallStats, unlockedLessons, planLearn, markSeen, countAnswer, fallBack, promote,
   checkWritten, checkSpoken, logActivity, currentStreak, weekSummary, checkBadges, BADGES, wstate, shuffle,
   stripArticle, todayStr, DAY, NEEDED_TODAY, MIN_GAP, BOX_NAMES, wkey,
   weekState, weekLabel, schoolDay, perDayFor, newAllowed, sortLessons, DAILY_GOAL_SEC, todaySeconds, mondayOf,
   writePoint, WRITES_FOR_POINT, countCard,
-} from "./srs.js?v=20261117p";
+} from "./srs.js?v=20261117q";
 
 // ---- Ton an/aus (gilt auf diesem Gerät, überall) ----
 setSound(!Device.get("audioOff", false));
@@ -28,6 +28,103 @@ document.addEventListener("click", e => {
 });
 
 const S = { cls: null, student: null, prog: null, lessons: [], classWeekOk: 0 };
+
+// ------------------------------------------------------------------
+//  Lernhilfen (von der Lehrkraft pro Kind eingeschaltet; ohne Diagnose-Etikett)
+//  🎯 Fokus-Hilfe: kurze Runden, Bonus, Bewegungspausen, ruhige Ansicht, Abwechslung
+//  🔤 Lese-Schreib-Hilfe: Vorlesen, große Schrift, Silben, Kacheln, Sprechen zählt, mehr Zeit
+// ------------------------------------------------------------------
+const isFocus = () => !!S.student?.help?.focus;
+const isLrs = () => !!S.student?.help?.lrs;
+const kidUi = () => (S.prog.ui = S.prog.ui || {});
+const readOn = () => isLrs() && kidUi().read !== false;      // vom Kind abschaltbar
+const bigOn = () => isLrs() && kidUi().big !== false;        // vom Kind abschaltbar
+const tilesOn = () => isLrs() && kidUi().tiles !== false;    // Kacheln statt Tippen (vom Kind wählbar)
+const goalSec = () => (isFocus() ? 180 : DAILY_GOAL_SEC);
+function applyHelpLook() {
+  document.documentElement.classList.toggle("big-text", !!S.prog && bigOn());
+  document.body.classList.toggle("syll", !!S.prog && isLrs());
+}
+// Französische Wörter in farbige Silben zerlegen (einfache Regeln, für die Lese-Schreib-Hilfe)
+const VOW = "aeiouyàâäéèêëîïôöùûüœæ";
+const ONSET = ["bl", "br", "cl", "cr", "dr", "fl", "fr", "gl", "gr", "pl", "pr", "tr", "vr", "ch", "ph", "th", "gn", "qu", "gu"];
+function syllables(word) {
+  const w = word, lw = w.toLowerCase(), isV = i => VOW.includes(lw[i]) && !(lw[i] === "u" && (lw[i - 1] === "q" || (lw[i - 1] === "g" && VOW.includes(lw[i + 1] || ""))));
+  const nuclei = [];
+  for (let i = 0; i < lw.length; i++) {
+    if (!isV(i)) continue;
+    let j = i; while (j + 1 < lw.length && isV(j + 1)) j++;
+    nuclei.push([i, j]); i = j;
+  }
+  // stummes End-e (fromage, pomme) ist keine eigene Silbe
+  const last = nuclei[nuclei.length - 1];
+  if (nuclei.length > 1 && last && last[0] === last[1] && lw[last[0]] === "e" && /^(s|nt)?$/.test(lw.slice(last[0] + 1))) nuclei.pop();
+  if (nuclei.length < 2) return [w];
+  const cuts = [];
+  for (let k = 0; k < nuclei.length - 1; k++) {
+    const a = nuclei[k][1] + 1, b = nuclei[k + 1][0];   // Konsonanten zwischen zwei Vokalen: a..b-1
+    const n = b - a;
+    let cut = a;
+    if (n === 1) cut = a;
+    else if (n >= 2) { const pair = lw.slice(b - 2, b); cut = ONSET.includes(pair) ? b - 2 : b - 1; }
+    cuts.push(cut);
+  }
+  const out = []; let p = 0;
+  for (const c of cuts) { if (c > p) { out.push(w.slice(p, c)); p = c; } }
+  out.push(w.slice(p));
+  return out;
+}
+const SYL_COL = ["#1c7ed6", "#e8590c"];
+function syllableHtml(text) {
+  let k = 0;
+  return text.split(/(\s+|[\/'’-])/).map(part => {
+    if (!part || /^(\s+|[\/'’-])$/.test(part)) return esc(part || "");
+    return syllables(part).map(x => `<span style="color:${SYL_COL[k++ % 2]}">${esc(x)}</span>`).join("");
+  }).join("");
+}
+// färbt französische Wörter auf jeder neuen Ansicht automatisch
+new MutationObserver(() => {
+  if (!document.body.classList.contains("syll")) return;
+  document.querySelectorAll(".word-fr:not([data-syl]), .flash-word.fr:not([data-syl]), .fb-sol .sol:not([data-syl])").forEach(el => {
+    if (el.children.length) return;
+    el.dataset.syl = "1"; el.innerHTML = syllableHtml(el.textContent);
+  });
+}).observe(document.body, { childList: true, subtree: true });
+// Vorlesen: Aufgabe in der Sprache der Anweisungen, dann das Wort
+let readTimer = null;
+function readAloudCard() {
+  clearTimeout(readTimer);
+  if (!readOn() || !isSound()) return;
+  readTimer = setTimeout(async () => {
+    const card = $("#card"); if (!card) return;
+    const q = card.querySelector(".task-q")?.textContent?.trim();
+    const fr = card.querySelector(".word-fr")?.textContent?.trim();
+    const tr = card.querySelector(".word-tr")?.textContent?.trim();
+    if (q) await say(q, getLang(), 0.95);
+    if (!$("#card") || $("#card") !== card) return;
+    if (fr && card.querySelector(".word-fr")?.offsetParent) await say(fr, "fr", 0.8);
+    else if (tr) await say(tr, S.curLang || getLang(), 0.9);
+  }, 350);
+}
+// Kurze Bewegungspause (Fokus-Hilfe)
+function moveBreak() {
+  const [mv, txt] = MOVES[Math.floor(Math.random() * MOVES.length)];
+  return modal(`<div class="center stack"><div class="move-art">${art(mv)}</div><h2>${t("Bewegungspause!")}</h2><p style="margin:0;font-size:1.2rem">${esc(t(txt))}</p><button class="btn green big" data-close="ok">${t("Geschafft!")}</button></div>`);
+}
+// Kind wählt seine Hilfen selbst (nur bei Lese-Schreib-Hilfe sichtbar)
+async function kidHelpSettings() {
+  const ui = kidUi();
+  const row = (k, ic, name, sub, on) => `<label class="help-opt"><input type="checkbox" data-k="${k}" ${on ? "checked" : ""}><span class="ic">${ic}</span><span><b>${t(name)}</b><small>${t(sub)}</small></span></label>`;
+  await modal(`<h2 class="center">${t("Meine Hilfen")}</h2>
+    <div class="stack" style="gap:10px">
+      ${row("read", "🔊", "Vorlesen", "Aufgabe und Wort werden automatisch vorgelesen", ui.read !== false)}
+      ${row("big", "🔤", "Große Schrift", "größere Buchstaben mit mehr Abstand", ui.big !== false)}
+      ${row("tiles", "🧩", "Mit Buchstaben-Kacheln schreiben", "aus: mit der Tastatur tippen", ui.tiles !== false)}
+    </div><button class="btn green" data-close="ok">${t("Fertig")}</button>`, { onMount: m => {
+      m.querySelectorAll("input[data-k]").forEach(c => c.onchange = () => { ui[c.dataset.k] = c.checked; save(); applyHelpLook(); });
+    } });
+  goHome();
+}
 let goHome = () => {};
 let backToStart = () => {};
 
@@ -214,6 +311,7 @@ function earn(kind, n, cap) {
 //  Startseite
 // ------------------------------------------------------------------
 function topbar() {
+  document.body.classList.remove("calm"); applyHelpLook();
   return `<div class="topbar">
     ${avatarHtml(S.prog.avatar, "sm")}
     <span class="name">${esc(S.student.name)}</span>
@@ -225,6 +323,7 @@ function topbar() {
       <button class="nav-btn" id="tb-home" aria-label="${t("Start")}">${art("map")}<small>${t("Start")}</small></button>
       <button class="nav-btn" id="tb-me" aria-label="${t("Mein Fortschritt")}">${art("telescope")}<small>${t("Fortschritt")}</small></button>
       <button class="nav-btn" id="tb-shop" aria-label="${t("Shop")}">${art("chest")}<small>${t("Shop")}</small></button>
+      ${isLrs() ? `<button class="nav-btn" id="tb-help" aria-label="${t("Meine Hilfen")}">${art("bulbArt")}<small>${t("Hilfen")}</small></button>` : ""}
       <button class="nav-btn" id="tb-out" aria-label="${t("Abmelden")}">${art("door")}<small>${t("Tschüss")}</small></button>
     </nav>
   </div>`;
@@ -234,6 +333,7 @@ function bindTop() {
   $("#tb-me").onclick = () => myProgress();
   $("#tb-shop").onclick = () => shop();
   $("#tb-lang").onclick = () => chooseLang();
+  if ($("#tb-help")) $("#tb-help").onclick = () => kidHelpSettings();
   $("#tb-out").onclick = async () => { await save(true); document.body.classList.remove("kid-mode"); backToStart(); };
 }
 
@@ -313,7 +413,7 @@ async function askAnswerMode(title, learn = false, rec = "") {
   return v;
 }
 // Was passt gerade am besten? Neue Wörter: erst Lernkarten, sonst aus dem Kopf schreiben
-const recommendFor = items => items.some(i => i.kind === "new") ? "cards" : "write";
+const recommendFor = items => items.some(i => i.kind === "new") ? "cards" : isFocus() ? "mix" : "write";
 
 async function startLearn(lessons, onlyLesson) {
   const pool = onlyLesson ? [onlyLesson] : lessons;
@@ -324,6 +424,7 @@ async function startLearn(lessons, onlyLesson) {
     if (!items.length) return toast(t("Hier gibt es noch keine Wörter."));
     toast(t("Alles für heute geschafft! Jetzt übst du freiwillig."), 3500);
   }
+  if (isFocus()) items = items.slice(0, 6);   // Fokus-Hilfe: kurze Runden
   const pref = await askAnswerMode(t("Wie möchtest du üben?"), true, recommendFor(items));
   if (!pref) return;
   S.prog.pref = pref;
@@ -431,6 +532,8 @@ function exFrame({ mode, label, progress, coins, skip, skipNote, switchMode }, i
     <div class="card ${mode}" id="card"><div class="card-tag"><span class="pill ${mode === "test" ? "orange" : "green"}">${mode === "test" ? t("Testen") : t("Lernen")}</span><span class="small muted">${esc(label || "")}</span></div>${inner}</div>
     ${skip ? `<div class="ex-foot"><button class="btn ghost skip-btn" id="skip">${t("Überspringen")} ⏭</button><span class="small muted">${esc(skipNote || "")}</span></div>` : ""}</div>`);
   $("#quit").onclick = () => onQuit && onQuit();
+  document.body.classList.toggle("calm", isFocus());
+  readAloudCard();
   // Überspringen / Übungsart wechseln – nur solange die Aufgabe noch offen ist
   const open = () => !$("#card .feedback") && !$("#card .flash-after:not([hidden])") && !$("#card .copy-box.ok");
   if (skip) $("#skip").onclick = () => { if (!open()) return; sfx.tap(); skip(); };
@@ -525,6 +628,7 @@ function feedbackBox(ok, w, msg, onNext, auto, memo, x = {}) {
 // cb({ok, helped, how}) – helped = 🔊 benutzt
 function recallTask(item, type, ctx, cb, { test = false } = {}) {
   const { w, l } = item;
+  if (type === "write" && tilesOn()) type = "scramble";     // Lese-Schreib-Hilfe: Kacheln statt Tippen
   let helped = false;
   const help = () => { helped = true; sayWord(w.fr); if (test) toast(t("Notfall-Hilfe: zählt im Test nur halb."), 2200); };
 
@@ -727,7 +831,7 @@ function runLearn(items, opts) {
     need: it.kind === "review" || it.kind === "extra" ? 1 : NEEDED_TODAY,
     last: -100 + i, recalls: 0, done: false,
   }));
-  const st = { pos: 0, ok: 0, ans: 0, coins: 0, wp: 0, t0: Date.now(), doneWords: 0, lastItem: null,
+  const st = { pos: 0, ok: 0, ans: 0, coins: 0, wp: 0, t0: Date.now(), doneWords: 0, lastItem: null, streak: 0, lastBreak: 0,
     starsBefore: Object.fromEntries(S.lessons.map(l => [l.id, lessonStats(S.prog, l).stars])) };
   const totalSteps = () => q.reduce((s, it) => s + (it.done ? 0 : (it.phase === "intro" ? 2 : it.phase === "recog" ? 1 : 0) + it.need), 0);
   const startSteps = totalSteps();
@@ -749,11 +853,20 @@ function runLearn(items, opts) {
     return canListen && Math.random() < 0.5 ? "speak" : "write";
   };
 
+  // Fokus-Hilfe: nach jeder 3. richtigen Antwort ein kleiner Bonus
+  const bonus = ok => {
+    if (!isFocus()) return;
+    if (!ok) { st.streak = 0; return; }
+    st.streak++;
+    if (st.streak % 3 === 0) { st.coins += 1; setTimeout(() => { confetti(40); toast(`🎉 ${t("Bonus! 3 richtig – +1 Münze")}`, 1800); }, 300); }
+  };
   const next = () => {
     const it = pick();
     if (!it) return finish();
-    st.lastItem = it;
-    const ctx = { mode: "learn", label: opts.lesson ? opts.lesson.title : t("Lernen"), progress: Math.round((1 - totalSteps() / Math.max(1, startSteps)) * 100), coins: st.coins,
+    if (isFocus() && st.pos > 0 && st.pos % 3 === 0 && st.lastBreak !== st.pos) { st.lastBreak = st.pos; moveBreak().then(next); return; }
+    st.lastItem = it; S.curLang = it.l.lang;
+    const left = q.filter(x => !x.done).length;
+    const ctx = { mode: "learn", label: isFocus() ? tn(left, "Noch {n} Wort!", "Noch {n} Wörter!") : opts.lesson ? opts.lesson.title : t("Lernen"), progress: Math.round((1 - totalSteps() / Math.max(1, startSteps)) * 100), coins: st.coins,
       // Überspringen: Wort kommt später in dieser Runde wieder, zählt nicht als Fehler
       skip: q.filter(x => !x.done).length > 1 ? () => { it.last = st.pos; st.pos++; next(); } : null,
       skipNote: t("Das Wort kommt später nochmal."),
@@ -772,7 +885,7 @@ function runLearn(items, opts) {
         st.ans++;
         countCard(S.prog, it.l, it.w, knew);            // eigene Zählung: Selbsteinschätzung, nicht „Treffer“
         if (knew) {
-          st.ok++; st.coins += 1; sfx.ok(); it.recalls++; it.need--;
+          st.ok++; st.coins += 1; sfx.ok(); it.recalls++; it.need--; bonus(true);
           if (it.need <= 0) {
             it.done = true; st.doneWords++;
             // Lernkarten bringen ein Wort höchstens bis „morgen wieder“ – weiter nur mit Schreiben/Sprechen
@@ -801,7 +914,7 @@ function runLearn(items, opts) {
     if (it.phase === "recog" && opts.pref === "write") it.phase = "recall";
     if (it.phase === "recog") {
       return recogTask(it, ctx, ok => {
-        st.ans++; if (ok) st.ok++;
+        st.ans++; if (ok) st.ok++; bonus(ok);
         countAnswer(S.prog, it.l, it.w, ok);
         if (ok) { it.phase = "recall"; after(); feedbackBox(true, it.w, "", next, 900); }
         else { after(); feedbackBox(false, it.w, "", next); }
@@ -812,9 +925,9 @@ function runLearn(items, opts) {
       countAnswer(S.prog, it.l, it.w, ok);
       const fx = { heard: how === "speak" ? heard : "", typed, how };
       if (ok) {
-        st.ok++; st.coins += 1;
+        st.ok++; st.coins += 1; bonus(true);
         if (how === "speak") S.prog.spoken++; else S.prog.typed++;
-        if (how === "write" && !helped) { const r = writePoint(S.prog, it.l, it.w); st.wp += r.point; fx.wc = r.count; fx.point = r.point; fx.already = r.already; }
+        if ((how === "write" || (isLrs() && (how === "scramble" || how === "speak"))) && !helped) { const r = writePoint(S.prog, it.l, it.w); st.wp += r.point; fx.wc = r.count; fx.point = r.point; fx.already = r.already; }
         if (helped) { after(); return feedbackBox(true, it.w, t("Mit Hilfe geschafft! Das Wort kommt gleich nochmal – dann ohne Hilfe."), next, 0, "", fx); }
         it.recalls++; it.need--;
         if (it.need <= 0) {
@@ -826,6 +939,7 @@ function runLearn(items, opts) {
         after(); return feedbackBox(true, it.w, note || t("Richtig! Gleich nochmal – nach ein paar anderen Wörtern."), next, 2400, "", fx);
       }
       // Fehler: zurück auf „heute lernen“, wieder 2× richtig nötig
+      bonus(false);
       if (!extra) fallBack(S.prog, it.l, it.w);
       it.need = extra ? 1 : NEEDED_TODAY; it.kind = it.kind === "extra" ? "extra" : "learn";
       after(); feedbackBox(false, it.w, t("Nicht ganz – das Wort kommt gleich nochmal."), next, 0, memoOf(it.l, it.w), fx);
@@ -884,6 +998,7 @@ function runTest(l, mode) {
       skip: !skipped.has(w) && i < words.length - 1 ? () => { skipped.add(w); words.splice(i, 1); words.push(w); next(); } : null,
       skipNote: t("Im Test kommt das Wort am Ende nochmal."),
       switchMode: async () => { const p = await askAnswerMode(t("Übungsart wechseln")); if (p && p !== mode) { mode = p; next(); } } };
+    S.curLang = l.lang;
     recallTask({ l, w }, typeFor(i), ctx, ({ ok, helped, how, spelling, heard, typed }) => {
       if (ok && spelling) helped = true; // Rechtschreibung: Akzent/Artikel fehlt = halber Punkt
       res.push({ w, ok, helped, spelling });
@@ -891,7 +1006,7 @@ function runTest(l, mode) {
       const fx = { heard: how === "speak" ? heard : "", typed, how };
       if (ok && !helped) {
         coins += 2;
-        if (how === "write") { const r = writePoint(S.prog, l, w); wp += r.point; fx.wc = r.count; fx.point = r.point; fx.already = r.already; }
+        if (how === "write" || (isLrs() && (how === "scramble" || how === "speak"))) { const r = writePoint(S.prog, l, w); wp += r.point; fx.wc = r.count; fx.point = r.point; fx.already = r.already; }
         const s = wstate(S.prog, l.id, w.id);
         if (s.b === 0) markSeen(S.prog, l, w);            // noch nie gelernt → erst „heute lernen“
         else if (s.b < 2 || s.d <= Date.now()) promote(S.prog, l, w);
@@ -1018,7 +1133,8 @@ function memoryGame(l) {
 function blitz(l) {
   const seen = l.words.filter(w => wstate(S.prog, l.id, w.id).b >= 1);
   const pool = seen.length >= 3 ? seen : l.words;
-  let score = 0, wrong = 0, left = 60, timer;
+  const total = isLrs() ? 120 : 60;   // Lese-Schreib-Hilfe: kein Zeitdruck
+  let score = 0, wrong = 0, left = total, timer;
   const t0 = Date.now();
   render(`<div class="wrap narrow">
     <div class="ex-top"><button class="icon-btn" id="quit" aria-label="${t("Beenden")}">${ICON.close}</button>
@@ -1057,7 +1173,7 @@ function blitz(l) {
       setTimeout(round, ok ? 250 : 700);
     });
   };
-  timer = setInterval(() => { left--; const tb = $("#tbar"); if (tb) tb.style.width = (left / 60 * 100) + "%"; if (left <= 0) end(); }, 1000);
+  timer = setInterval(() => { left--; const tb = $("#tbar"); if (tb) tb.style.width = (left / total * 100) + "%"; if (left <= 0) end(); }, 1000);
   round();
 }
 
@@ -1147,7 +1263,7 @@ function shop() {
 //  Startseite: Wochenkarte, Tagesziel, schwierige Wörter
 // ------------------------------------------------------------------
 function goalRing() {
-  const sec = todaySeconds(S.prog), pct = Math.min(100, Math.round(sec / DAILY_GOAL_SEC * 100));
+  const sec = todaySeconds(S.prog), pct = Math.min(100, Math.round(sec / goalSec() * 100));
   const min = Math.min(5, Math.floor(sec / 60));
   return `<div class="ring" style="--p:${pct}" title="${t("Tagesziel: 5 Minuten")}"><div><b>${pct >= 100 ? "✓" : min}</b><small>${pct >= 100 ? t("geschafft") : t("von 5 Min.")}</small></div></div>`;
 }
