@@ -1,19 +1,19 @@
-import { Store, Device, isCloud } from "./store.js?v=20261117i";
-import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261117i";
-import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261117i";
-import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js?v=20261117i";
-import { currentGoal, der, unser, zum } from "./goal.js?v=20261117i";
-import { buildingSvg } from "./buildings.js?v=20261117i";
-import { uid } from "./util.js?v=20261117i";
-import { say, listen, canListen } from "./speech.js?v=20261117i";
-import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261117i";
+import { Store, Device, isCloud } from "./store.js?v=20261117j";
+import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261117j";
+import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261117j";
+import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js?v=20261117j";
+import { currentGoal, der, unser, zum } from "./goal.js?v=20261117j";
+import { buildingSvg } from "./buildings.js?v=20261117j";
+import { uid } from "./util.js?v=20261117j";
+import { say, listen, canListen } from "./speech.js?v=20261117j";
+import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261117j";
 import {
   emptyProgress, lessonStats, overallStats, unlockedLessons, planLearn, markSeen, countAnswer, fallBack, promote,
   checkWritten, checkSpoken, logActivity, currentStreak, weekSummary, checkBadges, BADGES, wstate, shuffle,
   stripArticle, todayStr, DAY, NEEDED_TODAY, MIN_GAP, BOX_NAMES, wkey,
   weekState, weekLabel, schoolDay, perDayFor, newAllowed, sortLessons, DAILY_GOAL_SEC, todaySeconds, mondayOf,
   writePoint, WRITES_FOR_POINT, countCard,
-} from "./srs.js?v=20261117i";
+} from "./srs.js?v=20261117j";
 
 // ---- Ton an/aus (gilt auf diesem Gerät, überall) ----
 setSound(!Device.get("audioOff", false));

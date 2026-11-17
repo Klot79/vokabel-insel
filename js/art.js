@@ -201,6 +201,22 @@ export function art(key, cls = "") {
   if (s) return cls ? s.replace("<svg ", `<svg class="${cls}" `) : s;
   return key ? `<span class="${cls}" aria-hidden="true">${key}</span>` : "";
 }
+// ---------- Wo sitzt der Hut? (Kopfmitte x, Scheitel y, Kopfbreite w – in % des Tierbildes) ----------
+const HEAD = {
+  "🦊": { x: 47, y: 40, w: 46 }, "🐈": { x: 50, y: 30, w: 52 }, "😺": { x: 52, y: 30, w: 50 }, "😸": { x: 50, y: 32, w: 50 }, "🐺": { x: 50, y: 36, w: 46 },
+  "🐢": { x: 80, y: 38, w: 30 }, "🐻": { x: 50, y: 24, w: 58 }, "🐬": { x: 55, y: 27, w: 48 }, "🦋": { x: 50, y: 33, w: 30 }, "🐧": { x: 50, y: 22, w: 52 },
+  "🐸": { x: 50, y: 15, w: 56 }, "🐙": { x: 50, y: 14, w: 58 }, "🦜": { x: 52, y: 17, w: 40 }, "🐼": { x: 50, y: 22, w: 58 }, "🦄": { x: 48, y: 27, w: 46 }, "🦖": { x: 52, y: 25, w: 52 },
+};
+// Kopfhörer sitzen tiefer und breiter, alle anderen Hüte mit der Krempe auf dem Scheitel
+const HAT_FIT = { "🌸": { up: 0.62, s: 1.3 } };
+export function hatStyle(animal, hatKey) {
+  const h = HEAD[animal] || { x: 50, y: 22, w: 56 }, f = HAT_FIT[hatKey] || { up: 0.8, s: 1 };
+  const A = 0.76, off = 12;                       // Tierbild = 76 % des Kreises, mittig
+  const w = h.w * A * f.s, x = off + h.x * A, crown = off + h.y * A;
+  const top = crown - w * 0.6 * f.up;              // Hutbild ist 100 × 60
+  return `left:${x.toFixed(1)}%;top:${top.toFixed(1)}%;width:${w.toFixed(1)}%`;
+}
+
 export function hat(key) { return HATS[key] || (key ? `<span aria-hidden="true">${key}</span>` : ""); }
 export const ANIMAL_KEYS = ["🦊", "🐈", "😺", "😸", "🐺", "🐢", "🐻", "🐬", "🦋", "🐧", "🐸", "🐙", "🦜", "🐼", "🦄", "🦖"];
 export const HAT_KEYS = Object.keys(HATS);

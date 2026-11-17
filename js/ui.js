@@ -1,5 +1,5 @@
-import { esc } from "./util.js?v=20261117i";
-import { art, hat } from "./art.js?v=20261117i";
+import { esc } from "./util.js?v=20261117j";
+import { art, hat, hatStyle } from "./art.js?v=20261117j";
 
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -52,7 +52,7 @@ export function pic(w, cls = "") {
 export const hasPic = w => !!(w.img || w.emoji);
 
 export function avatarHtml(av = {}, size = "") {
-  return `<span class="avatar ${size}" style="background:${esc(av.color || "#2b9ad1")}1f;box-shadow:inset 0 0 0 3px ${esc(av.color || "#2b9ad1")}">${av.hat ? `<span class="hat">${hat(av.hat)}</span>` : ""}${art(av.animal || "🐢", "av-art")}</span>`;
+  return `<span class="avatar ${size}" style="background:${esc(av.color || "#2b9ad1")}1f;box-shadow:inset 0 0 0 3px ${esc(av.color || "#2b9ad1")}">${art(av.animal || "🐢", "av-art")}${av.hat ? `<span class="hat" style="${hatStyle(av.animal || "🐢", av.hat)}">${hat(av.hat)}</span>` : ""}</span>`;
 }
 
 // Einfache Symbole für Knöpfe (weiß, folgen der Textfarbe)

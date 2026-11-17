@@ -111,10 +111,10 @@ h1 { font-size: clamp(1.7rem, 5vw, 2.3rem); }
 
 .avatar { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; position: relative; flex: none; background: var(--blue-l); }
 .avatar .av-art { width: 76%; height: 76%; }
-.avatar .hat { position: absolute; top: -32%; left: 50%; transform: translateX(-50%); width: 72%; }
+.avatar .hat { position: absolute; top: -32%; left: 50%; transform: translateX(-50%); width: 72%; z-index: 2; pointer-events: none; }
 .avatar .hat svg { width: 100%; height: auto; }
 .avatar.sm { width: 46px; height: 46px; }
-.avatar.lg { width: 120px; height: 120px; margin-top: 26px; }
+.avatar.lg { width: 120px; height: 120px; margin-top: 12px; }
 
 .pin-dots { display: flex; gap: 12px; justify-content: center; min-height: 70px; }
 .pin-dots span { width: 66px; height: 66px; border-radius: 16px; background: var(--soft); border: 2px dashed var(--line); display: grid; place-items: center; padding: 8px; }
