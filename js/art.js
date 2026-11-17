@@ -16,9 +16,11 @@ const svg = (vb, body) => {
     + `<g filter="url(#${id})">${body}<g class="hd-ht">${body}</g><g class="hd-sk" transform="translate(1.7 -1.3) rotate(.6)">${body}</g></g></svg>`;
 };
 // lässiges Auge: Mandelform, Pupille, schwerer Lidstrich oben
-const eye = (x, y, r = 4) => `<path d="M${x - r * 1.45} ${y} Q${x} ${y - r * 1.5} ${x + r * 1.45} ${y} Q${x} ${y + r * 1.2} ${x - r * 1.45} ${y}Z" fill="#fff" ${o(2)}/><circle cx="${x + r * 0.3}" cy="${y + r * 0.05}" r="${r * 0.6}" fill="${K}"/><circle cx="${x + r * 0.48}" cy="${y - r * 0.15}" r="${r * 0.18}" fill="#fff"/><path d="M${x - r * 1.75} ${y - r * 0.3} Q${x} ${y - r * 1.2} ${x + r * 1.75} ${y - r * 0.65}" fill="none" ${o(3)}/>`;
+// große runde Augen, winzige Pupille, dunkle Augenringe (skurriler Skizzen-Stil)
+const eye = (x, y, r = 4) => { const R = r * 2.05; return `<circle cx="${x}" cy="${y}" r="${R + 1.8}" fill="none" stroke="#2a2a2a" stroke-width="3" opacity=".5"/><circle cx="${x}" cy="${y}" r="${R}" fill="#fbfaf6" stroke="${K}" stroke-width="1.7"/><circle cx="${x + r * 0.25}" cy="${y + r * 0.1}" r="${Math.max(1, r * 0.3)}" fill="${K}"/>`; };
 // schiefes Grinsen
-const smile = (x, y, w = 10) => `<path d="M${x - w / 2} ${y + w * 0.05} Q${x + w * 0.15} ${y + w * 0.42} ${x + w / 2} ${y - w * 0.22}" fill="none" ${o(3)}/>`;
+// genähter Mund: schiefe Linie mit Stichen
+const smile = (x, y, w = 10) => { let st = ""; for (let i = 1; i < 4; i++) { const sx = x - w / 2 + (w * i) / 4; st += `M${sx} ${y - 1.8} L${sx + 0.4} ${y + 2.2} `; } return `<path d="M${x - w / 2} ${y + 0.6} Q${x} ${y + 1.8} ${x + w / 2} ${y - 0.8}" fill="none" ${o(2)}/><path d="${st}" fill="none" ${o(1.3)}/>`; };
 const cheeks = () => "";
 // Sonnenbrille (zwei Gläser)
 const shades = (x1, x2, y, r = 8) => {
@@ -26,9 +28,29 @@ const shades = (x1, x2, y, r = 8) => {
   return lens(x1) + lens(x2) + `<path d="M${x1 + r} ${y - r * 0.35} Q${(x1 + x2) / 2} ${y - r * 0.8} ${x2 - r} ${y - r * 0.35}" fill="none" ${o(3)}/>`;
 };
 
+// Figuren: skurriler Bleistift-Stil – Grau-/Papiertöne, nur „keep“-Farben bleiben bunt
+const HD_GOTH = `<style>.hd-sk2 *{fill:none!important;stroke-width:.9px!important;opacity:.55}.hd-ht2 *{fill:url(#hd-hatch2)!important;stroke:none!important}.hd-ht2 [fill="none"]{fill:none!important}</style>`;
+function paper(hex) {
+  const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+  const v = (0.5 + 0.48 * (0.299 * r + 0.587 * g + 0.114 * b) / 255) * 255;
+  const c = x => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, "0");
+  return "#" + c(v + 3) + c(v) + c(v - 7);
+}
+const goth = (vb, body, keep = []) => {
+  const ks = keep.map(k => k.toLowerCase());
+  body = body.replace(/#[0-9a-fA-F]{6}\b/g, h => (h === K || ks.includes(h.toLowerCase()) ? h : paper(h)))
+    .replace(/stroke-width="4"/g, 'stroke-width="2.8"').replace(/stroke-width="3"/g, 'stroke-width="2.2"');
+  const id = "hd" + (hdN++), seed = hdN % 9;
+  return `<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">${HD_GOTH}<defs>`
+    + `<pattern id="hd-hatch2" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(-40)"><path d="M0 1 H4" stroke="${K}" stroke-width=".8" opacity=".22"/></pattern>`
+    + `<filter id="${id}" x="-12%" y="-12%" width="130%" height="130%"><feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="3" seed="${seed}" result="n"/>`
+    + `<feDisplacementMap in="SourceGraphic" in2="n" scale="3.8" xChannelSelector="R" yChannelSelector="G"/></filter></defs>`
+    + `<g filter="url(#${id})">${body}<g class="hd-ht2">${body}</g><g class="hd-sk2" transform="translate(1.4 -1.1) rotate(.8)">${body}</g><g class="hd-sk2" transform="translate(-1.2 .9) rotate(-.7)">${body}</g></g></svg>`;
+};
+
 const ART = {
   // ---------- Maskottchen ----------
-  parrot: svg("0 0 120 120", `
+  parrot: goth("0 0 120 120", `
     <path d="M46 92 L34 116 L48 108 L54 118 L60 96Z" fill="#1c7ed6" ${o()}/>
     <path d="M38 64 Q8 48 14 26 Q30 34 46 58Z" fill="#20c997" ${o()}/>
     <ellipse cx="62" cy="74" rx="28" ry="30" fill="#2fb36a" ${o()}/>
@@ -36,9 +58,9 @@ const ART = {
     <path d="M50 22 L46 4 L58 13 L62 1 L68 13 L80 6 L74 22Z" fill="#ff6b6b" ${o(3)}/>
     <circle cx="62" cy="40" r="24" fill="#2fb36a" ${o()}/>
     <path d="M80 42 Q100 42 94 58 Q88 52 78 52Z" fill="#ff922b" ${o(3)}/>
-    <path d="M58 30 H86 Q86 45 73 45 Q60 45 58 30Z" fill="${K}"/><path d="M58 31 L42 35" fill="none" ${o(3)}/><path d="M65 34 L72 34" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".8"/>
+    ${eye(60, 37, 5.2)}${eye(76, 35, 4.2)}
     <path d="M58 56 Q63 59 69 55" fill="none" ${o(2.5)}/>
-    <path d="M54 102 v10 M70 102 v10 M50 112 h8 M66 112 h8" fill="none" ${o(3)}/>`),
+    <path d="M54 102 v10 M70 102 v10 M50 112 h8 M66 112 h8" fill="none" ${o(3)}/>`, ["#ff6b6b", "#ff922b"]),
 
   // ---------- Knöpfe / Navigation ----------
   book: svg("0 0 100 100", `
@@ -96,14 +118,14 @@ const ART = {
   medal: svg("0 0 100 100", `<path d="M34 6 L50 40 L66 6" fill="#1c7ed6" ${o()}/><circle cx="50" cy="62" r="28" fill="#ffd43b" ${o()}/><circle cx="50" cy="62" r="18" fill="#fab005" ${o(3)}/><path d="M50 50 l4 8 9 1 -7 6 2 9 -8 -5 -8 5 2 -9 -7 -6 9 -1Z" fill="#fff" ${o(2)}/>`),
   rocket: svg("0 0 100 100", `<path d="M50 6 Q72 24 70 62 H30 Q28 24 50 6Z" fill="#f1f3f5" ${o()}/><circle cx="50" cy="36" r="9" fill="#74c0fc" ${o(3)}/><path d="M30 50 L16 70 L30 66 M70 50 L84 70 L70 66" fill="#ff6b6b" ${o()}/><path d="M40 62 Q50 92 60 62Z" fill="#ff922b" ${o(3)}/>`),
 
-  shower: svg("0 0 100 100", `
+  shower: goth("0 0 100 100", `
     <path d="M30 14 H58 Q70 14 70 26 V30" fill="none" stroke="#adb5bd" stroke-width="7" stroke-linecap="round"/>
     <path d="M52 30 H88 Q88 44 70 44 Q52 44 52 30Z" fill="#74c0fc" ${o()}/>
     <g fill="#4dabf7" ${o(2)}><path d="M58 54 q3 6 0 9 q-3 -3 0 -9z"/><path d="M70 58 q3 6 0 9 q-3 -3 0 -9z"/><path d="M82 54 q3 6 0 9 q-3 -3 0 -9z"/><path d="M64 72 q3 6 0 9 q-3 -3 0 -9z"/><path d="M78 74 q3 6 0 9 q-3 -3 0 -9z"/></g>
     <circle cx="28" cy="58" r="16" fill="#ffd8a8" ${o()}/>${eye(23, 56, 3)}${eye(33, 56, 3)}<ellipse cx="28" cy="66" rx="4" ry="5" fill="${K}"/>
     <path d="M14 50 Q28 34 42 50" fill="none" stroke="#f783ac" stroke-width="6" stroke-linecap="round"/>
     <path d="M8 86 Q28 70 48 86" fill="#ffd8a8" ${o()}/>
-    <path d="M40 44 l8 -6 M44 52 l9 -2" fill="none" stroke="#1c7ed6" stroke-width="3" stroke-linecap="round"/>`),
+    <path d="M40 44 l8 -6 M44 52 l9 -2" fill="none" stroke="#1c7ed6" stroke-width="3" stroke-linecap="round"/>`, ["#74c0fc", "#4dabf7", "#f783ac"]),
   postit: svg("0 0 100 100", `
     <g transform="rotate(-8 40 44)"><rect x="12" y="16" width="52" height="52" rx="3" fill="#ffe066" ${o()}/><path d="M22 34 h30 M22 46 h24" stroke="#c49a00" stroke-width="4" stroke-linecap="round"/></g>
     <g transform="rotate(10 62 62)"><rect x="40" y="38" width="52" height="52" rx="3" fill="#ffc9de" ${o()}/><path d="M50 56 h30 M50 68 h20" stroke="#d6336c" stroke-width="4" stroke-linecap="round"/><circle cx="66" cy="42" r="5" fill="#e03131" ${o(2)}/></g>`),
@@ -111,7 +133,7 @@ const ART = {
     <path d="M6 52 H46 L40 88 H12Z" fill="#74c0fc" ${o()}/><path d="M54 52 H94 L88 88 H60Z" fill="#f783ac" ${o()}/>
     <path d="M14 62 H38 M18 74 H36 M62 62 H86 M66 74 H84" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
     <rect x="34" y="10" width="32" height="22" rx="5" fill="#ffd43b" ${o()}/><path d="M50 32 V44 M44 40 L50 46 L56 40" fill="none" ${o(3)}/>`),
-  jump: svg("0 0 100 100", `
+  jump: goth("0 0 100 100", `
     <path d="M14 30 Q50 -6 86 30" fill="none" stroke="${K}" stroke-width="2.5" stroke-dasharray="4 4"/>
     <circle cx="50" cy="26" r="12" fill="#ffd8a8" ${o()}/>${eye(46, 25, 2.5)}${eye(55, 25, 2.5)}
     <path d="M38 20 Q50 8 62 20" fill="none" stroke="#e8590c" stroke-width="6" stroke-linecap="round"/>
@@ -119,32 +141,32 @@ const ART = {
     <path d="M40 44 L22 30 M60 44 L78 30" fill="none" ${o(5)}/><path d="M40 44 L22 30 M60 44 L78 30" fill="none" stroke="#ffd8a8" stroke-width="2"/>
     <path d="M42 64 L34 86 M58 64 L68 84" fill="none" stroke="#1c7ed6" stroke-width="7" stroke-linecap="round"/>
     <path d="M28 88 h10 M64 86 h10" fill="none" ${o(5)}/>
-    <path d="M14 90 h72" stroke="#ced4da" stroke-width="3" stroke-linecap="round"/>`),
+    <path d="M14 90 h72" stroke="#ced4da" stroke-width="3" stroke-linecap="round"/>`, ["#e8590c"]),
   bulbArt: svg("0 0 100 100", `<path d="M50 8 Q78 8 78 38 Q78 54 64 64 V74 H36 V64 Q22 54 22 38 Q22 8 50 8Z" fill="#ffd43b" ${o()}/><rect x="36" y="74" width="28" height="14" rx="4" fill="#ced4da" ${o()}/><path d="M42 40 Q50 52 58 40" fill="none" ${o(3)}/><path d="M36 26 Q40 18 48 16" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/>`),
 
   // ---------- Bild-PIN (Schlüssel = gespeicherte Werte) ----------
-  "🐶": svg("0 0 100 100", `<path d="M22 30 Q8 34 14 62 Q22 64 28 50Z M78 30 Q92 34 86 62 Q78 64 72 50Z" fill="#a0673a" ${o()}/><circle cx="50" cy="52" r="32" fill="#e8b27a" ${o()}/><ellipse cx="50" cy="66" rx="16" ry="12" fill="#fff4e6" ${o(3)}/><ellipse cx="50" cy="58" rx="6" ry="4.5" fill="${K}"/>${eye(38, 46)}${eye(62, 46)}${smile(50, 68, 12)}<path d="M26 76 Q50 88 74 76 L50 98Z" fill="#e03131" ${o(3)}/><circle cx="44" cy="84" r="1.8" fill="#fff"/><circle cx="55" cy="88" r="1.8" fill="#fff"/><circle cx="50" cy="80" r="1.8" fill="#fff"/>`),
-  "🐱": svg("0 0 100 100", `<path d="M22 40 L24 10 L46 26Z M78 40 L76 10 L54 26Z" fill="#ffa94d" ${o()}/><circle cx="50" cy="54" r="32" fill="#ffa94d" ${o()}/><path d="M24 58 H10 M24 64 L12 70 M76 58 H90 M76 64 L88 70" fill="none" ${o(2)}/>${eye(38, 50)}${eye(62, 50)}<path d="M46 60 L54 60 L50 65Z" fill="#ff8fa3" ${o(2)}/>${smile(50, 68, 12)}<circle cx="73" cy="38" r="4.5" fill="none" stroke="#fab005" stroke-width="2.5"/>`),
-  "🦊": svg("0 0 100 100", `<path d="M18 38 L20 6 L44 24Z M82 38 L80 6 L56 24Z" fill="#ff7a2f" ${o()}/><path d="M14 38 Q50 4 86 38 Q86 70 50 92 Q14 70 14 38Z" fill="#ff7a2f" ${o()}/><path d="M18 46 Q34 60 50 92 Q66 60 82 46 Q66 56 50 56 Q34 56 18 46Z" fill="#fff" ${o(3)}/>${eye(36, 44)}${eye(64, 44)}<ellipse cx="50" cy="82" rx="5" ry="4" fill="${K}"/><path d="M68 30 L63 37 L68 38 L63 45" fill="none" ${o(2.5)}/>`),
+  "🐶": goth("0 0 100 100", `<path d="M22 30 Q8 34 14 62 Q22 64 28 50Z M78 30 Q92 34 86 62 Q78 64 72 50Z" fill="#a0673a" ${o()}/><circle cx="50" cy="52" r="32" fill="#e8b27a" ${o()}/><ellipse cx="50" cy="66" rx="16" ry="12" fill="#fff4e6" ${o(3)}/><ellipse cx="50" cy="58" rx="6" ry="4.5" fill="${K}"/>${eye(38, 46)}${eye(62, 46)}${smile(50, 68, 12)}<path d="M26 76 Q50 88 74 76 L50 98Z" fill="#e03131" ${o(3)}/><circle cx="44" cy="84" r="1.8" fill="#fff"/><circle cx="55" cy="88" r="1.8" fill="#fff"/><circle cx="50" cy="80" r="1.8" fill="#fff"/>`, ["#e03131"]),
+  "🐱": goth("0 0 100 100", `<path d="M22 40 L24 10 L46 26Z M78 40 L76 10 L54 26Z" fill="#ffa94d" ${o()}/><circle cx="50" cy="54" r="32" fill="#ffa94d" ${o()}/><path d="M24 58 H10 M24 64 L12 70 M76 58 H90 M76 64 L88 70" fill="none" ${o(2)}/>${eye(38, 50)}${eye(62, 50)}<path d="M46 60 L54 60 L50 65Z" fill="#ff8fa3" ${o(2)}/>${smile(50, 68, 12)}<circle cx="73" cy="38" r="4.5" fill="none" stroke="#fab005" stroke-width="2.5"/>`, ["#fab005"]),
+  "🦊": goth("0 0 100 100", `<path d="M18 38 L20 6 L44 24Z M82 38 L80 6 L56 24Z" fill="#ff7a2f" ${o()}/><path d="M14 38 Q50 4 86 38 Q86 70 50 92 Q14 70 14 38Z" fill="#ff7a2f" ${o()}/><path d="M18 46 Q34 60 50 92 Q66 60 82 46 Q66 56 50 56 Q34 56 18 46Z" fill="#fff" ${o(3)}/>${eye(36, 44)}${eye(64, 44)}<ellipse cx="50" cy="82" rx="5" ry="4" fill="${K}"/><path d="M68 30 L63 37 L68 38 L63 45" fill="none" ${o(2.5)}/>`, ["#ff7a2f"]),
   "🍎": svg("0 0 100 100", `<path d="M50 30 Q30 16 18 34 Q6 60 26 84 Q38 96 50 86 Q62 96 74 84 Q94 60 82 34 Q70 16 50 30Z" fill="#fa5252" ${o()}/><path d="M50 30 Q50 16 56 8" fill="none" ${o(4)}/><path d="M54 18 Q70 6 80 16 Q66 26 54 18Z" fill="#2fb36a" ${o(3)}/><path d="M30 40 Q26 50 28 58" stroke="#fff" stroke-width="5" stroke-linecap="round" fill="none" opacity=".7"/>`),
   "🍌": svg("0 0 100 100", `<path d="M80 14 Q92 52 66 78 Q42 98 14 84 Q40 80 56 62 Q72 42 70 18Z" fill="#ffd43b" ${o()}/><path d="M70 18 L74 8 L82 12 L80 16" fill="#a0673a" ${o(3)}/><path d="M62 30 Q64 50 50 66" fill="none" stroke="#fab005" stroke-width="4" stroke-linecap="round"/>`),
   "🍓": svg("0 0 100 100", `<path d="M50 30 Q80 26 82 46 Q82 72 50 94 Q18 72 18 46 Q20 26 50 30Z" fill="#fa5252" ${o()}/><path d="M30 28 Q40 14 50 24 Q60 14 70 28 Q60 36 50 30 Q40 36 30 28Z" fill="#2fb36a" ${o(3)}/><g fill="#ffe066"><circle cx="38" cy="48" r="2.5"/><circle cx="56" cy="46" r="2.5"/><circle cx="66" cy="58" r="2.5"/><circle cx="46" cy="62" r="2.5"/><circle cx="34" cy="64" r="2.5"/><circle cx="56" cy="74" r="2.5"/></g>`),
   "⭐": null, // wird unten auf ART.star gesetzt
   "🌙": svg("0 0 100 100", `<path d="M62 10 Q24 14 22 50 Q22 88 62 90 Q36 78 36 50 Q36 22 62 10Z" fill="#ffd43b" ${o()}/><circle cx="74" cy="30" r="3" fill="#ffd43b" ${o(2)}/><circle cx="80" cy="60" r="4" fill="#ffd43b" ${o(2)}/>`),
-  "☀️": svg("0 0 100 100", `<g ${o(5)}><path d="M50 4 V16 M50 84 V96 M4 50 H16 M84 50 H96 M17 17 L26 26 M74 74 L83 83 M83 17 L74 26 M26 74 L17 83"/></g><circle cx="50" cy="50" r="26" fill="#ffd43b" ${o()}/>${shades(39, 61, 46, 9)}${smile(50, 60, 12)}`),
+  "☀️": goth("0 0 100 100", `<g ${o(5)}><path d="M50 4 V16 M50 84 V96 M4 50 H16 M84 50 H96 M17 17 L26 26 M74 74 L83 83 M83 17 L74 26 M26 74 L17 83"/></g><circle cx="50" cy="50" r="26" fill="#ffd43b" ${o()}/>${eye(40, 46, 5)}${eye(60, 46, 5)}${smile(50, 62, 14)}`, ["#ffd43b"]),
 
   // ---------- Avatar-Tiere (Schlüssel = gespeicherte Werte) ----------
-  "🐢": svg("0 0 100 100", `<path d="M22 68 v14 h10 v-12 M54 68 v14 h10 v-12" fill="#8ce99a" ${o()}/><circle cx="80" cy="50" r="15" fill="#8ce99a" ${o()}/>${eye(84, 46, 3.5)}${smile(84, 56, 8)}<path d="M8 70 Q8 26 46 26 Q74 26 74 70Z" fill="#2fb36a" ${o()}/><path d="M24 50 L34 38 H52 L60 50 L52 62 H34Z" fill="#69db7c" ${o(3)}/><path d="M4 70 H78" fill="none" ${o()}/>`),
-  "🐻": svg("0 0 100 100", `<circle cx="24" cy="26" r="12" fill="#a0673a" ${o()}/><circle cx="76" cy="26" r="12" fill="#a0673a" ${o()}/><circle cx="50" cy="54" r="34" fill="#a0673a" ${o()}/><ellipse cx="50" cy="66" rx="15" ry="12" fill="#e8b27a" ${o(3)}/><ellipse cx="50" cy="60" rx="6" ry="4.5" fill="${K}"/>${eye(37, 46)}${eye(63, 46)}${smile(50, 68, 10)}`),
-  "🐬": svg("0 0 100 100", `<path d="M56 14 Q64 20 62 30 L48 26Z" fill="#4dabf7" ${o()}/><path d="M18 60 Q16 26 52 24 Q84 24 86 52 Q86 76 60 80 Q40 82 30 74 Q20 78 10 74 Q18 70 18 60Z" fill="#4dabf7" ${o()}/><path d="M30 70 Q52 72 78 60" fill="none" stroke="#d0ebff" stroke-width="6" stroke-linecap="round"/>${eye(62, 44)}${smile(74, 56, 8)}`),
-  "🦋": svg("0 0 100 100", `<path d="M48 48 Q20 10 10 30 Q6 50 46 54Z M52 48 Q80 10 90 30 Q94 50 54 54Z" fill="#9775fa" ${o()}/><path d="M46 56 Q16 60 22 82 Q34 90 48 62Z M54 56 Q84 60 78 82 Q66 90 52 62Z" fill="#f783ac" ${o()}/><circle cx="26" cy="32" r="5" fill="#ffd43b"/><circle cx="74" cy="32" r="5" fill="#ffd43b"/><rect x="45" y="32" width="10" height="46" rx="5" fill="${K}"/><path d="M48 32 Q42 18 36 16 M52 32 Q58 18 64 16" fill="none" ${o(3)}/>`),
-  "🐧": svg("0 0 100 100", `<ellipse cx="50" cy="54" rx="32" ry="36" fill="#343a40" ${o()}/><path d="M28 56 Q28 30 50 30 Q72 30 72 56 Q72 84 50 86 Q28 84 28 56Z" fill="#fff" ${o(3)}/>${eye(41, 46, 4)}${eye(59, 46, 4)}<path d="M42 54 L58 54 L50 64Z" fill="#ff922b" ${o(3)}/>`),
-  "🐸": svg("0 0 100 100", `<circle cx="30" cy="30" r="14" fill="#69db7c" ${o()}/><circle cx="70" cy="30" r="14" fill="#69db7c" ${o()}/><ellipse cx="50" cy="60" rx="40" ry="28" fill="#69db7c" ${o()}/>${eye(30, 31, 5)}${eye(70, 31, 5)}<path d="M30 66 Q52 78 72 62" fill="none" ${o(3)}/>${cheeks(22, 78, 58)}`),
-  "🐙": svg("0 0 100 100", `<path d="M22 60 Q14 80 6 82 M34 66 Q30 86 22 94 M50 68 V94 M66 66 Q70 86 78 94 M78 60 Q86 80 94 82" fill="none" stroke="${K}" stroke-width="12" stroke-linecap="round"/><path d="M22 60 Q14 80 6 82 M34 66 Q30 86 22 94 M50 68 V94 M66 66 Q70 86 78 94 M78 60 Q86 80 94 82" fill="none" stroke="#f783ac" stroke-width="6" stroke-linecap="round"/><path d="M16 50 Q16 10 50 10 Q84 10 84 50 Q84 70 50 70 Q16 70 16 50Z" fill="#f783ac" ${o()}/>${eye(38, 42)}${eye(62, 42)}${smile(50, 54, 10)}`),
+  "🐢": goth("0 0 100 100", `<path d="M22 68 v14 h10 v-12 M54 68 v14 h10 v-12" fill="#8ce99a" ${o()}/><circle cx="80" cy="50" r="15" fill="#8ce99a" ${o()}/>${eye(84, 46, 3.5)}${smile(84, 56, 8)}<path d="M8 70 Q8 26 46 26 Q74 26 74 70Z" fill="#2fb36a" ${o()}/><path d="M24 50 L34 38 H52 L60 50 L52 62 H34Z" fill="#69db7c" ${o(3)}/><path d="M4 70 H78" fill="none" ${o()}/>`, []),
+  "🐻": goth("0 0 100 100", `<circle cx="24" cy="26" r="12" fill="#a0673a" ${o()}/><circle cx="76" cy="26" r="12" fill="#a0673a" ${o()}/><circle cx="50" cy="54" r="34" fill="#a0673a" ${o()}/><ellipse cx="50" cy="66" rx="15" ry="12" fill="#e8b27a" ${o(3)}/><ellipse cx="50" cy="60" rx="6" ry="4.5" fill="${K}"/>${eye(37, 46)}${eye(63, 46)}${smile(50, 68, 10)}`, []),
+  "🐬": goth("0 0 100 100", `<path d="M56 14 Q64 20 62 30 L48 26Z" fill="#4dabf7" ${o()}/><path d="M18 60 Q16 26 52 24 Q84 24 86 52 Q86 76 60 80 Q40 82 30 74 Q20 78 10 74 Q18 70 18 60Z" fill="#4dabf7" ${o()}/><path d="M30 70 Q52 72 78 60" fill="none" stroke="#d0ebff" stroke-width="6" stroke-linecap="round"/>${eye(62, 44)}${smile(74, 56, 8)}`, ["#4dabf7"]),
+  "🦋": goth("0 0 100 100", `<path d="M48 48 Q20 10 10 30 Q6 50 46 54Z M52 48 Q80 10 90 30 Q94 50 54 54Z" fill="#9775fa" ${o()}/><path d="M46 56 Q16 60 22 82 Q34 90 48 62Z M54 56 Q84 60 78 82 Q66 90 52 62Z" fill="#f783ac" ${o()}/><circle cx="26" cy="32" r="5" fill="#ffd43b"/><circle cx="74" cy="32" r="5" fill="#ffd43b"/><rect x="45" y="32" width="10" height="46" rx="5" fill="${K}"/><path d="M48 32 Q42 18 36 16 M52 32 Q58 18 64 16" fill="none" ${o(3)}/>`, ["#f783ac"]),
+  "🐧": goth("0 0 100 100", `<ellipse cx="50" cy="54" rx="32" ry="36" fill="#343a40" ${o()}/><path d="M28 56 Q28 30 50 30 Q72 30 72 56 Q72 84 50 86 Q28 84 28 56Z" fill="#fff" ${o(3)}/>${eye(41, 46, 4)}${eye(59, 46, 4)}<path d="M42 54 L58 54 L50 64Z" fill="#ff922b" ${o(3)}/>`, ["#ff922b"]),
+  "🐸": goth("0 0 100 100", `<circle cx="30" cy="30" r="14" fill="#69db7c" ${o()}/><circle cx="70" cy="30" r="14" fill="#69db7c" ${o()}/><ellipse cx="50" cy="60" rx="40" ry="28" fill="#69db7c" ${o()}/>${eye(30, 31, 5)}${eye(70, 31, 5)}<path d="M30 66 Q52 78 72 62" fill="none" ${o(3)}/>${cheeks(22, 78, 58)}`, ["#69db7c"]),
+  "🐙": goth("0 0 100 100", `<path d="M22 60 Q14 80 6 82 M34 66 Q30 86 22 94 M50 68 V94 M66 66 Q70 86 78 94 M78 60 Q86 80 94 82" fill="none" stroke="${K}" stroke-width="12" stroke-linecap="round"/><path d="M22 60 Q14 80 6 82 M34 66 Q30 86 22 94 M50 68 V94 M66 66 Q70 86 78 94 M78 60 Q86 80 94 82" fill="none" stroke="#f783ac" stroke-width="6" stroke-linecap="round"/><path d="M16 50 Q16 10 50 10 Q84 10 84 50 Q84 70 50 70 Q16 70 16 50Z" fill="#f783ac" ${o()}/>${eye(38, 42)}${eye(62, 42)}${smile(50, 54, 10)}`, ["#f783ac"]),
   "🦜": null, // = parrot
-  "🐼": svg("0 0 100 100", `<circle cx="22" cy="24" r="13" fill="${K}"/><circle cx="78" cy="24" r="13" fill="${K}"/><circle cx="50" cy="54" r="36" fill="#fff" ${o()}/><ellipse cx="36" cy="48" rx="9" ry="12" fill="${K}" transform="rotate(-20 36 48)"/><ellipse cx="64" cy="48" rx="9" ry="12" fill="${K}" transform="rotate(20 64 48)"/>${eye(37, 48, 3.4)}${eye(63, 48, 3.4)}<ellipse cx="50" cy="62" rx="6" ry="4.5" fill="${K}"/>${smile(50, 70, 10)}`),
-  "🦄": svg("0 0 100 100", `<path d="M54 22 L66 0 L64 26Z" fill="#ffd43b" ${o(3)}/><path d="M30 30 Q14 40 18 70 Q26 60 30 52 Q24 70 34 82Z" fill="#f783ac" ${o(3)}/><path d="M30 60 Q24 24 56 22 Q84 24 84 54 Q84 74 66 78 Q52 80 46 72 Q34 74 30 60Z" fill="#fff" ${o()}/><ellipse cx="72" cy="68" rx="10" ry="7" fill="#ffdeeb" ${o(3)}/>${eye(60, 46)}<path d="M38 22 L44 8 L48 24Z" fill="#fff" ${o(3)}/>`),
-  "🦖": svg("0 0 100 100", `<path d="M30 26 L36 12 L42 24 L48 8 L54 22 L62 10 L64 26Z" fill="#20c997" ${o(3)}/><path d="M16 64 Q14 26 52 24 Q88 24 88 54 Q88 78 60 80 H30 Q16 78 16 64Z" fill="#51cf66" ${o()}/><path d="M50 66 H84" fill="none" ${o(3)}/><path d="M56 66 l3 6 3 -6 M66 66 l3 6 3 -6 M76 66 l3 6 3 -6" fill="#fff" ${o(2)}/>${eye(62, 44)}<circle cx="80" cy="50" r="2" fill="${K}"/>`),
+  "🐼": goth("0 0 100 100", `<circle cx="22" cy="24" r="13" fill="${K}"/><circle cx="78" cy="24" r="13" fill="${K}"/><circle cx="50" cy="54" r="36" fill="#fff" ${o()}/><ellipse cx="36" cy="48" rx="9" ry="12" fill="${K}" transform="rotate(-20 36 48)"/><ellipse cx="64" cy="48" rx="9" ry="12" fill="${K}" transform="rotate(20 64 48)"/>${eye(37, 48, 3.4)}${eye(63, 48, 3.4)}<ellipse cx="50" cy="62" rx="6" ry="4.5" fill="${K}"/>${smile(50, 70, 10)}`, []),
+  "🦄": goth("0 0 100 100", `<path d="M54 22 L66 0 L64 26Z" fill="#ffd43b" ${o(3)}/><path d="M30 30 Q14 40 18 70 Q26 60 30 52 Q24 70 34 82Z" fill="#f783ac" ${o(3)}/><path d="M30 60 Q24 24 56 22 Q84 24 84 54 Q84 74 66 78 Q52 80 46 72 Q34 74 30 60Z" fill="#fff" ${o()}/><ellipse cx="72" cy="68" rx="10" ry="7" fill="#ffdeeb" ${o(3)}/>${eye(60, 46)}<path d="M38 22 L44 8 L48 24Z" fill="#fff" ${o(3)}/>`, ["#f783ac", "#ffd43b"]),
+  "🦖": goth("0 0 100 100", `<path d="M30 26 L36 12 L42 24 L48 8 L54 22 L62 10 L64 26Z" fill="#20c997" ${o(3)}/><path d="M16 64 Q14 26 52 24 Q88 24 88 54 Q88 78 60 80 H30 Q16 78 16 64Z" fill="#51cf66" ${o()}/><path d="M50 66 H84" fill="none" ${o(3)}/><path d="M56 66 l3 6 3 -6 M66 66 l3 6 3 -6 M76 66 l3 6 3 -6" fill="#fff" ${o(2)}/>${eye(62, 44)}<circle cx="80" cy="50" r="2" fill="${K}"/>`, ["#20c997"]),
 };
 ART["⭐"] = ART.star;
 ART["🦜"] = ART.parrot;
