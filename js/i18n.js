@@ -3,7 +3,7 @@
 //  t("deutscher Text {x}", {x}) liefert den Text in der gewählten Sprache.
 //  Fehlt eine Übersetzung, bleibt der deutsche Text stehen.
 // ---------------------------------------------------------------
-import { Device } from "./store.js?v=20261117e";
+import { Device } from "./store.js?v=20261117g";
 
 export const UI_LANGS = [
   { k: "de", flag: "🇩🇪", name: "Deutsch" },
@@ -507,4 +507,10 @@ const D = {
   "Noch nicht. Versuch es nochmal!": ["Pas encore. Essaie encore !", "Ainda não. Tenta outra vez!"],
   "Dein Wortnetz ist fertig!": ["Ton réseau de mots est terminé !", "A tua rede de palavras está pronta!"],
   "{ok} von {n} Wörtern ohne Hilfe geschrieben.": ["{ok} mots sur {n} écrits sans aide.", "{ok} de {n} palavras escritas sem ajuda."],
+  "Mehr üben": ["S'entraîner encore", "Praticar mais"],
+  "mit den Wörtern von": ["avec les mots de", "com as palavras de"],
+  "Für Memory brauchen mindestens 3 Wörter ein Bild. Male Bilder unter „Wörter ansehen“!": ["Pour le memory, il faut au moins 3 mots avec une image. Dessine des images dans « Voir les mots » !", "Para o memory, pelo menos 3 palavras precisam de imagem. Desenha imagens em «Ver as palavras»!"],
+  "Alle Wörter gehören zum Thema in der Mitte. Die gelben Kopfwörter kennst du schon – knüpfe die neuen daran!": ["Tous les mots appartiennent au thème du milieu. Tu connais déjà les mots-clés jaunes – relie les nouveaux mots !", "Todas as palavras pertencem ao tema do meio. Já conheces as palavras-chave amarelas – liga as novas!"],
+  "Alle Wörter gehören zum Thema in der Mitte. Knüpfe sie daran!": ["Tous les mots appartiennent au thème du milieu. Relie-les !", "Todas as palavras pertencem ao tema do meio. Liga-as!"],
+  "Thema": ["Thème", "Tema"],
 };

@@ -1,19 +1,19 @@
-import { Store, Device, isCloud } from "./store.js?v=20261117e";
-import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261117e";
-import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261117e";
-import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js?v=20261117e";
-import { currentGoal, der, unser, zum } from "./goal.js?v=20261117e";
-import { buildingSvg } from "./buildings.js?v=20261117e";
-import { uid } from "./util.js?v=20261117e";
-import { say, listen, canListen } from "./speech.js?v=20261117e";
-import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261117e";
+import { Store, Device, isCloud } from "./store.js?v=20261117g";
+import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261117g";
+import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261117g";
+import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js?v=20261117g";
+import { currentGoal, der, unser, zum } from "./goal.js?v=20261117g";
+import { buildingSvg } from "./buildings.js?v=20261117g";
+import { uid } from "./util.js?v=20261117g";
+import { say, listen, canListen } from "./speech.js?v=20261117g";
+import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261117g";
 import {
   emptyProgress, lessonStats, overallStats, unlockedLessons, planLearn, markSeen, countAnswer, fallBack, promote,
   checkWritten, checkSpoken, logActivity, currentStreak, weekSummary, checkBadges, BADGES, wstate, shuffle,
   stripArticle, todayStr, DAY, NEEDED_TODAY, MIN_GAP, BOX_NAMES, wkey,
   weekState, weekLabel, schoolDay, perDayFor, newAllowed, sortLessons, DAILY_GOAL_SEC, todaySeconds, mondayOf,
   writePoint, WRITES_FOR_POINT, countCard,
-} from "./srs.js?v=20261117e";
+} from "./srs.js?v=20261117g";
 
 // ---- Ton an/aus (gilt auf diesem Gerät, überall) ----
 setSound(!Device.get("audioOff", false));
@@ -243,6 +243,8 @@ function home() {
   const doneToday = S.prog.missionDay === todayStr();
 
   const nNew = plan.filter(p => p.kind === "new").length, nRep = plan.length - nNew;
+  // Übungen auf der Startseite: gewählte Insel, sonst die Insel der Woche, sonst die neueste offene
+  const practice = unlocked.find(l => l.id === S.practiceId) || unlocked.find(l => weekState(l) === "current") || unlocked[unlocked.length - 1] || null;
 
   render(`<div class="wrap">
     ${topbar()}
@@ -258,6 +260,9 @@ function home() {
       <button class="mode-btn learn" id="learn">${art("book", "mode-art")}<span><b>${t("Lernen")}</b><small>${plan.length ? t("mit Hilfen üben") : t("nochmal üben")}</small></span></button>
       <button class="mode-btn test" id="test">${art("clipboard", "mode-art")}<span><b>${t("Testen")}</b><small>${t("Kann ich es schon?")}</small></span></button>
     </div>
+    ${practice ? `<div class="more-head"><h2 class="section-title">${t("Mehr üben")}</h2>
+      ${unlocked.length > 1 ? `<label class="more-pick">${t("mit den Wörtern von")} <select id="morePick">${unlocked.map(l => `<option value="${esc(l.id)}" ${l === practice ? "selected" : ""}>${esc(l.title)}</option>`).join("")}</select></label>` : `<span class="muted small">${t("mit den Wörtern von")} <b>${esc(practice.title)}</b></span>`}</div>
+    ${actsHtml(practice)}` : ""}
     ${classPanel()}
     ${hardCard()}
     <h2 class="section-title">${t("Meine Inseln")}</h2>
@@ -272,6 +277,10 @@ function home() {
   $("#learn").onclick = () => startLearn(unlocked);
   $("#test").onclick = () => chooseTest(unlocked);
   bindIslands(unlocked);
+  if (practice) {
+    bindActs(practice);
+    if ($("#morePick")) $("#morePick").onchange = e => { S.practiceId = e.target.value; home(); setTimeout(() => $(".more-head")?.scrollIntoView({ block: "start" }), 50); };
+  }
 }
 
 function islandCard(l, open) {
@@ -367,23 +376,33 @@ function islandView(l) {
       <button class="mode-btn test" id="test">${art("clipboard", "mode-art")}<span><b>${t("Testen")}</b><small>${t("alle {n} Wörter", { n: st.total })}</small></span></button>
     </div>
     <h2 class="section-title">${t("Mehr")}</h2>
-    <div class="acts">
-      <button class="act" data-k="shower">${art("shower")}<b>${t("Vokabeldusche")}</b><small>${t("zuhören und nachsprechen")}</small></button>
-      <button class="act" data-k="words">${art("telescope")}<b>${t("Wörter ansehen")}</b><small>${t("malen und Eselsbrücken")}</small></button>
-      <button class="act" data-k="match">${art("postit")}<b>${t("Post-its zuordnen")}</b><small>${t("Wort zum Bild")}</small></button>
-      <button class="act" data-k="sort">${art("baskets")}<b>${t("Sortieren")}</b><small>${canSortArticle(l) ? t("le oder la?") : t("kurz oder lang?")}</small></button>
-      <button class="act" data-k="move">${art("jump")}<b>${t("Bewegungsrunde")}</b><small>${t("hüpfen und sprechen")}</small></button>
-      <button class="act" data-k="memory">${art("games")}<b>${t("Memory")}</b><small>${t("Finde die Paare")}</small></button>
-      <button class="act" data-k="blitz">${art("flame")}<b>${t("Blitzrunde")}</b><small>${t("60 Sekunden")}</small></button>
-      <button class="act" data-k="rec">${art("mascotHead")}<b>${t("Meine Vokabeldusche")}</b><small>${t("selbst aufnehmen und anhören")}</small></button>
-      <button class="act" data-k="net">${art("bulbArt")}<b>${t("Wortnetz")}</b><small>${t("neue Wörter ans Kopfwort knüpfen")}</small></button>
-      <button class="act" data-k="paper">${art("clipboard")}<b>${t("Test für zu Hause")}</b><small>${t("zum Ausdrucken")}</small></button>
-    </div>
+    ${actsHtml(l)}
   </div>`);
   bindTop();
   $("#learn").onclick = () => startLearn(null, l);
   $("#test").onclick = () => startTest(l);
-  $$(".act").forEach(b => b.onclick = () => ({ words: wordList, memory: memoryGame, blitz, shower: vocabShower, match: matchGame, sort: sortGame, move: moveGame, rec: recordShower, net: wordNet, paper: homeTest })[b.dataset.k](l));
+  bindActs(l);
+}
+
+// Weitere Übungen (Insel und Startseite)
+function actsHtml(l) {
+  const A = [
+    ["shower", "shower", "Vokabeldusche", "zuhören und nachsprechen"],
+    ["words", "telescope", "Wörter ansehen", "malen und Eselsbrücken"],
+    ["match", "postit", "Post-its zuordnen", "Wort zum Bild"],
+    ["sort", "baskets", "Sortieren", canSortArticle(l) ? "le oder la?" : "kurz oder lang?"],
+    ["move", "jump", "Bewegungsrunde", "hüpfen und sprechen"],
+    ["net", "bulbArt", "Wortnetz", "neue Wörter ans Kopfwort knüpfen"],
+    ["memory", "games", "Memory", "Finde die Paare"],
+    ["blitz", "flame", "Blitzrunde", "60 Sekunden"],
+    ["rec", "mascotHead", "Meine Vokabeldusche", "selbst aufnehmen und anhören"],
+    ["paper", "clipboard", "Test für zu Hause", "zum Ausdrucken"],
+  ];
+  return `<div class="acts">${A.map(([k, a, n, sub]) => `<button class="act" data-k="${k}">${art(a)}<b>${t(n)}</b><small>${t(sub)}</small></button>`).join("")}</div>`;
+}
+function bindActs(l) {
+  const F = { words: wordList, memory: memoryGame, blitz, shower: vocabShower, match: matchGame, sort: sortGame, move: moveGame, rec: recordShower, net: wordNet, paper: homeTest };
+  $$(".act[data-k]").forEach(b => b.onclick = () => F[b.dataset.k](l));
 }
 function starHint(st) {
   if (st.stars === 0) return t("Stern 1: Lerne alle Wörter einmal kennen.");
@@ -962,7 +981,10 @@ function wordList(l) {
 //  Memory
 // ------------------------------------------------------------------
 function memoryGame(l) {
-  const words = shuffle(l.words).slice(0, Math.min(6, l.words.length));
+  // nur die Lernsprache: französisches Wort ↔ Bild (keine Übersetzung)
+  const withPic = l.words.map(w => withDrawing(l, w)).filter(hasPic);
+  if (withPic.length < 3) { toast(t("Für Memory brauchen mindestens 3 Wörter ein Bild. Male Bilder unter „Wörter ansehen“!"), 3600); return; }
+  const words = shuffle(withPic).slice(0, Math.min(6, withPic.length));
   const cards = shuffle(words.flatMap(w => [{ w, side: "fr" }, { w, side: "b" }]));
   let open = [], pairs = 0, moves = 0, lock = false;
   const t0 = Date.now();
@@ -974,7 +996,7 @@ function memoryGame(l) {
     const c = cards[+b.dataset.i];
     if (lock || b.classList.contains("open") || b.classList.contains("done")) return;
     b.classList.add("open");
-    b.innerHTML = c.side === "fr" ? `<span class="t">${esc(c.w.fr)}</span>` : hasPic(c.w) ? (c.w.img ? `<img src="${esc(c.w.img)}" alt="">` : `<span class="e">${esc(c.w.emoji)}</span>`) : `<span class="t">${esc(c.w.tr)}</span>`;
+    b.innerHTML = c.side === "fr" ? `<span class="t">${esc(c.w.fr)}</span>` : c.w.img ? `<img src="${esc(c.w.img)}" alt="">` : `<span class="e">${esc(c.w.emoji)}</span>`;
     if (c.side === "fr") autoSay(c.w.fr);
     open.push(b);
     if (open.length === 2) {
@@ -1478,27 +1500,31 @@ function homeTest(l) {
 // ------------------------------------------------------------------
 function wordNet(l) {
   if (l.words.length < 3) { toast(t("Für ein Wortnetz braucht die Insel mindestens 3 Wörter.")); return; }
-  const ranked = shuffle(l.words).map(w => ({ w, b: wstate(S.prog, l.id, w.id).b })).sort((a, b) => b.b - a.b);
-  const center = ranked[0].w, known = ranked[0].b > 0;
-  const outer = ranked.slice(1).sort((a, b) => a.b - b.b).slice(0, 6).map(x => x.w);
-  const solved = new Map();
-  let sel = 0, tries = 0, ok = 0;
+  // Mitte = Thema der Insel (die Lehrkraft hat diese Wörter zusammengestellt → sie gehören zusammen).
+  // Bis zu 2 Wörter, die das Kind schon kann, hängen als gelbe Kopfwörter im Netz; die neuen schreibt es dazu.
+  const ranked = shuffle(l.words).map(w => ({ w, b: wstate(S.prog, l.id, w.id).b }));
+  const knownW = ranked.filter(x => x.b >= 2).slice(0, 2).map(x => x.w);
+  const newW = ranked.filter(x => !knownW.includes(x.w)).sort((a, b) => a.b - b.b).slice(0, 6 - knownW.length).map(x => x.w);
+  const outer = shuffle([...knownW, ...newW]);
+  const solved = new Map(knownW.map(w => [outer.indexOf(w), "known"]));
+  const toWrite = outer.length - knownW.length;
+  let sel = outer.findIndex((_, k) => !solved.has(k)), tries = 0, ok = 0;
   const t0 = Date.now();
   const pos = k => { const a = (-90 + (k * 360) / outer.length) * Math.PI / 180; return { x: 50 + 37 * Math.cos(a), y: 50 + 37 * Math.sin(a) }; };
   const nextOpen = from => { for (let d = 1; d <= outer.length; d++) { const k = (from + d) % outer.length; if (!solved.has(k)) return k; } return -1; };
   const node = (x, k) => {
     const p = pos(k), px = withDrawing(l, x);
-    return `<button class="net-node ${solved.has(k) ? "done" : ""} ${k === sel ? "sel" : ""}" data-n="${k}" style="left:${p.x}%;top:${p.y}%">${hasPic(px) ? `<span class="pic">${pic(px)}</span>` : ""}${solved.has(k) ? `<b>${esc(x.fr)}</b>` : `<small>${esc(x.tr)}</small>`}</button>`;
+    return `<button class="net-node ${solved.get(k) === "known" ? "known" : solved.has(k) ? "done" : ""} ${k === sel ? "sel" : ""}" data-n="${k}" style="left:${p.x}%;top:${p.y}%">${hasPic(px) ? `<span class="pic">${pic(px)}</span>` : ""}${solved.has(k) ? `<b>${esc(x.fr)}</b>` : `<small>${esc(x.tr)}</small>`}</button>`;
   };
 
   function draw() {
-    const w = outer[sel], cp = withDrawing(l, center);
+    const w = outer[sel], done = [...solved.values()].filter(v => v !== "known").length;
     render(`<div class="wrap narrow">
-      <div class="ex-top"><button class="icon-btn" id="quit" aria-label="${t("Beenden")}">${ICON.close}</button><b class="ex-title">${t("Wortnetz")}</b>${audioBtn()}<span class="chip">${solved.size} / ${outer.length}</span></div>
-      <p class="center muted" style="margin:0">${known ? t("In der Mitte steht ein Wort, das du schon kennst. Knüpfe die neuen Wörter daran!") : t("In der Mitte steht dein Startwort. Knüpfe die anderen Wörter daran!")}</p>
+      <div class="ex-top"><button class="icon-btn" id="quit" aria-label="${t("Beenden")}">${ICON.close}</button><b class="ex-title">${t("Wortnetz")}</b>${audioBtn()}<span class="chip">${done} / ${toWrite}</span></div>
+      <p class="center muted" style="margin:0">${knownW.length ? t("Alle Wörter gehören zum Thema in der Mitte. Die gelben Kopfwörter kennst du schon – knüpfe die neuen daran!") : t("Alle Wörter gehören zum Thema in der Mitte. Knüpfe sie daran!")}</p>
       <div class="net">
-        <svg class="net-lines" viewBox="0 0 100 100" preserveAspectRatio="none">${outer.map((_, k) => { const p = pos(k); return `<line x1="50" y1="50" x2="${p.x}" y2="${p.y}" class="${solved.has(k) ? "on" : ""}"/>`; }).join("")}</svg>
-        <div class="net-node center" style="left:50%;top:50%">${hasPic(cp) ? `<span class="pic">${pic(cp)}</span>` : ""}<b>${esc(center.fr)}</b><small>${t("Kopfwort")}</small></div>
+        <svg class="net-lines" viewBox="0 0 100 100" preserveAspectRatio="none">${outer.map((_, k) => { const p = pos(k); return `<line x1="50" y1="50" x2="${p.x}" y2="${p.y}" class="${solved.get(k) === "known" ? "known" : solved.has(k) ? "on" : ""}"/>`; }).join("")}</svg>
+        <div class="net-node center" style="left:50%;top:50%"><span class="pic">${l.iconImg ? `<img src="${esc(l.iconImg)}" alt="">` : l.icon ? `<span>${esc(l.icon)}</span>` : art("island")}</span><b>${esc(l.title)}</b><small>${t("Thema")}</small></div>
         ${outer.map(node).join("")}
       </div>
       ${sel >= 0 ? `<div class="card net-ask">
@@ -1539,11 +1565,11 @@ function wordNet(l) {
 
   function finale() {
     const coins = earn("net", Math.max(2, ok * 2), 15);
-    logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: outer.length, ok }); save(true);
+    logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: toWrite, ok }); save(true);
     sfx.win(); confetti(); sel = -1; draw();
-    const mission = offlineMission([center, ...outer]);
+    const mission = offlineMission(outer);
     modal(`<div class="center stack"><div class="result-art">${art("bulbArt")}</div><h2>${t("Dein Wortnetz ist fertig!")}</h2>
-      <p class="muted" style="margin:0">${t("{ok} von {n} Wörtern ohne Hilfe geschrieben.", { ok, n: outer.length })}</p>
+      <p class="muted" style="margin:0">${t("{ok} von {n} Wörtern ohne Hilfe geschrieben.", { ok, n: toWrite })}</p>
       <div class="reward-row"><span class="reward">${art("coin", "ic")} +${coins}</span></div>${mission.html}
       <div class="row center-row"><button class="btn blue" data-close="again">${t("Nochmal")}</button><button class="btn green" data-close="ok">${t("Zur Insel")}</button></div></div>`).then(v => (v === "again" ? wordNet(l) : islandView(l)));
     mission.bind();
