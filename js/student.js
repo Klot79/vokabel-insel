@@ -1,19 +1,19 @@
-import { Store, Device, isCloud } from "./store.js?v=20261117c";
-import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261117c";
-import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261117c";
-import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js?v=20261117c";
-import { currentGoal, der, unser, zum } from "./goal.js?v=20261117c";
-import { buildingSvg } from "./buildings.js?v=20261117c";
-import { uid } from "./util.js?v=20261117c";
-import { say, listen, canListen } from "./speech.js?v=20261117c";
-import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261117c";
+import { Store, Device, isCloud } from "./store.js?v=20261117e";
+import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261117e";
+import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261117e";
+import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js?v=20261117e";
+import { currentGoal, der, unser, zum } from "./goal.js?v=20261117e";
+import { buildingSvg } from "./buildings.js?v=20261117e";
+import { uid } from "./util.js?v=20261117e";
+import { say, listen, canListen } from "./speech.js?v=20261117e";
+import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261117e";
 import {
   emptyProgress, lessonStats, overallStats, unlockedLessons, planLearn, markSeen, countAnswer, fallBack, promote,
   checkWritten, checkSpoken, logActivity, currentStreak, weekSummary, checkBadges, BADGES, wstate, shuffle,
   stripArticle, todayStr, DAY, NEEDED_TODAY, MIN_GAP, BOX_NAMES, wkey,
   weekState, weekLabel, schoolDay, perDayFor, newAllowed, sortLessons, DAILY_GOAL_SEC, todaySeconds, mondayOf,
   writePoint, WRITES_FOR_POINT, countCard,
-} from "./srs.js?v=20261117c";
+} from "./srs.js?v=20261117e";
 
 // ---- Ton an/aus (gilt auf diesem Gerät, überall) ----
 setSound(!Device.get("audioOff", false));
@@ -375,12 +375,15 @@ function islandView(l) {
       <button class="act" data-k="move">${art("jump")}<b>${t("Bewegungsrunde")}</b><small>${t("hüpfen und sprechen")}</small></button>
       <button class="act" data-k="memory">${art("games")}<b>${t("Memory")}</b><small>${t("Finde die Paare")}</small></button>
       <button class="act" data-k="blitz">${art("flame")}<b>${t("Blitzrunde")}</b><small>${t("60 Sekunden")}</small></button>
+      <button class="act" data-k="rec">${art("mascotHead")}<b>${t("Meine Vokabeldusche")}</b><small>${t("selbst aufnehmen und anhören")}</small></button>
+      <button class="act" data-k="net">${art("bulbArt")}<b>${t("Wortnetz")}</b><small>${t("neue Wörter ans Kopfwort knüpfen")}</small></button>
+      <button class="act" data-k="paper">${art("clipboard")}<b>${t("Test für zu Hause")}</b><small>${t("zum Ausdrucken")}</small></button>
     </div>
   </div>`);
   bindTop();
   $("#learn").onclick = () => startLearn(null, l);
   $("#test").onclick = () => startTest(l);
-  $$(".act").forEach(b => b.onclick = () => ({ words: wordList, memory: memoryGame, blitz, shower: vocabShower, match: matchGame, sort: sortGame, move: moveGame })[b.dataset.k](l));
+  $$(".act").forEach(b => b.onclick = () => ({ words: wordList, memory: memoryGame, blitz, shower: vocabShower, match: matchGame, sort: sortGame, move: moveGame, rec: recordShower, net: wordNet, paper: homeTest })[b.dataset.k](l));
 }
 function starHint(st) {
   if (st.stars === 0) return t("Stern 1: Lerne alle Wörter einmal kennen.");
@@ -829,6 +832,7 @@ function runLearn(items, opts) {
     const badges = checkBadges(S.prog, S.lessons);
     save(true);
     sfx.win(); confetti(newStars.length || badges.length ? 200 : 90);
+    const mission = offlineMission(items.map(x => x.w));
     render(`<div class="wrap narrow"><div class="card result">
       <div class="result-art">${art("trophy")}</div>
       <h1>${t("Super gemacht!")}</h1>
@@ -838,8 +842,10 @@ function runLearn(items, opts) {
       <div class="reward-row"><span class="reward">${art("coin", "ic")} +${st.coins}</span><span class="reward">${art("flame", "ic")} ${currentStreak(S.prog)}</span></div>
       ${newStars.map(l => `<div class="feedback ok">${art("star", "ic")} ${t("Neuer Stern auf „{t}“!", { t: esc(l.title) })}</div>`).join("")}
       ${badges.map(b => `<div class="feedback ok">${art(b.icon, "ic")} ${t("Neues Abzeichen: {n}", { n: esc(t(b.name)) })}</div>`).join("")}
+      ${mission.html}
       <button class="btn green big" id="done">${t("Weiter")}</button>
     </div></div>`);
+    mission.bind();
     $("#done").onclick = () => opts.lesson ? islandView(opts.lesson) : goHome();
   };
 
@@ -1298,10 +1304,12 @@ function moveGame(l) {
   const t0 = Date.now();
   const show = () => {
     if (i >= words.length) {
+      const mission = offlineMission(words);
       const got = earn("move", ok * 2, 15); logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: words.length, ok }); save(true);
       sfx.win(); confetti();
       render(`<div class="wrap narrow"><div class="card result"><div class="result-art">${art("jump")}</div><h1>${t("Super bewegt!")}</h1><p class="muted" style="margin:0">${t("{ok} von {n} Wörtern richtig gesagt.", { ok, n: words.length })}</p><p class="small muted" style="margin:0">${t("Bewegung hilft dem Kopf beim Merken.")}</p>
-        <div class="reward-row"><span class="reward">${art("coin", "ic")} +${got}</span></div><button class="btn green big" id="back">${t("Zur Insel")}</button></div></div>`);
+        <div class="reward-row"><span class="reward">${art("coin", "ic")} +${got}</span></div>${mission.html}<button class="btn green big" id="back">${t("Zur Insel")}</button></div></div>`);
+      mission.bind();
       return $("#back").onclick = () => islandView(l);
     }
     const w = words[i], [mv, txt] = MOVES[i % MOVES.length];
@@ -1329,6 +1337,218 @@ function moveGame(l) {
     };
   };
   show();
+}
+
+// ------------------------------------------------------------------
+//  Offline-Mission: eine Aufgabe ohne Bildschirm (Bewegung, Kreide, Abfragen)
+// ------------------------------------------------------------------
+const OFFLINE = [
+  "Lauf einmal um den Tisch und sag bei jeder Runde laut ein Wort: {ws}",
+  "Hüpfe bei jeder Silbe von „{w}“ – so lange, bis du es auswendig kannst.",
+  "Schreib „{w}“ draußen mit Kreide auf den Boden – oder mit dem Finger in die Luft.",
+  "Lass dich zu Hause abfragen: Wie heißt „{tr}“ auf Französisch?",
+  "Steh auf einem Bein und buchstabiere „{w}“.",
+  "Wirf einen Ball hoch und sag bei jedem Fangen ein Wort: {ws}",
+  "Schreib „{w}“ auf einen Zettel und kleb ihn an eine passende Stelle zu Hause.",
+];
+function offlineMission(words) {
+  const ws = shuffle(words.filter(Boolean)).slice(0, 3);
+  if (!ws.length) return { html: "", bind() {} };
+  const task = t(OFFLINE[Math.floor(Math.random() * OFFLINE.length)], { w: esc(ws[0].fr), tr: esc(ws[0].tr), ws: ws.map(w => `<b>${esc(w.fr)}</b>`).join(", ") });
+  return {
+    html: `<div class="offline-card"><div class="offline-head">${art("jump", "ic")}<b>${t("Offline-Mission")}</b></div><p>${task}</p><small class="muted">${t("Ohne Bildschirm – Bewegung hilft dem Kopf beim Merken.")}</small><button class="btn ghost" id="offDone">${t("Erledigt!")}</button></div>`,
+    bind() {
+      const b = $("#offDone"); if (!b) return;
+      b.onclick = () => { const c = earn("offline", 3, 6); save(); sfx.coin(); b.disabled = true; b.innerHTML = c ? `${t("Super!")} ${art("coin", "ic")} +${c}` : t("Super!"); };
+    },
+  };
+}
+
+// ------------------------------------------------------------------
+//  Meine Vokabeldusche: Wörter selbst aufnehmen und anhören
+//  (Aufnahmen bleiben nur im Speicher dieses Geräts und verschwinden beim Verlassen)
+// ------------------------------------------------------------------
+const playUrl = url => new Promise(r => { const a = new Audio(url); a.onended = r; a.onerror = r; a.play().catch(r); });
+function recordShower(l) {
+  if (!(navigator.mediaDevices?.getUserMedia && window.MediaRecorder)) {
+    modal(`<div class="center stack"><div class="result-art">${art("mascotHead")}</div><h2>${t("Aufnehmen geht hier leider nicht")}</h2><p class="muted" style="margin:0">${t("Dieses Gerät oder dieser Browser erlaubt keine Aufnahmen. Probier die Vokabeldusche zum Zuhören.")}</p><button class="btn green" data-close="ok">${t("OK")}</button></div>`).then(() => islandView(l));
+    return;
+  }
+  const words = [...l.words];
+  const recs = new Map();
+  let i = 0, stream = null, rec = null, stopTimer = null, paid = false, stop = false;
+  const t0 = Date.now();
+  const cleanup = () => { stop = true; clearTimeout(stopTimer); try { if (rec?.state === "recording") rec.stop(); } catch {} try { stream?.getTracks().forEach(x => x.stop()); } catch {} stream = null; recs.forEach(u => URL.revokeObjectURL(u)); recs.clear(); window.speechSynthesis?.cancel(); };
+  const quit = () => { logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000) }); save(); cleanup(); islandView(l); };
+  const top = sub => `<div class="ex-top"><button class="icon-btn" id="quit" aria-label="${t("Beenden")}">${ICON.close}</button><b class="ex-title">${t("Meine Vokabeldusche")}</b>${sub}</div>`;
+
+  async function startRec(btn) {
+    try { if (!stream) stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    catch { toast(t("Bitte erlaube das Mikrofon, damit du dich aufnehmen kannst."), 3200); return; }
+    const chunks = [], idx = i;
+    rec = new MediaRecorder(stream);
+    rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+    rec.onstop = () => {
+      if (stop) return;
+      if (recs.has(idx)) URL.revokeObjectURL(recs.get(idx));
+      recs.set(idx, URL.createObjectURL(new Blob(chunks, { type: rec.mimeType || "audio/webm" })));
+      if (idx === i) draw();
+      playUrl(recs.get(idx));
+    };
+    rec.start();
+    btn.classList.add("recording"); btn.innerHTML = `■ ${t("Stopp")}`;
+    stopTimer = setTimeout(() => { if (rec?.state === "recording") rec.stop(); }, 6000);
+  }
+
+  function draw() {
+    if (i >= words.length) return finale();
+    const w = words[i];
+    render(`<div class="wrap narrow">${top(`<span class="chip">${i + 1} / ${words.length}</span>`)}
+      <div class="card">${picBox(w, l)}<div class="row center-row"><div class="word-fr">${esc(w.fr)}</div>${speakerBtn("hear")}</div><div class="word-tr">${esc(w.tr)}</div>
+        <p class="small muted center" style="margin:0">${t("Hör dir das Wort an. Dann nimm dich auf: zuerst Französisch, dann die Übersetzung.")}</p>
+        <div class="row center-row"><button class="btn coral" id="rec">● ${t("Aufnehmen")}</button><button class="btn blue" id="play" ${recs.has(i) ? "" : "disabled"}>▶ ${t("Meine Stimme")}</button></div>
+        <div class="row center-row"><button class="btn ghost" id="prev" ${i ? "" : "disabled"}>${t("Zurück")}</button><button class="btn green" id="next">${recs.has(i) ? t("Weiter") : t("Überspringen")}</button></div>
+      </div>
+      <p class="center small muted">${t("Deine Aufnahmen bleiben nur auf diesem Gerät und werden nicht gespeichert.")}</p></div>`);
+    $("#quit").onclick = quit;
+    $("#hear").onclick = () => sayWord(w.fr);
+    $("#rec").onclick = e => { const b = e.currentTarget; if (rec?.state === "recording") { clearTimeout(stopTimer); rec.stop(); } else startRec(b); };
+    $("#play").onclick = () => { if (recs.has(i)) playUrl(recs.get(i)); };
+    $("#prev").onclick = () => { if (rec?.state === "recording") return; i--; draw(); };
+    $("#next").onclick = () => { if (rec?.state === "recording") return; i++; draw(); };
+  }
+
+  function finale() {
+    const n = recs.size;
+    let coins = 0;
+    if (!paid && n) { paid = true; coins = earn("rec", n * 2, 12); logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000) }); save(true); sfx.win(); confetti(80); }
+    render(`<div class="wrap narrow">${top("")}
+      <div class="card result"><div class="result-art">${art("shower")}</div>
+        <h1>${n ? tn(n, "Deine Vokabeldusche ist fertig: {n} Wort!", "Deine Vokabeldusche ist fertig: {n} Wörter!") : t("Noch keine Aufnahme")}</h1>
+        <p class="muted" style="margin:0">${t("Hör dir deine eigene Stimme an. Klingt sie wie das Original?")}</p>
+        <div class="card shower-card" id="card" style="min-height:0"></div>
+        ${coins ? `<div class="reward-row"><span class="reward">${art("coin", "ic")} +${coins}</span></div>` : ""}
+        <div class="row center-row">${n ? `<button class="btn blue" id="all">▶ ${t("Alles abspielen")}</button>` : ""}<button class="btn ghost" id="again">${t("Neu aufnehmen")}</button><button class="btn green" id="back">${t("Zur Insel")}</button></div>
+      </div></div>`);
+    $("#quit").onclick = quit; $("#back").onclick = quit;
+    $("#again").onclick = () => { i = 0; draw(); };
+    if ($("#all")) $("#all").onclick = async () => {
+      $("#all").disabled = true;
+      const list = [...recs.entries()].sort((a, b) => a[0] - b[0]);
+      for (const [k, url] of list) {
+        if (stop) return; const card = $("#card"); if (!card) return;
+        const w = words[k];
+        card.innerHTML = `${picBox(w, l)}<div class="word-fr">${esc(w.fr)}</div><div class="word-tr">${esc(w.tr)}</div>`;
+        await playUrl(url); await new Promise(r => setTimeout(r, 900));
+      }
+      if ($("#all")) $("#all").disabled = false;
+    };
+  }
+  draw();
+}
+
+// ------------------------------------------------------------------
+//  Test für zu Hause: kleiner Papier-Test zum Ausdrucken (mit Lösungen zum Umknicken)
+// ------------------------------------------------------------------
+function homeTest(l) {
+  const ranked = shuffle(l.words).sort((a, b) => wstate(S.prog, l.id, a.id).b - wstate(S.prog, l.id, b.id).b);
+  const ws = shuffle(ranked.slice(0, Math.min(10, ranked.length)));
+  const date = new Date().toLocaleDateString(getLang() === "pt" ? "pt-PT" : getLang() === "fr" ? "fr-FR" : "de-DE");
+  render(`<div class="wrap narrow">
+    <div class="ex-top no-print"><button class="icon-btn" id="quit" aria-label="${t("Beenden")}">${ICON.close}</button><b class="ex-title">${t("Test für zu Hause")}</b></div>
+    <div class="panel stack no-print">
+      <p style="margin:0">${t("So geht's: Test ausdrucken und die französischen Wörter mit Artikel aufschreiben. Danach das Blatt unten umknicken und mit den Lösungen vergleichen – auf die Rechtschreibung achten!")}</p>
+      <div class="row"><button class="btn green" id="print">${t("Drucken")}</button><button class="btn ghost" id="other">${t("Andere Wörter")}</button></div>
+    </div>
+    <div class="sheet">
+      <div class="sheet-head"><b>Plapperlapapp · ${esc(l.title)}</b><span>${t("Name")}: ${esc(S.student?.name || "")}</span><span>${t("Datum")}: ${esc(date)}</span></div>
+      <p class="sheet-task">${t("Schreib das französische Wort mit Artikel.")}</p>
+      <ol class="sheet-list">${ws.map(w => `<li><span class="q">${esc(w.tr)}</span><span class="line"></span></li>`).join("")}</ol>
+      <div class="fold">✂ ${t("Hier umknicken – Lösungen")}</div>
+      <ol class="sheet-sol">${ws.map(w => `<li>${esc(w.fr)}</li>`).join("")}</ol>
+      <p class="sheet-score">${t("Richtig: ____ von {n}", { n: ws.length })}</p>
+    </div></div>`);
+  $("#quit").onclick = () => islandView(l);
+  $("#other").onclick = () => homeTest(l);
+  $("#print").onclick = () => window.print();
+}
+
+// ------------------------------------------------------------------
+//  Wortnetz: ein bekanntes Kopfwort in der Mitte, neue Wörter drumherum
+// ------------------------------------------------------------------
+function wordNet(l) {
+  if (l.words.length < 3) { toast(t("Für ein Wortnetz braucht die Insel mindestens 3 Wörter.")); return; }
+  const ranked = shuffle(l.words).map(w => ({ w, b: wstate(S.prog, l.id, w.id).b })).sort((a, b) => b.b - a.b);
+  const center = ranked[0].w, known = ranked[0].b > 0;
+  const outer = ranked.slice(1).sort((a, b) => a.b - b.b).slice(0, 6).map(x => x.w);
+  const solved = new Map();
+  let sel = 0, tries = 0, ok = 0;
+  const t0 = Date.now();
+  const pos = k => { const a = (-90 + (k * 360) / outer.length) * Math.PI / 180; return { x: 50 + 37 * Math.cos(a), y: 50 + 37 * Math.sin(a) }; };
+  const nextOpen = from => { for (let d = 1; d <= outer.length; d++) { const k = (from + d) % outer.length; if (!solved.has(k)) return k; } return -1; };
+  const node = (x, k) => {
+    const p = pos(k), px = withDrawing(l, x);
+    return `<button class="net-node ${solved.has(k) ? "done" : ""} ${k === sel ? "sel" : ""}" data-n="${k}" style="left:${p.x}%;top:${p.y}%">${hasPic(px) ? `<span class="pic">${pic(px)}</span>` : ""}${solved.has(k) ? `<b>${esc(x.fr)}</b>` : `<small>${esc(x.tr)}</small>`}</button>`;
+  };
+
+  function draw() {
+    const w = outer[sel], cp = withDrawing(l, center);
+    render(`<div class="wrap narrow">
+      <div class="ex-top"><button class="icon-btn" id="quit" aria-label="${t("Beenden")}">${ICON.close}</button><b class="ex-title">${t("Wortnetz")}</b>${audioBtn()}<span class="chip">${solved.size} / ${outer.length}</span></div>
+      <p class="center muted" style="margin:0">${known ? t("In der Mitte steht ein Wort, das du schon kennst. Knüpfe die neuen Wörter daran!") : t("In der Mitte steht dein Startwort. Knüpfe die anderen Wörter daran!")}</p>
+      <div class="net">
+        <svg class="net-lines" viewBox="0 0 100 100" preserveAspectRatio="none">${outer.map((_, k) => { const p = pos(k); return `<line x1="50" y1="50" x2="${p.x}" y2="${p.y}" class="${solved.has(k) ? "on" : ""}"/>`; }).join("")}</svg>
+        <div class="net-node center" style="left:50%;top:50%">${hasPic(cp) ? `<span class="pic">${pic(cp)}</span>` : ""}<b>${esc(center.fr)}</b><small>${t("Kopfwort")}</small></div>
+        ${outer.map(node).join("")}
+      </div>
+      ${sel >= 0 ? `<div class="card net-ask">
+        <b>${t("Wie heißt „{tr}“ auf Französisch?", { tr: esc(w.tr) })}</b>
+        <div class="row center-row write-row"><input class="answer" id="ans" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${t("Französisch schreiben …")}"><button class="btn green" id="chk">${t("Prüfen")}</button></div>
+        <div class="row center-row"><button class="btn ghost" id="hint">${t("Tipp")}</button>${speakerBtn("hear")}</div>
+        <div id="msg" class="small"></div>
+      </div>` : ""}
+    </div>`);
+    $("#quit").onclick = () => { logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000) }); save(); islandView(l); };
+    $$(".net-node[data-n]").forEach(b => b.onclick = () => { const k = +b.dataset.n; if (solved.has(k)) { autoSay(outer[k].fr); return; } sel = k; tries = 0; draw(); });
+    if (sel < 0) return;
+    const inp = $("#ans"); inp.focus();
+    let helped = false;
+    $("#hear").onclick = () => { helped = true; sayWord(w.fr); };
+    $("#hint").onclick = () => { helped = true; const s = w.fr.split(/\s*\/\s*/)[0]; inp.value = s.slice(0, Math.max(1, Math.ceil(s.length / 3))); inp.focus(); };
+    const check = () => {
+      const r = checkWritten(inp.value, w.fr);
+      if (r === "perfect" || r === "accent") {
+        const self = !helped && tries === 0;
+        countAnswer(S.prog, l, w, self); if (self) ok++;
+        solved.set(sel, self || "help"); sfx.ok(); autoSay(w.fr);
+        if (r === "accent") toast(t("Achte auf die Akzente: {w}", { w: w.fr }), 2200);
+        if (solved.size === outer.length) { setTimeout(finale, 600); return; }
+        sel = nextOpen(sel); tries = 0; setTimeout(draw, 500);
+        return;
+      }
+      tries++; sfx.no();
+      if (tries >= 2) {
+        if (tries === 2) countAnswer(S.prog, l, w, false);
+        $("#msg").innerHTML = `${t("Es heißt: {w}", { w: `<b>${esc(w.fr)}</b>` })} – ${t("Schreib es einmal ab.")}`; autoSay(w.fr);
+        helped = true; inp.value = ""; inp.focus();
+      } else $("#msg").textContent = r === "article" ? t("Denk an den Artikel!") : r === "almost" ? t("Fast! Schau genau hin.") : t("Noch nicht. Versuch es nochmal!");
+    };
+    $("#chk").onclick = check;
+    inp.onkeydown = e => { if (e.key === "Enter") check(); };
+  }
+
+  function finale() {
+    const coins = earn("net", Math.max(2, ok * 2), 15);
+    logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: outer.length, ok }); save(true);
+    sfx.win(); confetti(); sel = -1; draw();
+    const mission = offlineMission([center, ...outer]);
+    modal(`<div class="center stack"><div class="result-art">${art("bulbArt")}</div><h2>${t("Dein Wortnetz ist fertig!")}</h2>
+      <p class="muted" style="margin:0">${t("{ok} von {n} Wörtern ohne Hilfe geschrieben.", { ok, n: outer.length })}</p>
+      <div class="reward-row"><span class="reward">${art("coin", "ic")} +${coins}</span></div>${mission.html}
+      <div class="row center-row"><button class="btn blue" data-close="again">${t("Nochmal")}</button><button class="btn green" data-close="ok">${t("Zur Insel")}</button></div></div>`).then(v => (v === "again" ? wordNet(l) : islandView(l)));
+    mission.bind();
+  }
+  draw();
 }
 
 // ------------------------------------------------------------------

@@ -533,3 +533,49 @@ body:not(.teacher-mode) .hero h1, body:not(.teacher-mode) .section-title { text-
 .start-kid svg { width: 120px; height: 120px; }
 .start-kid b { font-size: 2.3rem; }
 .start-kid > span:last-child { font-size: 1.1rem; opacity: .95; }
+
+/* Offline-Mission */
+.offline-card { display: grid; gap: 6px; justify-items: center; text-align: center; background: #fff8e1; border: 3px dashed #f0b429; border-radius: 18px; padding: 12px 14px; }
+.offline-card p { margin: 0; font-size: 1.05rem; }
+.offline-head { display: flex; align-items: center; gap: 8px; font-size: 1.1rem; }
+.offline-head svg { width: 30px; height: 30px; }
+
+/* Meine Vokabeldusche */
+.btn.recording { animation: recpulse 1s infinite; }
+@keyframes recpulse { 50% { transform: scale(1.06); } }
+
+/* Wortnetz */
+.net { position: relative; width: 100%; max-width: 460px; aspect-ratio: 1; margin: 0 auto; }
+.net-lines { position: absolute; inset: 0; width: 100%; height: 100%; }
+.net-lines line { stroke: #b9cbd6; stroke-width: .8; stroke-dasharray: 2 2; }
+.net-lines line.on { stroke: var(--green); stroke-width: 1.4; stroke-dasharray: none; }
+.net-node { position: absolute; transform: translate(-50%, -50%); width: 25%; min-height: 21%; display: grid; place-items: center; align-content: center; gap: 2px; padding: 4px; border-radius: 50%; border: 3px dashed #b9cbd6; background: #fff; text-align: center; font: inherit; line-height: 1.1; }
+.net-node .pic { width: 52%; aspect-ratio: 1; display: grid; place-items: center; }
+.net-node .pic img, .net-node .pic svg { width: 100%; height: 100%; object-fit: contain; }
+.net-node .pic span { font-size: 1.7rem; }
+.net-node small { font-size: .78rem; }
+.net-node b { font-size: .85rem; word-break: break-word; }
+.net-node.center { width: 30%; min-height: 26%; border: 4px solid var(--sun, #ffc531); background: #fff8e1; }
+.net-node.sel { border: 4px solid var(--blue, #1c7ed6); box-shadow: 0 0 0 4px #d0ebff; }
+.net-node.done { border: 3px solid var(--green); background: var(--green-l); }
+.net-ask { gap: 8px; }
+
+/* Test für zu Hause (Papier) */
+.sheet { background: #fff; border: 2px solid var(--line); border-radius: 14px; padding: 18px 20px; display: grid; gap: 10px; color: #222; }
+.sheet-head { display: flex; flex-wrap: wrap; gap: 6px 18px; justify-content: space-between; border-bottom: 2px solid #222; padding-bottom: 8px; }
+.sheet-task { margin: 0; font-weight: 700; }
+.sheet-list { margin: 0; padding-left: 0; list-style: none; counter-reset: q; display: grid; gap: 14px; }
+.sheet-list li::before { counter-increment: q; content: counter(q) "."; min-width: 1.8em; font-weight: 700; }
+.sheet-list li { display: flex; align-items: flex-end; gap: 10px; }
+.sheet-list .q { min-width: 40%; }
+.sheet-list .line { flex: 1; border-bottom: 1.5px solid #555; height: 1.4em; }
+.fold { margin-top: 18px; border-top: 2px dashed #888; padding-top: 6px; text-align: center; color: #666; font-size: .9rem; }
+.sheet-sol { margin: 0; padding-left: 26px; columns: 2; color: #444; }
+.sheet-score { margin: 0; text-align: right; font-weight: 700; }
+@media print {
+  .no-print, .topbar, .toast { display: none !important; }
+  body::before { display: none !important; }
+  .wrap { max-width: none !important; padding: 0 !important; }
+  .sheet { border: 0; padding: 0; }
+  .sheet-list { gap: 22px; }
+}
