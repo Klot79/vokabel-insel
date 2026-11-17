@@ -1,10 +1,10 @@
-import { Store, Device, isCloud } from "./store.js?v=20261117k";
-import { esc, uid, sha, pinHash, randomPin, LANG_FLAG, LANG_NAME, PIN_NAMES } from "./util.js?v=20261117k";
-import { art } from "./art.js?v=20261117k";
-import { currentGoal, DEFAULT_REWARDS, START_TARGET, START_PER_KID, rewardsOf, BUILDINGS } from "./goal.js?v=20261117k";
-import { render, $, $$, toast, modal, confirmBox, pic, avatarHtml, fmtMin, relDay } from "./ui.js?v=20261117k";
-import { lessonStats, weekSummary, currentStreak, emptyProgress, todayStr, DAY, wstate, stripArticle, norm, mondayOf, weekLabel, weekState, sortLessons, perDayFor } from "./srs.js?v=20261117k";
-import { fileToLines, splitLines, linesToPairs, prepareImage, matchImages, searchOpenverse, fetchImageBlob } from "./import.js?v=20261117k";
+import { Store, Device, isCloud } from "./store.js?v=20261117p";
+import { esc, uid, sha, pinHash, randomPin, LANG_FLAG, LANG_NAME, PIN_NAMES } from "./util.js?v=20261117p";
+import { art, hat } from "./art.js?v=20261117p";
+import { currentGoal, DEFAULT_REWARDS, START_TARGET, START_PER_KID, rewardsOf, BUILDINGS } from "./goal.js?v=20261117p";
+import { render, $, $$, toast, modal, confirmBox, pic, avatarHtml, fmtMin, relDay } from "./ui.js?v=20261117p";
+import { lessonStats, weekSummary, currentStreak, emptyProgress, todayStr, DAY, wstate, stripArticle, norm, mondayOf, weekLabel, weekState, sortLessons, perDayFor } from "./srs.js?v=20261117p";
+import { fileToLines, splitLines, linesToPairs, prepareImage, matchImages, searchOpenverse, fetchImageBlob } from "./import.js?v=20261117p";
 
 // ---- Bilder speichern (hohe Auflösung, wenn der Online-Bildspeicher eingerichtet ist) ----
 async function storeImageFile(fileOrBlob) {
@@ -51,7 +51,7 @@ function searchImage(query, { title = "Bild suchen", alt = [], series = false } 
   });
 }
 const searchTerm = s => stripArticle(norm(String(s || "").split(/[\/;]/)[0]));
-import { say } from "./speech.js?v=20261117k";
+import { say } from "./speech.js?v=20261117p";
 
 const T = { cls: null, tab: "overview", students: [], lessons: [], progs: {}, back: null };
 // Fortschritt zurücksetzen: neuer Stand mit neuer Kennung – ein noch angemeldetes Kinder-Gerät
@@ -648,16 +648,28 @@ function diplomaTab(el) {
   draw();
 }
 function diplomaSheet(s, name, l, D) {
-  const st = lessonStats(T.progs[s.id] || emptyProgress(), l).stars;
+  const prog = T.progs[s.id] || emptyProgress();
+  const ls = lessonStats(prog, l), st = ls.stars;
+  // Insgesamt gelernte Wörter (alle Inseln): mindestens einmal erfolgreich wiederholt (Fach 2+)
+  const total = T.lessons.reduce((n, x) => n + (x.words || []).filter(w => wstate(prog, x.id, w.id).b >= 2).length, 0);
   const starRow = D.stars && st > 0 ? `<div class="dip-stars">${[1, 2, 3].map(i => art(i <= st ? "star" : "starEmpty")).join("")}</div>` : "";
+  const colors = ["#ffe066", "#b2f2bb", "#a5d8ff", "#ffc9c9", "#d0bfff", "#ffd8a8"];
+  const rays = Array.from({ length: 16 }, (_, i) => `<path d="M50 50 L${50 + 60 * Math.cos((i * 22.5 - 5) * Math.PI / 180)} ${50 + 60 * Math.sin((i * 22.5 - 5) * Math.PI / 180)} L${50 + 60 * Math.cos((i * 22.5 + 5) * Math.PI / 180)} ${50 + 60 * Math.sin((i * 22.5 + 5) * Math.PI / 180)}Z"/>`).join("");
+  const confetti = Array.from({ length: 22 }, (_, i) => { const a = (i * 137.5) % 360, r = 30 + (i * 13) % 18; return `<i style="left:${50 + r * Math.cos(a * Math.PI / 180)}%;top:${48 + r * Math.sin(a * Math.PI / 180)}%;background:${colors[i % colors.length]};transform:rotate(${a}deg)"></i>`; }).join("");
   return `<div class="diploma"><div class="dip-in">
+    <span class="dip-corner tl">★</span><span class="dip-corner tr">★</span><span class="dip-corner bl">★</span><span class="dip-corner br">★</span>
     <div class="dip-top"><span class="dip-ribbon">Plapperlapapp</span></div>
     <h1 class="dip-title">${esc(D.title || "Diplom")}</h1>
     <p class="dip-for">für</p>
     <div class="dip-name">${esc(name || s.name)}</div>
     <p class="dip-text">${esc(D.text || "").replace(/\{insel\}/g, esc(l.title))}</p>
-    ${starRow}
-    <div class="dip-mascot">${art("parrot")}</div>
+    <div class="dip-champ">
+      <svg class="dip-rays" viewBox="0 0 100 100" aria-hidden="true"><g fill="#ffe8a3">${rays}</g></svg>
+      <div class="dip-confetti">${confetti}</div>
+      <div class="dip-fox">${art("parrot")}<span class="dip-crown">${hat("👑")}</span><span class="dip-medal">${art("medal")}</span></div>
+      ${starRow}
+    </div>
+    ${total ? `<p class="dip-total">Insgesamt schon <b>${total}</b> ${total === 1 ? "Wort" : "Wörter"} gelernt!</p>` : ""}
     <div class="dip-foot"><div><span class="dip-line">${esc(D.date || "")}</span><small>Datum</small></div><div><span class="dip-line">${esc(D.sign || "")}</span><small>Unterschrift</small></div></div>
   </div></div>`;
 }
