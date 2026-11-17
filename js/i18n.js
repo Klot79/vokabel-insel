@@ -3,7 +3,7 @@
 //  t("deutscher Text {x}", {x}) liefert den Text in der gewählten Sprache.
 //  Fehlt eine Übersetzung, bleibt der deutsche Text stehen.
 // ---------------------------------------------------------------
-import { Device } from "./store.js?v=20261117j";
+import { Device } from "./store.js?v=20261117k";
 
 export const UI_LANGS = [
   { k: "de", flag: "🇩🇪", name: "Deutsch" },
@@ -515,4 +515,16 @@ const D = {
   "Thema": ["Thème", "Tema"],
   "Wiederholungen üben": ["Réviser mes mots", "Rever as palavras"],
   "Wähle deine Insel zum Lernen": ["Choisis ton île pour apprendre", "Escolhe a tua ilha para aprender"],
+  "Fortschritt": ["Progrès", "Progresso"],
+  "Tschüss": ["Salut", "Adeus"],
+  "Heute üben ({n} Wort)": ["S'entraîner aujourd'hui ({n} mot)", "Praticar hoje ({n} palavra)"],
+  "Heute üben ({n} Wörter)": ["S'entraîner aujourd'hui ({n} mots)", "Praticar hoje ({n} palavras)"],
+  "{n} warten": ["{n} t'attendent", "{n} à espera"],
+  "{n} Wort wartet": ["{n} mot t'attend", "{n} palavra à espera"],
+  "alles geschafft – freiwillig üben": ["tout est fait – entraînement libre", "tudo feito – praticar à vontade"],
+  "Zurück zur Startseite": ["Retour à l'accueil", "Voltar ao início"],
+  "Dein Lernweg: von 1 nach 4. Neue Wörter fängst du am besten bei 1 an.": ["Ton chemin : de 1 à 4. Pour les nouveaux mots, commence par 1.", "O teu caminho: de 1 a 4. Com palavras novas, começa pelo 1."],
+  "Hören & Sprechen": ["Écouter & parler", "Ouvir & falar"],
+  "Spielen": ["Jouer", "Jogar"],
+  "Schreiben, Malen & Zuhause": ["Écrire, dessiner & à la maison", "Escrever, desenhar & em casa"],
 };

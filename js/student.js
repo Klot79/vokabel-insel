@@ -1,19 +1,19 @@
-import { Store, Device, isCloud } from "./store.js?v=20261117j";
-import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261117j";
-import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261117j";
-import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js?v=20261117j";
-import { currentGoal, der, unser, zum } from "./goal.js?v=20261117j";
-import { buildingSvg } from "./buildings.js?v=20261117j";
-import { uid } from "./util.js?v=20261117j";
-import { say, listen, canListen } from "./speech.js?v=20261117j";
-import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261117j";
+import { Store, Device, isCloud } from "./store.js?v=20261117k";
+import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261117k";
+import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261117k";
+import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js?v=20261117k";
+import { currentGoal, der, unser, zum } from "./goal.js?v=20261117k";
+import { buildingSvg } from "./buildings.js?v=20261117k";
+import { uid } from "./util.js?v=20261117k";
+import { say, listen, canListen } from "./speech.js?v=20261117k";
+import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261117k";
 import {
   emptyProgress, lessonStats, overallStats, unlockedLessons, planLearn, markSeen, countAnswer, fallBack, promote,
   checkWritten, checkSpoken, logActivity, currentStreak, weekSummary, checkBadges, BADGES, wstate, shuffle,
   stripArticle, todayStr, DAY, NEEDED_TODAY, MIN_GAP, BOX_NAMES, wkey,
   weekState, weekLabel, schoolDay, perDayFor, newAllowed, sortLessons, DAILY_GOAL_SEC, todaySeconds, mondayOf,
   writePoint, WRITES_FOR_POINT, countCard,
-} from "./srs.js?v=20261117j";
+} from "./srs.js?v=20261117k";
 
 // ---- Ton an/aus (gilt auf diesem Gerät, überall) ----
 setSound(!Device.get("audioOff", false));
@@ -222,10 +222,10 @@ function topbar() {
     ${audioBtn()}
     <button class="icon-btn lang-top" id="tb-lang" aria-label="${t("Sprache")}" title="${t("Sprache")}">${UI_LANGS.find(x => x.k === getLang()).flag}</button>
     <nav class="navbtns">
-      <button class="nav-btn" id="tb-home" aria-label="${t("Start")}">${art("map")}</button>
-      <button class="nav-btn" id="tb-me" aria-label="${t("Mein Fortschritt")}">${art("telescope")}</button>
-      <button class="nav-btn" id="tb-shop" aria-label="${t("Shop")}">${art("chest")}</button>
-      <button class="nav-btn" id="tb-out" aria-label="${t("Abmelden")}">${art("door")}</button>
+      <button class="nav-btn" id="tb-home" aria-label="${t("Start")}">${art("map")}<small>${t("Start")}</small></button>
+      <button class="nav-btn" id="tb-me" aria-label="${t("Mein Fortschritt")}">${art("telescope")}<small>${t("Fortschritt")}</small></button>
+      <button class="nav-btn" id="tb-shop" aria-label="${t("Shop")}">${art("chest")}<small>${t("Shop")}</small></button>
+      <button class="nav-btn" id="tb-out" aria-label="${t("Abmelden")}">${art("door")}<small>${t("Tschüss")}</small></button>
     </nav>
   </div>`;
 }
@@ -251,7 +251,7 @@ function home() {
       <div class="bubble"><h1>${t("Hallo {name}!", { name: esc(S.student.name) })}</h1>
         <p>${plan.length ? (nRep && nNew ? t("Heute warten <b>{n} Wörter</b> auf dich ({r} zum Wiederholen, {k} neue).", { n: plan.length, r: nRep, k: nNew }) : t("Heute warten <b>{n} Wörter</b> auf dich.", { n: plan.length })) : doneToday ? t("Super, für heute ist alles geschafft! Du kannst testen oder spielen.") : t("Alles wiederholt! Du kannst testen oder spielen.")}</p>
         <p class="small muted">${esc(encouragement())}</p>
-        ${plan.length ? `<button class="btn green small" id="learn" style="justify-self:start;width:auto;margin-top:6px">${t("Wiederholungen üben")}</button>` : ""}</div>
+        ${plan.length ? `<button class="btn green today-btn" id="learn">▶ ${tn(plan.length, "Heute üben ({n} Wort)", "Heute üben ({n} Wörter)")}</button>` : ""}</div>
       ${goalRing()}
     </div>
     ${weekCard(unlocked)}
@@ -260,7 +260,6 @@ function home() {
     ${classPanel()}
     ${hardCard()}
   </div>`);
-  if ($("#weekLearn")) $("#weekLearn").onclick = () => startLearn(null, S.lessons.find(l => l.id === $("#weekLearn").dataset.id));
   if ($("#weekTest")) $("#weekTest").onclick = () => startTest(S.lessons.find(l => l.id === $("#weekTest").dataset.id));
   if ($("#hardGo")) $("#hardGo").onclick = () => practiceHard();
   if ($("#wheelBtn")) $("#wheelBtn").onclick = () => showWheel(false);
@@ -271,9 +270,9 @@ function home() {
 }
 
 function islandCard(l, open) {
-  const st = lessonStats(S.prog, l);
+  const st = lessonStats(S.prog, l), waiting = open ? planLearn(S.prog, [l]).length : 0;
   return `<button class="isle ${open ? "" : "locked"}" data-id="${esc(l.id)}" aria-label="${esc(l.title)}${open ? "" : " " + t("(gesperrt)")}">
-    <span class="isle-pic">${l.iconImg ? `<img src="${esc(l.iconImg)}" alt="" loading="lazy">` : art("island")}${open ? "" : `<span class="isle-lock">${art("lock")}</span>`}${open && st.due ? `<span class="due">${st.due}</span>` : ""}</span>
+    <span class="isle-pic">${l.iconImg ? `<img src="${esc(l.iconImg)}" alt="" loading="lazy">` : art("island")}${open ? "" : `<span class="isle-lock">${art("lock")}</span>`}${waiting ? `<span class="due">${t("{n} warten", { n: waiting })}</span>` : ""}</span>
     <span class="isle-name">${esc(l.title)} <span class="flag">${LANG_FLAG[l.lang] || ""}</span></span>
     ${l.week ? `<span class="week-tag ${weekState(l)}">${weekState(l) === "current" ? t("diese Woche") : weekState(l) === "future" ? t("ab {w}", { w: esc(wkLabel(l.week).split(" (")[0]) }) : esc(wkLabel(l.week).split(" (")[0])}</span>` : ""}
     ${stars(st.stars, "sm")}
@@ -297,13 +296,16 @@ function encouragement() {
 
 async function askAnswerMode(title, learn = false, rec = "") {
   const v = await modal(`<h2 class="center">${esc(title)}</h2>
+    ${learn ? `<p class="center small muted" style="margin:0">${t("Dein Lernweg: von 1 nach 4. Neue Wörter fängst du am besten bei 1 an.")}</p>` : ""}
     <div class="choose ${learn ? "choose4" : ""}">
-      <button class="choose-btn" data-close="mix">${art("games")}<b>${t("Gemischt")}</b><small>${t("Schreiben und Sprechen")}</small></button>
-      ${learn ? `<button class="choose-btn" data-close="cards">${art("book")}<b>${t("Lernkarten")}</b><small>${t("Karte umdrehen und merken")}</small></button>
-      <button class="choose-btn" data-close="copy">${art("postit")}<b>${t("Abschreiben")}</b><small>${t("Wort sehen und abschreiben")}</small></button>
-      <button class="choose-btn" data-close="write">${art("clipboard")}<b>${t("Aus dem Kopf schreiben")}</b><small>${t("ohne das Wort zu sehen")}</small></button>`
-        : `<button class="choose-btn" data-close="write">${art("clipboard")}<b>${t("Schreiben")}</b><small>${t("mit der Tastatur")}</small></button>`}
+      ${learn ? `<button class="choose-btn" data-close="cards"><span class="step">1</span>${art("book")}<b>${t("Lernkarten")}</b><small>${t("Karte umdrehen und merken")}</small></button>
+      <button class="choose-btn" data-close="copy"><span class="step">2</span>${art("postit")}<b>${t("Abschreiben")}</b><small>${t("Wort sehen und abschreiben")}</small></button>
+      <button class="choose-btn" data-close="write"><span class="step">3</span>${art("clipboard")}<b>${t("Aus dem Kopf schreiben")}</b><small>${t("ohne das Wort zu sehen")}</small></button>
+      ${canListen ? `<button class="choose-btn" data-close="speak"><span class="step">4</span>${art("mascotHead")}<b>${t("Sprechen")}</b><small>${t("ins Mikrofon")}</small></button>` : ""}
+      <button class="choose-btn" data-close="mix"><span class="step pro">${t("Profi")}</span>${art("games")}<b>${t("Gemischt")}</b><small>${t("Schreiben und Sprechen")}</small></button>`
+        : `<button class="choose-btn" data-close="write">${art("clipboard")}<b>${t("Schreiben")}</b><small>${t("mit der Tastatur")}</small></button>
       ${canListen ? `<button class="choose-btn" data-close="speak">${art("mascotHead")}<b>${t("Sprechen")}</b><small>${t("ins Mikrofon")}</small></button>` : ""}
+      <button class="choose-btn" data-close="mix">${art("games")}<b>${t("Gemischt")}</b><small>${t("Schreiben und Sprechen")}</small></button>`}
     </div>`, { onMount: m => {
       const b = rec && m.querySelector(`[data-close="${rec}"]`);
       if (b) { b.classList.add("rec"); b.insertAdjacentHTML("afterbegin", `<span class="rec-tag">⭐ ${t("Empfohlen")}</span>`); }
@@ -345,9 +347,10 @@ async function startTest(l) {
 //  Insel
 // ------------------------------------------------------------------
 function islandView(l) {
-  const st = lessonStats(S.prog, l);
+  const st = lessonStats(S.prog, l), waiting = planLearn(S.prog, [l]).length;
   render(`<div class="wrap">
     ${topbar()}
+    <button class="btn ghost small back-home" id="backHome">← ${t("Zurück zur Startseite")}</button>
     <div class="panel isle-head">
       <span class="isle-pic big">${l.iconImg ? `<img src="${esc(l.iconImg)}" alt="">` : art("island")}</span>
       <div class="stack" style="gap:6px;flex:1;min-width:0">
@@ -359,33 +362,37 @@ function islandView(l) {
       </div>
     </div>
     <div class="big-actions">
-      <button class="mode-btn learn" id="learn">${art("book", "mode-art")}<span><b>${t("Lernen")}</b><small>${st.due ? t("{n} Wörter warten", { n: st.due }) : t("freiwillig üben")}</small></span></button>
+      <button class="mode-btn learn" id="learn">${art("book", "mode-art")}<span><b>${t("Lernen")}</b><small>${waiting ? tn(waiting, "{n} Wort wartet", "{n} Wörter warten") : t("alles geschafft – freiwillig üben")}</small></span></button>
       <button class="mode-btn test" id="test">${art("clipboard", "mode-art")}<span><b>${t("Testen")}</b><small>${t("alle {n} Wörter", { n: st.total })}</small></span></button>
     </div>
-    <h2 class="section-title">${t("Mehr")}</h2>
+    <h2 class="section-title">${t("Mehr üben")}</h2>
     ${actsHtml(l)}
   </div>`);
   bindTop();
   $("#learn").onclick = () => startLearn(null, l);
   $("#test").onclick = () => startTest(l);
+  $("#backHome").onclick = () => goHome();
   bindActs(l);
 }
 
 // Weitere Übungen (Insel und Startseite)
 function actsHtml(l) {
-  const A = [
-    ["shower", "shower", "Vokabeldusche", "zuhören und nachsprechen"],
-    ["words", "telescope", "Wörter ansehen", "malen und Eselsbrücken"],
-    ["match", "postit", "Post-its zuordnen", "Wort zum Bild"],
-    ["sort", "baskets", "Sortieren", canSortArticle(l) ? "le oder la?" : "kurz oder lang?"],
-    ["move", "jump", "Bewegungsrunde", "hüpfen und sprechen"],
-    ["net", "bulbArt", "Wortnetz", "neue Wörter ans Kopfwort knüpfen"],
-    ["memory", "games", "Memory", "Finde die Paare"],
-    ["blitz", "flame", "Blitzrunde", "60 Sekunden"],
-    ["rec", "mascotHead", "Meine Vokabeldusche", "selbst aufnehmen und anhören"],
-    ["paper", "clipboard", "Test für zu Hause", "zum Ausdrucken"],
+  const G = [
+    ["🎧", "Hören & Sprechen", [
+      ["shower", "shower", "Vokabeldusche", "zuhören und nachsprechen"],
+      ["rec", "mascotHead", "Meine Vokabeldusche", "selbst aufnehmen und anhören"],
+      ["move", "jump", "Bewegungsrunde", "hüpfen und sprechen"]]],
+    ["🎲", "Spielen", [
+      ["memory", "games", "Memory", "Finde die Paare"],
+      ["match", "postit", "Post-its zuordnen", "Wort zum Bild"],
+      ["sort", "baskets", "Sortieren", canSortArticle(l) ? "le oder la?" : "kurz oder lang?"],
+      ["blitz", "flame", "Blitzrunde", "60 Sekunden"]]],
+    ["✏️", "Schreiben, Malen & Zuhause", [
+      ["net", "bulbArt", "Wortnetz", "neue Wörter ans Kopfwort knüpfen"],
+      ["words", "telescope", "Wörter ansehen", "malen und Eselsbrücken"],
+      ["paper", "clipboard", "Test für zu Hause", "zum Ausdrucken"]]],
   ];
-  return `<div class="acts">${A.map(([k, a, n, sub]) => `<button class="act" data-k="${k}">${art(a)}<b>${t(n)}</b><small>${t(sub)}</small></button>`).join("")}</div>`;
+  return G.map(([ic, name, A]) => `<h3 class="act-group"><span aria-hidden="true">${ic}</span> ${t(name)}</h3><div class="acts">${A.map(([k, a, n, sub]) => `<button class="act" data-k="${k}">${art(a)}<b>${t(n)}</b><small>${t(sub)}</small></button>`).join("")}</div>`).join("");
 }
 function bindActs(l) {
   const F = { words: wordList, memory: memoryGame, blitz, shower: vocabShower, match: matchGame, sort: sortGame, move: moveGame, rec: recordShower, net: wordNet, paper: homeTest };
@@ -1160,7 +1167,7 @@ function weekCard(unlocked) {
         <div class="row between"><b class="wk-title">${t("Diese Woche: {t}", { t: esc(l.title) })}</b><span class="small muted">${esc(wkLabel(l.week))}</span></div>
         <div class="days">${dots}</div>
         <span class="small">${st.seen < st.total ? `${newToday ? t("Heute <b>{n} neue Wörter</b>", { n: Math.min(7, newToday) }) : t("Heute nur Wiederholung")} · ${t("{p} pro Tag, damit es leicht bleibt.", { p: per })}` : t("Alle Wörter kennengelernt! Jetzt wiederholen und testen.")} ${wt && wt.date >= mondayOf() ? "· " + t("Wochentest: <b>{n} %</b>", { n: wt.last }) : ""}</span>
-        <div class="row"><button class="btn green small" id="weekLearn" data-id="${esc(l.id)}">${t("Wochenwörter lernen")}</button><button class="btn ${isFri ? "orange" : "ghost"} small" id="weekTest" data-id="${esc(l.id)}">${isFri ? t("Freitag: Wochentest!") : t("Wochentest")}</button></div>
+        <div class="row"><button class="btn ${isFri ? "orange" : "ghost"} small" id="weekTest" data-id="${esc(l.id)}">${isFri ? t("Freitag: Wochentest!") : t("Wochentest")}</button></div>
       </div></div>`;
   }).join("");
 }

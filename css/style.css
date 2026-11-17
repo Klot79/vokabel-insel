@@ -132,10 +132,11 @@ h1 { font-size: clamp(1.7rem, 5vw, 2.3rem); }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; background: var(--soft); font-weight: 700; font-variant-numeric: tabular-nums; font-family: var(--f-display); font-size: 1.15rem; }
 .chip.fire { background: var(--orange-l); } .chip.coin { background: var(--sun-l); }
 .navbtns { display: flex; gap: 6px; }
-.nav-btn { width: 52px; height: 52px; border-radius: 16px; border: 2px solid var(--line); background: #fff; padding: 6px; box-shadow: 0 3px 0 var(--line); }
-.nav-btn svg { width: 100%; height: 100%; }
+.nav-btn { min-width: 62px; height: 62px; border-radius: 16px; border: 2px solid var(--line); background: #fff; padding: 4px 6px 3px; box-shadow: 0 3px 0 var(--line); display: grid; justify-items: center; align-content: center; gap: 1px; }
+.nav-btn svg { width: 34px; height: 34px; }
+.nav-btn small { font-size: .68rem; font-weight: 700; color: var(--ink-soft); line-height: 1; white-space: nowrap; }
 .nav-btn:active { transform: translateY(3px); box-shadow: none; }
-@media (max-width: 560px) { .topbar .avatar { display: none; } .nav-btn { width: 44px; height: 44px; } .chip { font-size: 1rem; padding: 4px 8px; } .topbar .name { font-size: 1.1rem; } }
+@media (max-width: 560px) { .topbar .avatar { display: none; } .nav-btn { min-width: 50px; height: 54px; padding: 3px 4px; } .nav-btn svg { width: 28px; height: 28px; } .nav-btn small { font-size: .6rem; } .chip { font-size: 1rem; padding: 4px 8px; } .topbar .name { font-size: 1.1rem; } }
 
 /* ---------- Lernen / Testen ---------- */
 .big-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
@@ -623,3 +624,12 @@ body:not(.teacher-mode) .hero h1, body:not(.teacher-mode) .section-title { text-
   body.print-diploma .dip-title { font-size: 54pt; } body.print-diploma .dip-name { font-size: 40pt; } body.print-diploma .dip-text { font-size: 17pt; }
   body.print-diploma .dip-mascot svg { width: 60mm; height: 60mm; } body.print-diploma .dip-stars svg { width: 16mm; height: 16mm; }
 }
+
+/* Übersichtlichkeit */
+.today-btn { justify-self: start; margin-top: 6px; font-size: 1.2rem; padding: 10px 22px; }
+.isle .due { font-size: .85rem; }
+.back-home { justify-self: start; }
+.act-group { font-size: 1.05rem; margin: 6px 0 -2px; color: var(--ink-soft); display: flex; align-items: center; gap: 6px; }
+.choose-btn { position: relative; }
+.choose-btn .step { position: absolute; top: 6px; left: 8px; width: 26px; height: 26px; border-radius: 50%; background: var(--blue); color: #fff; font-family: var(--f-display); font-weight: 700; display: grid; place-items: center; font-size: .95rem; }
+.choose-btn .step.pro { width: auto; padding: 0 8px; border-radius: 999px; background: var(--ink-soft); font-size: .75rem; }
