@@ -1,19 +1,19 @@
-import { Store, Device, isCloud } from "./store.js?v=20261117b";
-import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261117b";
-import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261117b";
-import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js?v=20261117b";
-import { currentGoal, der, unser, zum } from "./goal.js?v=20261117b";
-import { buildingSvg } from "./buildings.js?v=20261117b";
-import { uid } from "./util.js?v=20261117b";
-import { say, listen, canListen } from "./speech.js?v=20261117b";
-import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261117b";
+import { Store, Device, isCloud } from "./store.js?v=20261117c";
+import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261117c";
+import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261117c";
+import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js?v=20261117c";
+import { currentGoal, der, unser, zum } from "./goal.js?v=20261117c";
+import { buildingSvg } from "./buildings.js?v=20261117c";
+import { uid } from "./util.js?v=20261117c";
+import { say, listen, canListen } from "./speech.js?v=20261117c";
+import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261117c";
 import {
   emptyProgress, lessonStats, overallStats, unlockedLessons, planLearn, markSeen, countAnswer, fallBack, promote,
   checkWritten, checkSpoken, logActivity, currentStreak, weekSummary, checkBadges, BADGES, wstate, shuffle,
   stripArticle, todayStr, DAY, NEEDED_TODAY, MIN_GAP, BOX_NAMES, wkey,
   weekState, weekLabel, schoolDay, perDayFor, newAllowed, sortLessons, DAILY_GOAL_SEC, todaySeconds, mondayOf,
   writePoint, WRITES_FOR_POINT, countCard,
-} from "./srs.js?v=20261117b";
+} from "./srs.js?v=20261117c";
 
 // ---- Ton an/aus (gilt auf diesem Gerät, überall) ----
 setSound(!Device.get("audioOff", false));
@@ -307,7 +307,7 @@ async function askAnswerMode(title, learn = false, rec = "") {
       <button class="choose-btn" data-close="copy">${art("postit")}<b>${t("Abschreiben")}</b><small>${t("Wort sehen und abschreiben")}</small></button>
       <button class="choose-btn" data-close="write">${art("clipboard")}<b>${t("Aus dem Kopf schreiben")}</b><small>${t("ohne das Wort zu sehen")}</small></button>`
         : `<button class="choose-btn" data-close="write">${art("clipboard")}<b>${t("Schreiben")}</b><small>${t("mit der Tastatur")}</small></button>`}
-      ${canListen ? `<button class="choose-btn" data-close="speak">${art("parrot")}<b>${t("Sprechen")}</b><small>${t("ins Mikrofon")}</small></button>` : ""}
+      ${canListen ? `<button class="choose-btn" data-close="speak">${art("mascotHead")}<b>${t("Sprechen")}</b><small>${t("ins Mikrofon")}</small></button>` : ""}
     </div>`, { onMount: m => {
       const b = rec && m.querySelector(`[data-close="${rec}"]`);
       if (b) { b.classList.add("rec"); b.insertAdjacentHTML("afterbegin", `<span class="rec-tag">⭐ ${t("Empfohlen")}</span>`); }
@@ -962,7 +962,7 @@ function memoryGame(l) {
   const t0 = Date.now();
   render(`<div class="wrap narrow">
     <div class="ex-top"><button class="icon-btn" id="quit" aria-label="${t("Beenden")}">${ICON.close}</button><b class="ex-title">${t("Memory – {t}", { t: esc(l.title) })}</b>${audioBtn()}<span class="chip" id="mv">${t("Züge: {n}", { n: 0 })}</span></div>
-    <div class="memory" id="mem">${cards.map((c, i) => `<button class="mem" data-i="${i}" aria-label="${t("Karte {n}", { n: i + 1 })}">${art("parrot")}</button>`).join("")}</div></div>`);
+    <div class="memory" id="mem">${cards.map((c, i) => `<button class="mem" data-i="${i}" aria-label="${t("Karte {n}", { n: i + 1 })}">${art("mascotHead")}</button>`).join("")}</div></div>`);
   $("#quit").onclick = () => islandView(l);
   $$(".mem").forEach(b => b.onclick = () => {
     const c = cards[+b.dataset.i];
@@ -984,7 +984,7 @@ function memoryGame(l) {
         }
       } else {
         lock = true;
-        setTimeout(() => { open.forEach(x => { x.classList.remove("open"); x.innerHTML = art("parrot"); }); open = []; lock = false; }, 1100);
+        setTimeout(() => { open.forEach(x => { x.classList.remove("open"); x.innerHTML = art("mascotHead"); }); open = []; lock = false; }, 1100);
       }
     }
   });
@@ -1084,7 +1084,7 @@ function myProgress() {
 // ------------------------------------------------------------------
 //  Shop (Avatar gestalten)
 // ------------------------------------------------------------------
-const PRICES_A = { "🐢": 0, "🦊": 0, "🐻": 0, "🐬": 0, "🦋": 20, "🐧": 30, "🐸": 30, "🐙": 40, "🦜": 40, "🐼": 50, "🦄": 80, "🦖": 100 };
+const PRICES_A = { "🦊": 0, "🐈": 0, "😺": 0, "😸": 20, "🐺": 30, "🐢": 0, "🐻": 0, "🐬": 0, "🦋": 20, "🐧": 30, "🐸": 30, "🐙": 40, "🦜": 40, "🐼": 50, "🦄": 80, "🦖": 100 };
 const PRICES_H = { "": 0, "🌸": 10, "🧢": 15, "🎀": 15, "⛑️": 25, "🤠": 30, "🎓": 40, "🎩": 50, "🏴‍☠️": 60, "👑": 80 };
 const COLORS = ["#2f9e8f", "#1c7ed6", "#7048e8", "#d6336c", "#e8590c", "#f08c00", "#2b8a3e", "#495057"];
 

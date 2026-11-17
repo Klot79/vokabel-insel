@@ -1,10 +1,10 @@
-import { Store, Device, isCloud } from "./store.js?v=20261117b";
-import { render, $, toast } from "./ui.js?v=20261117b";
-import { esc } from "./util.js?v=20261117b";
-import { art } from "./art.js?v=20261117b";
-import { studentLogin } from "./student.js?v=20261117b";
-import { teacherLogin } from "./teacher.js?v=20261117b";
-import { t, setLang, getLang, UI_LANGS } from "./i18n.js?v=20261117b";
+import { Store, Device, isCloud } from "./store.js?v=20261117c";
+import { render, $, toast } from "./ui.js?v=20261117c";
+import { esc } from "./util.js?v=20261117c";
+import { art } from "./art.js?v=20261117c";
+import { studentLogin } from "./student.js?v=20261117c";
+import { teacherLogin } from "./teacher.js?v=20261117c";
+import { t, setLang, getLang, UI_LANGS } from "./i18n.js?v=20261117c";
 
 const langRow = () => `<div class="lang-pick">${UI_LANGS.map(x => `<button class="lang-btn ${getLang() === x.k ? "on" : ""}" data-lang="${x.k}"><span class="flag-big">${x.flag}</span>${x.name}</button>`).join("")}</div>`;
 const bindLang = redraw => document.querySelectorAll("[data-lang]").forEach(b => b.onclick = () => { setLang(b.dataset.lang); document.documentElement.lang = getLang(); redraw(); });

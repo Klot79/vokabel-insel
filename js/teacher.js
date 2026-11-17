@@ -1,10 +1,10 @@
-import { Store, Device, isCloud } from "./store.js?v=20261117b";
-import { esc, uid, sha, pinHash, randomPin, LANG_FLAG, LANG_NAME, PIN_NAMES } from "./util.js?v=20261117b";
-import { art } from "./art.js?v=20261117b";
-import { currentGoal, DEFAULT_REWARDS, START_TARGET, START_PER_KID, rewardsOf, BUILDINGS } from "./goal.js?v=20261117b";
-import { render, $, $$, toast, modal, confirmBox, pic, avatarHtml, fmtMin, relDay } from "./ui.js?v=20261117b";
-import { lessonStats, weekSummary, currentStreak, emptyProgress, todayStr, DAY, wstate, stripArticle, norm, mondayOf, weekLabel, weekState, sortLessons, perDayFor } from "./srs.js?v=20261117b";
-import { fileToLines, splitLines, linesToPairs, prepareImage, matchImages, searchOpenverse, fetchImageBlob } from "./import.js?v=20261117b";
+import { Store, Device, isCloud } from "./store.js?v=20261117c";
+import { esc, uid, sha, pinHash, randomPin, LANG_FLAG, LANG_NAME, PIN_NAMES } from "./util.js?v=20261117c";
+import { art } from "./art.js?v=20261117c";
+import { currentGoal, DEFAULT_REWARDS, START_TARGET, START_PER_KID, rewardsOf, BUILDINGS } from "./goal.js?v=20261117c";
+import { render, $, $$, toast, modal, confirmBox, pic, avatarHtml, fmtMin, relDay } from "./ui.js?v=20261117c";
+import { lessonStats, weekSummary, currentStreak, emptyProgress, todayStr, DAY, wstate, stripArticle, norm, mondayOf, weekLabel, weekState, sortLessons, perDayFor } from "./srs.js?v=20261117c";
+import { fileToLines, splitLines, linesToPairs, prepareImage, matchImages, searchOpenverse, fetchImageBlob } from "./import.js?v=20261117c";
 
 // ---- Bilder speichern (hohe Auflösung, wenn der Online-Bildspeicher eingerichtet ist) ----
 async function storeImageFile(fileOrBlob) {
@@ -51,7 +51,7 @@ function searchImage(query, { title = "Bild suchen", alt = [], series = false } 
   });
 }
 const searchTerm = s => stripArticle(norm(String(s || "").split(/[\/;]/)[0]));
-import { say } from "./speech.js?v=20261117b";
+import { say } from "./speech.js?v=20261117c";
 
 const T = { cls: null, tab: "overview", students: [], lessons: [], progs: {}, back: null };
 // Fortschritt zurücksetzen: neuer Stand mit neuer Kennung – ein noch angemeldetes Kinder-Gerät
@@ -141,7 +141,7 @@ async function dashboard() {
   const fresh = await autoWeekReport();
   const tabs = [["overview", "📊 Übersicht"], ["lessons", "📚 Lektionen"], ["reports", "📅 Wochenberichte"], ["students", "👧 Kinder"], ["settings", "⚙️ Einstellungen"]];
   render(`<div class="wrap">
-    <div class="t-head"><span class="logo">${art("parrot")}</span><h1>${esc(T.cls.name)} <span class="pill">${esc(Store.code)}</span></h1>
+    <div class="t-head"><span class="logo">${art("mascotHead")}</span><h1>${esc(T.cls.name)} <span class="pill">${esc(Store.code)}</span></h1>
       <nav class="tabs">${tabs.map(([k, n]) => `<button data-t="${k}" class="${T.tab === k ? "on" : ""}">${n}</button>`).join("")}</nav>
       <button class="btn ghost small" id="logout">Abmelden</button></div>
     ${!isCloud ? `<div class="banner no-print">Demo-Modus: Daten werden nur auf diesem Gerät gespeichert. Für die ganze Klasse auf allen Geräten bitte Supabase einrichten (siehe Anleitung).</div>` : ""}

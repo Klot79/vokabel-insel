@@ -48,6 +48,9 @@ const goth = (vb, body, keep = []) => {
     + `<g filter="url(#${id})">${body}<g class="hd-ht2">${body}</g><g class="hd-sk2" transform="translate(1.4 -1.1) rotate(.8)">${body}</g><g class="hd-sk2" transform="translate(-1.2 .9) rotate(-.7)">${body}</g></g></svg>`;
 };
 
+// Gezeichnete Tiere (PNG) – in ein SVG gepackt, damit alle Größen im Layout gleich bleiben
+const pic = (file) => `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><image href="img/tiere/${file}" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet"/></svg>`;
+
 const ART = {
   // ---------- Maskottchen ----------
   parrot: goth("0 0 120 120", `
@@ -169,8 +172,16 @@ const ART = {
   "🦖": goth("0 0 100 100", `<path d="M30 26 L36 12 L42 24 L48 8 L54 22 L62 10 L64 26Z" fill="#20c997" ${o(3)}/><path d="M16 64 Q14 26 52 24 Q88 24 88 54 Q88 78 60 80 H30 Q16 78 16 64Z" fill="#51cf66" ${o()}/><path d="M50 66 H84" fill="none" ${o(3)}/><path d="M56 66 l3 6 3 -6 M66 66 l3 6 3 -6 M76 66 l3 6 3 -6" fill="#fff" ${o(2)}/>${eye(62, 44)}<circle cx="80" cy="50" r="2" fill="${K}"/>`, ["#20c997"]),
 };
 ART["⭐"] = ART.star;
-ART["🦜"] = ART.parrot;
-ART["🦊"] = ART["🦊"];
+ART["🦜"] = ART.parrot;           // alter Papagei bleibt als Avatar erhalten
+// Neue Comic-Tiere: Maskottchen = Fuchs, Avatare & Bild-PINs
+ART.parrot = pic("fuchs.png");     // Maskottchen (ganzer Körper)
+ART.mascotHead = pic("fuchs-kopf.png");
+ART["🦊"] = pic("fuchs-kopf.png");
+ART["🐱"] = pic("katze1-kopf.png");
+ART["🐈"] = pic("katze1-kopf.png");
+ART["😺"] = pic("katze2-kopf.png");
+ART["😸"] = pic("katze3-kopf.png");
+ART["🐺"] = pic("fuchs-weiss-kopf.png");
 
 // ---------- Hüte (über dem Avatar) ----------
 const HATS = {
@@ -191,5 +202,5 @@ export function art(key, cls = "") {
   return key ? `<span class="${cls}" aria-hidden="true">${key}</span>` : "";
 }
 export function hat(key) { return HATS[key] || (key ? `<span aria-hidden="true">${key}</span>` : ""); }
-export const ANIMAL_KEYS = ["🐢", "🦊", "🐻", "🐬", "🦋", "🐧", "🐸", "🐙", "🦜", "🐼", "🦄", "🦖"];
+export const ANIMAL_KEYS = ["🦊", "🐈", "😺", "😸", "🐺", "🐢", "🐻", "🐬", "🦋", "🐧", "🐸", "🐙", "🦜", "🐼", "🦄", "🦖"];
 export const HAT_KEYS = Object.keys(HATS);
