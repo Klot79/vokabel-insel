@@ -13,8 +13,8 @@
 //  • Ergebnis des Glücksrads wird aus Klassencode + Woche berechnet –
 //    darum bleibt es bei jedem Kind auf demselben Feld stehen.
 // ================================================================
-import { Store } from "./store.js?v=20261116e";
-import { mondayOf, todayStr, DAY } from "./srs.js?v=20261116e";
+import { Store } from "./store.js?v=20261117a";
+import { mondayOf, todayStr, DAY } from "./srs.js?v=20261117a";
 
 export const BUILDINGS = [
   { key: "lighthouse", name: "Leuchtturm", g: "m" }, { key: "bridge", name: "Brücke", g: "f" }, { key: "castle", name: "Burg", g: "f" },

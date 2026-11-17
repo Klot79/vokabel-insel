@@ -7,8 +7,8 @@
 //  • Lehrer-PIN und Bild-PINs der Kinder sind für Kinder-Geräte unsichtbar.
 //  Ohne das Update funktioniert die App wie vorher („alter Modus“).
 // ------------------------------------------------------------------
-import { seedDemo } from "./demo.js?v=20261116e";
-import { uid, sha } from "./util.js?v=20261116e";
+import { seedDemo } from "./demo.js?v=20261117a";
+import { uid, sha } from "./util.js?v=20261117a";
 
 const cfg = window.VOKABEL_CONFIG || {};
 export const isCloud = !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY);
@@ -79,6 +79,17 @@ async function rpc(fn, body) {
   return txt ? JSON.parse(txt) : null;
 }
 
+// Bei „l'…“-Wörtern ist ein Zusatz wie „(un)“ / „(une)“ unnötig – er fällt automatisch weg
+export function cleanFr(fr) {
+  const s = String(fr ?? "");
+  if (!/(^|[\/;|]\s*)l['’]/i.test(s)) return s;
+  return s.replace(/\s*[(\[]\s*(un|une|m|f|masc\.?|fém\.?|fem\.?)\s*[)\]]/gi, "").replace(/\s{2,}/g, " ").trim();
+}
+function cleanLesson(o) {
+  if (o && Array.isArray(o.words)) o.words = o.words.map(w => (w && typeof w.fr === "string" ? { ...w, fr: cleanFr(w.fr) } : w));
+  return o;
+}
+
 // ---- öffentliche API -----------------------------------------
 export const Store = {
   code: null,
@@ -130,14 +141,16 @@ export const Store = {
 
   async list(kind) {
     const rows = await this._get(this.code, kind);
-    return rows.map(r => ({ id: r.id, ...r.data, _updated: r.updated_at }));
+    const out = rows.map(r => ({ id: r.id, ...r.data, _updated: r.updated_at }));
+    return kind === "lesson" ? out.map(cleanLesson) : out;
   },
   async getOne(kind, id) {
     const r = await this._getOne(this.code, kind, id);
-    return r ? { id: r.id, ...r.data, _updated: r.updated_at } : null;
+    const o = r ? { id: r.id, ...r.data, _updated: r.updated_at } : null;
+    return kind === "lesson" ? cleanLesson(o) : o;
   },
   async put(kind, id, obj) {
-    const { id: _i, _updated, ...data } = obj;
+    const { id: _i, _updated, ...data } = kind === "lesson" ? cleanLesson({ ...obj }) : obj;
     await this._put(this.code, kind, id, data);
   },
   async del(kind, id) { await this._del(this.code, kind, id); },
@@ -210,4 +223,4 @@ export const Device = {
   del(k) { try { localStorage.removeItem("vi-dev:" + k); } catch {} },
 };
 
-export { uid, sha } from "./util.js?v=20261116e";
+export { uid, sha } from "./util.js?v=20261117a";
