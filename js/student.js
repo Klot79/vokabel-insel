@@ -1,19 +1,19 @@
-import { Store, Device, isCloud } from "./store.js?v=20261117g";
-import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261117g";
-import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261117g";
-import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js?v=20261117g";
-import { currentGoal, der, unser, zum } from "./goal.js?v=20261117g";
-import { buildingSvg } from "./buildings.js?v=20261117g";
-import { uid } from "./util.js?v=20261117g";
-import { say, listen, canListen } from "./speech.js?v=20261117g";
-import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261117g";
+import { Store, Device, isCloud } from "./store.js?v=20261117i";
+import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261117i";
+import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261117i";
+import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js?v=20261117i";
+import { currentGoal, der, unser, zum } from "./goal.js?v=20261117i";
+import { buildingSvg } from "./buildings.js?v=20261117i";
+import { uid } from "./util.js?v=20261117i";
+import { say, listen, canListen } from "./speech.js?v=20261117i";
+import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261117i";
 import {
   emptyProgress, lessonStats, overallStats, unlockedLessons, planLearn, markSeen, countAnswer, fallBack, promote,
   checkWritten, checkSpoken, logActivity, currentStreak, weekSummary, checkBadges, BADGES, wstate, shuffle,
   stripArticle, todayStr, DAY, NEEDED_TODAY, MIN_GAP, BOX_NAMES, wkey,
   weekState, weekLabel, schoolDay, perDayFor, newAllowed, sortLessons, DAILY_GOAL_SEC, todaySeconds, mondayOf,
   writePoint, WRITES_FOR_POINT, countCard,
-} from "./srs.js?v=20261117g";
+} from "./srs.js?v=20261117i";
 
 // ---- Ton an/aus (gilt auf diesem Gerät, überall) ----
 setSound(!Device.get("audioOff", false));
@@ -243,8 +243,6 @@ function home() {
   const doneToday = S.prog.missionDay === todayStr();
 
   const nNew = plan.filter(p => p.kind === "new").length, nRep = plan.length - nNew;
-  // Übungen auf der Startseite: gewählte Insel, sonst die Insel der Woche, sonst die neueste offene
-  const practice = unlocked.find(l => l.id === S.practiceId) || unlocked.find(l => weekState(l) === "current") || unlocked[unlocked.length - 1] || null;
 
   render(`<div class="wrap">
     ${topbar()}
@@ -252,21 +250,15 @@ function home() {
       <span class="mascot">${art("parrot")}</span>
       <div class="bubble"><h1>${t("Hallo {name}!", { name: esc(S.student.name) })}</h1>
         <p>${plan.length ? (nRep && nNew ? t("Heute warten <b>{n} Wörter</b> auf dich ({r} zum Wiederholen, {k} neue).", { n: plan.length, r: nRep, k: nNew }) : t("Heute warten <b>{n} Wörter</b> auf dich.", { n: plan.length })) : doneToday ? t("Super, für heute ist alles geschafft! Du kannst testen oder spielen.") : t("Alles wiederholt! Du kannst testen oder spielen.")}</p>
-        <p class="small muted">${esc(encouragement())}</p></div>
+        <p class="small muted">${esc(encouragement())}</p>
+        ${plan.length ? `<button class="btn green small" id="learn" style="justify-self:start;width:auto;margin-top:6px">${t("Wiederholungen üben")}</button>` : ""}</div>
       ${goalRing()}
     </div>
     ${weekCard(unlocked)}
-    <div class="big-actions">
-      <button class="mode-btn learn" id="learn">${art("book", "mode-art")}<span><b>${t("Lernen")}</b><small>${plan.length ? t("mit Hilfen üben") : t("nochmal üben")}</small></span></button>
-      <button class="mode-btn test" id="test">${art("clipboard", "mode-art")}<span><b>${t("Testen")}</b><small>${t("Kann ich es schon?")}</small></span></button>
-    </div>
-    ${practice ? `<div class="more-head"><h2 class="section-title">${t("Mehr üben")}</h2>
-      ${unlocked.length > 1 ? `<label class="more-pick">${t("mit den Wörtern von")} <select id="morePick">${unlocked.map(l => `<option value="${esc(l.id)}" ${l === practice ? "selected" : ""}>${esc(l.title)}</option>`).join("")}</select></label>` : `<span class="muted small">${t("mit den Wörtern von")} <b>${esc(practice.title)}</b></span>`}</div>
-    ${actsHtml(practice)}` : ""}
+    <h2 class="section-title">${t("Wähle deine Insel zum Lernen")}</h2>
+    <div class="isle-grid">${S.lessons.length ? S.lessons.map(l => islandCard(l, unlocked.includes(l))).join("") : `<div class="panel">${t("Deine Lehrkraft hat noch keine Lektion für dich freigegeben.")}</div>`}</div>
     ${classPanel()}
     ${hardCard()}
-    <h2 class="section-title">${t("Meine Inseln")}</h2>
-    <div class="isle-grid">${S.lessons.length ? S.lessons.map(l => islandCard(l, unlocked.includes(l))).join("") : `<div class="panel">${t("Deine Lehrkraft hat noch keine Lektion für dich freigegeben.")}</div>`}</div>
   </div>`);
   if ($("#weekLearn")) $("#weekLearn").onclick = () => startLearn(null, S.lessons.find(l => l.id === $("#weekLearn").dataset.id));
   if ($("#weekTest")) $("#weekTest").onclick = () => startTest(S.lessons.find(l => l.id === $("#weekTest").dataset.id));
@@ -274,13 +266,8 @@ function home() {
   if ($("#wheelBtn")) $("#wheelBtn").onclick = () => showWheel(false);
   maybeCelebrate();
   bindTop();
-  $("#learn").onclick = () => startLearn(unlocked);
-  $("#test").onclick = () => chooseTest(unlocked);
+  if ($("#learn")) $("#learn").onclick = () => startLearn(unlocked);   // fällige Wiederholungen aller Inseln
   bindIslands(unlocked);
-  if (practice) {
-    bindActs(practice);
-    if ($("#morePick")) $("#morePick").onchange = e => { S.practiceId = e.target.value; home(); setTimeout(() => $(".more-head")?.scrollIntoView({ block: "start" }), 50); };
-  }
 }
 
 function islandCard(l, open) {

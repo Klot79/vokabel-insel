@@ -587,3 +587,39 @@ body:not(.teacher-mode) .hero h1, body:not(.teacher-mode) .section-title { text-
 .more-pick select { font: inherit; font-weight: 700; border: 2px solid var(--line); border-radius: 10px; padding: 4px 8px; background: #fff; max-width: 220px; }
 .net-node.known { border: 3px solid var(--sun); background: var(--sun-l); }
 .net-lines line.known { stroke: var(--sun-d); stroke-width: 1.2; stroke-dasharray: none; }
+
+/* Lehrkraft: Wer sieht welche Insel? */
+.vis-tbl th.c, .vis-tbl td.c { text-align: center; }
+.vis-tbl th.kid { text-transform: none; letter-spacing: 0; font-size: .85rem; white-space: nowrap; }
+.vis-tbl input { width: 22px; height: 22px; }
+
+/* Lehrkraft: Diplome */
+.dip-kids { display: grid; gap: 6px; max-height: 360px; overflow-y: auto; }
+.dip-kid { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: center; }
+.dip-kid input[type=checkbox] { width: 22px; height: 22px; }
+.dip-kid .input { min-height: 40px; padding: 6px 10px; }
+.dip-sheets { display: grid; gap: 18px; justify-items: center; }
+.diploma { width: 100%; max-width: 640px; aspect-ratio: 210 / 297; background: #fffdf6; border-radius: 12px; padding: 18px; box-sizing: border-box; box-shadow: 0 4px 16px rgba(0,0,0,.08);
+  background-image: radial-gradient(circle at 10% 8%, #ffe08a 0 6%, transparent 6.5%), radial-gradient(circle at 92% 12%, #b2f2bb 0 5%, transparent 5.5%), radial-gradient(circle at 8% 92%, #a5d8ff 0 7%, transparent 7.5%), radial-gradient(circle at 94% 90%, #ffc9c9 0 6%, transparent 6.5%); }
+.dip-in { height: 100%; box-sizing: border-box; border: 6px double #2b9ad1; border-radius: 10px; padding: 6% 7%; display: grid; grid-template-rows: auto auto auto auto 1fr auto auto auto; justify-items: center; text-align: center; gap: 2%; color: #1f3340; }
+.dip-ribbon { display: inline-block; background: #2fb36a; color: #fff; font-family: var(--f-display); font-weight: 700; padding: 4px 18px; border-radius: 999px; letter-spacing: .04em; }
+.dip-title { font-family: var(--f-display); font-size: clamp(2.2rem, 7vw, 3.6rem); color: #e8590c; margin: 0; letter-spacing: .02em; }
+.dip-for { margin: 0; font-size: 1.1rem; color: #5b6b78; }
+.dip-name { font-family: var(--f-display); font-size: clamp(1.8rem, 6vw, 3rem); font-weight: 700; border-bottom: 3px dotted #2b9ad1; padding: 0 16px 4px; }
+.dip-text { margin: 0; font-size: clamp(1rem, 2.6vw, 1.3rem); max-width: 90%; align-self: center; }
+.dip-stars { display: flex; gap: 10px; }
+.dip-stars svg { width: 46px; height: 46px; }
+.dip-mascot svg { width: 150px; height: 150px; }
+.dip-foot { width: 100%; display: flex; justify-content: space-between; gap: 20px; }
+.dip-foot > div { display: grid; gap: 2px; min-width: 38%; }
+.dip-line { border-bottom: 1.5px solid #1f3340; min-height: 1.6em; font-size: 1.05rem; }
+.dip-foot small { color: #5b6b78; }
+@media print {
+  body.print-diploma .wrap > *:not(#tab), body.print-diploma #tab > .no-print, body.print-diploma .section-title { display: none !important; }
+  body.print-diploma .dip-sheets { display: block; }
+  body.print-diploma .diploma { max-width: none; width: 190mm; height: 277mm; aspect-ratio: auto; margin: 0 auto; box-shadow: none; border-radius: 0; page-break-after: always; break-after: page;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.print-diploma .diploma:last-child { page-break-after: auto; break-after: auto; }
+  body.print-diploma .dip-title { font-size: 54pt; } body.print-diploma .dip-name { font-size: 40pt; } body.print-diploma .dip-text { font-size: 17pt; }
+  body.print-diploma .dip-mascot svg { width: 60mm; height: 60mm; } body.print-diploma .dip-stars svg { width: 16mm; height: 16mm; }
+}

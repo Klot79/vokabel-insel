@@ -3,7 +3,7 @@
 //  t("deutscher Text {x}", {x}) liefert den Text in der gewählten Sprache.
 //  Fehlt eine Übersetzung, bleibt der deutsche Text stehen.
 // ---------------------------------------------------------------
-import { Device } from "./store.js?v=20261117g";
+import { Device } from "./store.js?v=20261117i";
 
 export const UI_LANGS = [
   { k: "de", flag: "🇩🇪", name: "Deutsch" },
@@ -513,4 +513,6 @@ const D = {
   "Alle Wörter gehören zum Thema in der Mitte. Die gelben Kopfwörter kennst du schon – knüpfe die neuen daran!": ["Tous les mots appartiennent au thème du milieu. Tu connais déjà les mots-clés jaunes – relie les nouveaux mots !", "Todas as palavras pertencem ao tema do meio. Já conheces as palavras-chave amarelas – liga as novas!"],
   "Alle Wörter gehören zum Thema in der Mitte. Knüpfe sie daran!": ["Tous les mots appartiennent au thème du milieu. Relie-les !", "Todas as palavras pertencem ao tema do meio. Liga-as!"],
   "Thema": ["Thème", "Tema"],
+  "Wiederholungen üben": ["Réviser mes mots", "Rever as palavras"],
+  "Wähle deine Insel zum Lernen": ["Choisis ton île pour apprendre", "Escolhe a tua ilha para aprender"],
 };

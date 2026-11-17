@@ -1,10 +1,10 @@
-import { Store, Device, isCloud } from "./store.js?v=20261117g";
-import { esc, uid, sha, pinHash, randomPin, LANG_FLAG, LANG_NAME, PIN_NAMES } from "./util.js?v=20261117g";
-import { art } from "./art.js?v=20261117g";
-import { currentGoal, DEFAULT_REWARDS, START_TARGET, START_PER_KID, rewardsOf, BUILDINGS } from "./goal.js?v=20261117g";
-import { render, $, $$, toast, modal, confirmBox, pic, avatarHtml, fmtMin, relDay } from "./ui.js?v=20261117g";
-import { lessonStats, weekSummary, currentStreak, emptyProgress, todayStr, DAY, wstate, stripArticle, norm, mondayOf, weekLabel, weekState, sortLessons, perDayFor } from "./srs.js?v=20261117g";
-import { fileToLines, splitLines, linesToPairs, prepareImage, matchImages, searchOpenverse, fetchImageBlob } from "./import.js?v=20261117g";
+import { Store, Device, isCloud } from "./store.js?v=20261117i";
+import { esc, uid, sha, pinHash, randomPin, LANG_FLAG, LANG_NAME, PIN_NAMES } from "./util.js?v=20261117i";
+import { art } from "./art.js?v=20261117i";
+import { currentGoal, DEFAULT_REWARDS, START_TARGET, START_PER_KID, rewardsOf, BUILDINGS } from "./goal.js?v=20261117i";
+import { render, $, $$, toast, modal, confirmBox, pic, avatarHtml, fmtMin, relDay } from "./ui.js?v=20261117i";
+import { lessonStats, weekSummary, currentStreak, emptyProgress, todayStr, DAY, wstate, stripArticle, norm, mondayOf, weekLabel, weekState, sortLessons, perDayFor } from "./srs.js?v=20261117i";
+import { fileToLines, splitLines, linesToPairs, prepareImage, matchImages, searchOpenverse, fetchImageBlob } from "./import.js?v=20261117i";
 
 // ---- Bilder speichern (hohe Auflösung, wenn der Online-Bildspeicher eingerichtet ist) ----
 async function storeImageFile(fileOrBlob) {
@@ -51,7 +51,7 @@ function searchImage(query, { title = "Bild suchen", alt = [], series = false } 
   });
 }
 const searchTerm = s => stripArticle(norm(String(s || "").split(/[\/;]/)[0]));
-import { say } from "./speech.js?v=20261117g";
+import { say } from "./speech.js?v=20261117i";
 
 const T = { cls: null, tab: "overview", students: [], lessons: [], progs: {}, back: null };
 // Fortschritt zurücksetzen: neuer Stand mit neuer Kennung – ein noch angemeldetes Kinder-Gerät
@@ -139,7 +139,7 @@ async function dashboard() {
   try { await loadAll(); } catch (e) { render(`<div class="wrap"><div class="t-panel">${esc(e.message)}</div></div>`); return; }
   try { T.goal = await currentGoal(T.cls, Object.values(T.progs), T.students.length); } catch { T.goal = null; }
   const fresh = await autoWeekReport();
-  const tabs = [["overview", "📊 Übersicht"], ["lessons", "📚 Lektionen"], ["reports", "📅 Wochenberichte"], ["students", "👧 Kinder"], ["settings", "⚙️ Einstellungen"]];
+  const tabs = [["overview", "📊 Übersicht"], ["lessons", "📚 Lektionen"], ["reports", "📅 Wochenberichte"], ["students", "👧 Kinder"], ["diploma", "🏅 Diplome"], ["settings", "⚙️ Einstellungen"]];
   render(`<div class="wrap">
     <div class="t-head"><span class="logo">${art("mascotHead")}</span><h1>${esc(T.cls.name)} <span class="pill">${esc(Store.code)}</span></h1>
       <nav class="tabs">${tabs.map(([k, n]) => `<button data-t="${k}" class="${T.tab === k ? "on" : ""}">${n}</button>`).join("")}</nav>
@@ -156,7 +156,7 @@ async function dashboard() {
 
 function showTab() {
   const el = $("#tab");
-  ({ overview, lessons: lessonsTab, reports: reportsTab, students: studentsTab, settings })[T.tab](el);
+  ({ overview, lessons: lessonsTab, reports: reportsTab, students: studentsTab, diploma: diplomaTab, settings })[T.tab](el);
 }
 
 const assignedTo = (l, sid) => l.assigned === "all" || !l.assigned || (Array.isArray(l.assigned) && l.assigned.includes(sid));
@@ -272,13 +272,14 @@ async function studentDetail(r) {
 // ------------------------------------------------------------------
 function lessonsTab(el) {
   el.innerHTML = `<div class="t-panel">
-    <div class="row between"><h2>Lektionen (Inseln)</h2><button class="btn green small" id="new">＋ Neue Lektion</button></div>
+    <div class="row between"><h2>Lektionen (Inseln)</h2><div class="row" style="gap:6px"><button class="btn blue small" id="vis">👁 Wer sieht welche Insel?</button><button class="btn green small" id="new">＋ Neue Lektion</button></div></div>
     <p class="small muted" style="margin:0">Die Reihenfolge bestimmt die Inseln auf der Weltkarte. Die nächste Insel öffnet sich, sobald ein Kind auf der vorherigen einen Stern hat.</p>
     <div class="lesson-list">${T.lessons.map((l, i) => `<div class="lesson-row">
       <span class="ic">${l.iconImg ? `<span class="wpic"><img src="${esc(l.iconImg)}" alt=""></span>` : esc(l.icon || "🏝️")}</span>
-      <div><b>${esc(l.title)}</b> <span class="pill">FR → ${LANG_FLAG[l.lang] || ""} ${LANG_NAME[l.lang] || ""}</span>${l.week ? ` <span class="pill ${weekState(l) === "current" ? "good" : ""}">${esc(weekLabel(l.week))}${weekState(l) === "current" ? " · diese Woche" : ""}</span>` : ""}<br><span class="small muted">${l.words?.length || 0} Wörter · ${l.assigned === "all" || !l.assigned ? "alle Kinder" : `${l.assigned.length} Kinder`}</span></div>
+      <div><b>${esc(l.title)}</b> <span class="pill">FR → ${LANG_FLAG[l.lang] || ""} ${LANG_NAME[l.lang] || ""}</span>${l.week ? ` <span class="pill ${weekState(l) === "current" ? "good" : ""}">${esc(weekLabel(l.week))}${weekState(l) === "current" ? " · diese Woche" : ""}</span>` : ""}<br><span class="small muted">${l.words?.length || 0} Wörter · </span><span class="pill ${visLabel(l) === "ausgeblendet" ? "warn" : ""}">👁 ${visLabel(l)}</span></div>
       <div class="row" style="gap:6px"><button class="btn ghost small" data-up="${i}" ${i === 0 ? "disabled" : ""} aria-label="nach oben">↑</button><button class="btn ghost small" data-down="${i}" ${i === T.lessons.length - 1 ? "disabled" : ""} aria-label="nach unten">↓</button><button class="btn blue small" data-edit="${esc(l.id)}">Bearbeiten</button></div>
     </div>`).join("") || `<p class="muted">Noch keine Lektionen. Lege die erste an – z. B. aus einem Foto deines Vokabelblatts.</p>`}</div></div>`;
+  $("#vis").onclick = () => visibilityView(el);
   $("#new").onclick = () => editLesson({ id: uid("l-"), title: "", icon: "🏝️", lang: "de", assigned: "all", words: [], order: (T.lessons.at(-1)?.order || 0) + 1, created: Date.now(), _new: true });
   $$("[data-edit]", el).forEach(b => b.onclick = () => editLesson(structuredClone(T.lessons.find(l => l.id === b.dataset.edit))));
   const move = async (i, d) => {
@@ -559,6 +560,108 @@ async function unzipImages(file) {
 // ------------------------------------------------------------------
 //  Kinder
 // ------------------------------------------------------------------
+// ------------------------------------------------------------------
+//  Sichtbarkeit: Welche Insel sieht welches Kind auf seiner Startseite?
+//  (nutzt das Feld „assigned“ der Lektion: "all" | [Kinder-IDs]; [] = ausgeblendet)
+// ------------------------------------------------------------------
+const visLabel = l => l.assigned === "all" || !l.assigned ? "alle Kinder" : l.assigned.length ? `${l.assigned.length} von ${T.students.length} Kindern` : "ausgeblendet";
+function visibilityView(el) {
+  const state = new Map(T.lessons.map(l => [l.id, l.assigned === "all" || !l.assigned ? "all" : new Set(l.assigned)]));
+  const has = (l, sid) => { const v = state.get(l.id); return v === "all" || v.has(sid); };
+  const draw = () => {
+    el.innerHTML = `<div class="t-panel">
+      <div class="row between no-print"><h2>👁 Welche Inseln sehen die Kinder?</h2><div class="row" style="gap:6px"><button class="btn ghost small" id="back">Zurück</button><button class="btn green small" id="save">Speichern</button></div></div>
+      <p class="small muted" style="margin:0">Haken = die Insel erscheint auf der Startseite des Kindes zum Lernen. <b>Alle</b> gilt auch für Kinder, die später dazukommen. Ohne Haken ist die Insel ausgeblendet – der Lernfortschritt bleibt gespeichert.</p>
+      ${!T.students.length ? `<p class="muted">Noch keine Kinder angelegt.</p>` : `<div class="tbl-wrap"><table class="tbl vis-tbl"><thead><tr><th>Insel</th><th class="c">Alle</th>${T.students.map(s => `<th class="c kid"><span>${esc(s.name)}</span></th>`).join("")}</tr></thead><tbody>
+      ${T.lessons.map(l => `<tr><td><b>${esc(l.title)}</b> ${LANG_FLAG[l.lang] || ""}<br><span class="small muted">${l.week ? esc(weekLabel(l.week)) + " · " : ""}${l.words?.length || 0} Wörter</span></td>
+        <td class="c"><input type="checkbox" data-all="${esc(l.id)}" ${state.get(l.id) === "all" ? "checked" : ""} aria-label="Alle Kinder: ${esc(l.title)}"></td>
+        ${T.students.map(s => `<td class="c"><input type="checkbox" data-l="${esc(l.id)}" data-s="${esc(s.id)}" ${has(l, s.id) ? "checked" : ""} aria-label="${esc(s.name)}: ${esc(l.title)}"></td>`).join("")}</tr>`).join("")}
+      </tbody></table></div>
+      <div class="row no-print" style="gap:6px"><button class="btn ghost small" id="allOn">Alle Inseln für alle</button><button class="btn ghost small" id="onlyWeek">Nur die Insel dieser Woche</button></div>`}
+    </div>`;
+    $("#back").onclick = () => lessonsTab(el);
+    $$("[data-all]", el).forEach(c => c.onchange = () => { state.set(c.dataset.all, c.checked ? "all" : new Set()); draw(); });
+    $$("[data-l]", el).forEach(c => c.onchange = () => {
+      const id = c.dataset.l; let v = state.get(id);
+      if (v === "all") v = new Set(T.students.map(s => s.id));
+      c.checked ? v.add(c.dataset.s) : v.delete(c.dataset.s);
+      state.set(id, v.size === T.students.length && T.students.length ? "all" : v); draw();
+    });
+    if ($("#allOn")) $("#allOn").onclick = () => { T.lessons.forEach(l => state.set(l.id, "all")); draw(); };
+    if ($("#onlyWeek")) $("#onlyWeek").onclick = () => {
+      const cur = T.lessons.filter(l => weekState(l) === "current");
+      if (!cur.length) return toast("Keine Insel ist für diese Woche eingeplant.");
+      T.lessons.forEach(l => state.set(l.id, cur.includes(l) ? "all" : new Set())); draw();
+    };
+    $("#save").onclick = async () => {
+      const b = $("#save"); b.disabled = true;
+      try {
+        let n = 0;
+        for (const l of T.lessons) {
+          const v = state.get(l.id), nv = v === "all" ? "all" : [...v];
+          const old = l.assigned === "all" || !l.assigned ? "all" : [...l.assigned].sort().join();
+          if ((nv === "all" ? "all" : [...nv].sort().join()) === old) continue;
+          await Store.put("lesson", l.id, { ...l, assigned: nv }); n++;
+        }
+        await loadAll(); toast(n ? `Gespeichert (${n} ${n === 1 ? "Insel" : "Inseln"} geändert).` : "Nichts geändert."); lessonsTab(el);
+      } catch (e) { b.disabled = false; toast(e.message, 4000); }
+    };
+  };
+  draw();
+}
+
+// ------------------------------------------------------------------
+//  Diplome zum Ausdrucken (kindgerecht, ein Blatt pro Kind)
+// ------------------------------------------------------------------
+function diplomaTab(el) {
+  const D = T.diploma || (T.diploma = { lesson: (T.lessons.find(l => weekState(l) === "current") || T.lessons[0])?.id || "", title: "Diplom", text: "hat die Insel „{insel}“ geschafft und ganz fleißig Französisch gelernt!", sign: "", stars: true, date: new Date().toLocaleDateString("de-DE"), pick: {} });
+  const L = () => T.lessons.find(l => l.id === D.lesson);
+  const names = () => T.students.map(s => ({ s, on: D.pick[s.id]?.on ?? true, name: D.pick[s.id]?.name ?? s.name }));
+  const draw = () => {
+    const l = L();
+    el.innerHTML = `<div class="grid2 no-print">
+      <div class="t-panel"><h2>🏅 Diplome</h2>
+        <p class="small muted" style="margin:0">Ein kindgerechtes Diplom pro Kind zum Ausdrucken. Lektion, Text und Namen kannst du anpassen.</p>
+        <div class="field"><label for="dl">Lektion (Insel)</label><select class="input" id="dl">${T.lessons.map(x => `<option value="${esc(x.id)}" ${x.id === D.lesson ? "selected" : ""}>${esc(x.title)}</option>`).join("")}</select></div>
+        <div class="field"><label for="dt">Überschrift</label><input class="input" id="dt" value="${esc(D.title)}" maxlength="40"></div>
+        <div class="field"><label for="dx">Text <span class="small muted">({insel} = Name der Insel)</span></label><textarea class="input" id="dx" maxlength="200" style="font-family:inherit">${esc(D.text)}</textarea></div>
+        <div class="grid2" style="gap:10px"><div class="field"><label for="dd">Datum</label><input class="input" id="dd" value="${esc(D.date)}" maxlength="30"></div>
+          <div class="field"><label for="ds">Unterschrift (optional)</label><input class="input" id="ds" value="${esc(D.sign)}" placeholder="z. B. Deine Lehrerin" maxlength="40"></div></div>
+        <label class="check"><input type="checkbox" id="dst" ${D.stars ? "checked" : ""}> Sterne des Kindes auf dieser Insel zeigen <span class="small muted">(nur wenn es mindestens 1 Stern hat)</span></label>
+      </div>
+      <div class="t-panel"><div class="row between"><h2>Kinder (${names().filter(x => x.on).length})</h2><div class="row" style="gap:6px"><button class="btn ghost small" id="none">Keins</button><button class="btn ghost small" id="all">Alle</button></div></div>
+        <p class="small muted" style="margin:0">Haken = Diplom drucken. Den Namen kannst du für das Diplom ändern (z. B. mit Nachnamen) – er wird nicht gespeichert.</p>
+        <div class="dip-kids">${names().map(({ s, on, name }) => `<div class="dip-kid"><input type="checkbox" data-on="${esc(s.id)}" ${on ? "checked" : ""} aria-label="${esc(s.name)} drucken"><input class="input" data-name="${esc(s.id)}" value="${esc(name)}" maxlength="40"></div>`).join("") || `<span class="muted">Noch keine Kinder.</span>`}</div>
+        <button class="btn green" id="print" ${l && names().some(x => x.on) ? "" : "disabled"}>🖨 Diplome drucken</button>
+      </div></div>
+    <h2 class="section-title no-print" style="margin-top:16px">Vorschau</h2>
+    <div class="dip-sheets">${l ? names().filter(x => x.on).map(x => diplomaSheet(x.s, x.name, l, D)).join("") : `<p class="muted">Bitte zuerst eine Lektion anlegen.</p>`}</div>`;
+    const keep = () => { D.lesson = $("#dl").value; D.title = $("#dt").value; D.text = $("#dx").value; D.date = $("#dd").value; D.sign = $("#ds").value; D.stars = $("#dst").checked; };
+    ["#dl", "#dst"].forEach(id => $(id).onchange = () => { keep(); draw(); });
+    ["#dt", "#dx", "#dd", "#ds"].forEach(id => $(id).onchange = () => { keep(); draw(); });
+    $$("[data-on]", el).forEach(c => c.onchange = () => { keep(); D.pick[c.dataset.on] = { ...(D.pick[c.dataset.on] || {}), on: c.checked }; draw(); });
+    $$("[data-name]", el).forEach(i => i.onchange = () => { keep(); D.pick[i.dataset.name] = { ...(D.pick[i.dataset.name] || {}), name: i.value.trim() }; draw(); });
+    $("#all").onclick = () => { keep(); T.students.forEach(s => D.pick[s.id] = { ...(D.pick[s.id] || {}), on: true }); draw(); };
+    $("#none").onclick = () => { keep(); T.students.forEach(s => D.pick[s.id] = { ...(D.pick[s.id] || {}), on: false }); draw(); };
+    $("#print").onclick = () => { keep(); draw(); document.body.classList.add("print-diploma"); setTimeout(() => { window.print(); document.body.classList.remove("print-diploma"); }, 300); };
+  };
+  draw();
+}
+function diplomaSheet(s, name, l, D) {
+  const st = lessonStats(T.progs[s.id] || emptyProgress(), l).stars;
+  const starRow = D.stars && st > 0 ? `<div class="dip-stars">${[1, 2, 3].map(i => art(i <= st ? "star" : "starEmpty")).join("")}</div>` : "";
+  return `<div class="diploma"><div class="dip-in">
+    <div class="dip-top"><span class="dip-ribbon">Plapperlapapp</span></div>
+    <h1 class="dip-title">${esc(D.title || "Diplom")}</h1>
+    <p class="dip-for">für</p>
+    <div class="dip-name">${esc(name || s.name)}</div>
+    <p class="dip-text">${esc(D.text || "").replace(/\{insel\}/g, esc(l.title))}</p>
+    ${starRow}
+    <div class="dip-mascot">${art("parrot")}</div>
+    <div class="dip-foot"><div><span class="dip-line">${esc(D.date || "")}</span><small>Datum</small></div><div><span class="dip-line">${esc(D.sign || "")}</span><small>Unterschrift</small></div></div>
+  </div></div>`;
+}
+
 function studentsTab(el) {
   el.innerHTML = `<div class="grid2">
     <div class="t-panel no-print"><h2>Kinder hinzufügen</h2>
