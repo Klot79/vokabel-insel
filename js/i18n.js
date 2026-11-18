@@ -3,7 +3,7 @@
 //  t("deutscher Text {x}", {x}) liefert den Text in der gewählten Sprache.
 //  Fehlt eine Übersetzung, bleibt der deutsche Text stehen.
 // ---------------------------------------------------------------
-import { Device } from "./store.js?v=20261118j";
+import { Device } from "./store.js?v=20261118k";
 
 export const UI_LANGS = [
   { k: "de", flag: "🇩🇪", name: "Deutsch" },
@@ -610,4 +610,7 @@ const D = {
   "Farbe von Hose oder Rock": ["Couleur du pantalon ou de la jupe", "Cor das calças ou da saia"],
   "Farbe vom Rahmen": ["Couleur du cadre", "Cor da moldura"],
   "Standard": ["Standard", "Padrão"],
+  "Farbe vom Hut": ["Couleur du chapeau", "Cor do chapéu"],
+  "Farbe der Schuhe": ["Couleur des chaussures", "Cor dos sapatos"],
+  "Farbe vom Extra": ["Couleur de l'extra", "Cor do extra"],
 };

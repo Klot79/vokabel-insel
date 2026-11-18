@@ -217,7 +217,21 @@ export function hatStyle(animal, hatKey) {
   return `left:${x.toFixed(1)}%;top:${top.toFixed(1)}%;width:${w.toFixed(1)}%`;
 }
 
-export function hat(key) { return HATS[key] || (key ? `<span aria-hidden="true">${key}</span>` : ""); }
+// Farbe dunkler machen (für Schatten/Krempe beim Umfärben)
+export function darken(hex, f = 0.72) {
+  const n = parseInt(String(hex).slice(1), 16); if (isNaN(n) || String(hex).length !== 7) return hex;
+  const c = x => Math.round(x * f).toString(16).padStart(2, "0");
+  return "#" + c(n >> 16) + c((n >> 8) & 255) + c(n & 255);
+}
+const recolor = (str, main, shade, color) => !color || !main ? str : str.split(main).join(color).split(shade || "\u0000").join(darken(color));
+// Hauptfarbe + Schatten jedes Huts (wird beim Umfärben ersetzt)
+const HAT_MAIN = { "🌸": ["#7048e8"], "🧢": ["#1c7ed6", "#1864ab"], "🎀": ["#2b8a3e", "#237032"], "⛑️": ["#fa5252"], "🤠": ["#c97b3f", "#7a4b20"], "🎓": ["#343a40"], "🎩": ["#343a40"], "👑": ["#ffd43b"], "🏴‍☠️": ["#343a40"] };
+export function hat(key, color = "") {
+  const s = HATS[key];
+  if (!s) return key ? `<span aria-hidden="true">${key}</span>` : "";
+  const [m, sh] = HAT_MAIN[key] || [];
+  return recolor(s, m, sh, color);
+}
 export const ANIMAL_KEYS = ["🦊", "🐈", "😺", "😸", "🐺", "🐢", "🐻", "🐬", "🦋", "🐧", "🐸", "🐙", "🦜", "🐼", "🦄", "🦖"];
 export const HAT_KEYS = Object.keys(HATS);
 
@@ -241,17 +255,17 @@ export const OUTFIT = {
     jogger: { price: 25, draw: c => `<path d="M28 52 H72 L66 98 H53 L50 66 L47 98 H34Z" fill="${c || "#adb5bd"}" ${o(3)}/><path d="M31 56 L35 94 M69 56 L65 94" fill="none" stroke="#fff" stroke-width="3"/><path d="M34 92 H47 M53 92 H66" fill="none" ${o(2.5)}/>` },
   },
   shoes: {
-    sneakers: { price: 0, draw: () => shoeR(`<path d="M33 95 H47 Q52 95 52 100 Q52 104 48 104 H30 Q28 99 33 95Z" fill="#fff" ${o(3)}/><path d="M36 100 Q42 97 48 100" fill="none" stroke="#e03131" stroke-width="2.5"/>`) },
-    boots: { price: 20, draw: () => shoeR(`<path d="M34 82 H48 V98 Q53 98 53 102 Q53 105 49 105 H32Z" fill="#8d5524" ${o(3)}/><path d="M34 88 H48" fill="none" stroke="#5c3a17" stroke-width="2.5"/>`) },
-    sandals: { price: 15, draw: () => shoeR(`<ellipse cx="41" cy="101" rx="9" ry="4.5" fill="#ffe8cc" ${o(3)}/><path d="M33 99 L49 99 M37 96 L45 103" fill="none" stroke="#a0673a" stroke-width="3" stroke-linecap="round"/>`) },
-    rain: { price: 25, draw: () => shoeR(`<path d="M34 80 H48 V98 Q53 98 53 102 Q53 105 49 105 H32Z" fill="#fcc419" ${o(3)}/><path d="M34 84 H48" fill="none" stroke="#f08c00" stroke-width="2.5"/>`) },
+    sneakers: { main: "#fff", price: 0, draw: () => shoeR(`<path d="M33 95 H47 Q52 95 52 100 Q52 104 48 104 H30 Q28 99 33 95Z" fill="#fff" ${o(3)}/><path d="M36 100 Q42 97 48 100" fill="none" stroke="#e03131" stroke-width="2.5"/>`) },
+    boots: { main: "#8d5524", shade: "#5c3a17", price: 20, draw: () => shoeR(`<path d="M34 82 H48 V98 Q53 98 53 102 Q53 105 49 105 H32Z" fill="#8d5524" ${o(3)}/><path d="M34 88 H48" fill="none" stroke="#5c3a17" stroke-width="2.5"/>`) },
+    sandals: { main: "#a0673a", price: 15, draw: () => shoeR(`<ellipse cx="41" cy="101" rx="9" ry="4.5" fill="#ffe8cc" ${o(3)}/><path d="M33 99 L49 99 M37 96 L45 103" fill="none" stroke="#a0673a" stroke-width="3" stroke-linecap="round"/>`) },
+    rain: { main: "#fcc419", shade: "#f08c00", price: 25, draw: () => shoeR(`<path d="M34 80 H48 V98 Q53 98 53 102 Q53 105 49 105 H32Z" fill="#fcc419" ${o(3)}/><path d="M34 84 H48" fill="none" stroke="#f08c00" stroke-width="2.5"/>`) },
   },
   extra: {
-    scarf: { price: 20, draw: () => `<path d="M35 7 Q50 15 65 7 L65 14 Q50 22 35 14Z" fill="#e03131" ${o(3)}/><path d="M57 15 L59 36 L66 34 L63 13Z" fill="#e03131" ${o(2.5)}/><path d="M58 30 L65 29" fill="none" stroke="#fff" stroke-width="2"/>` },
-    bowtie: { price: 15, draw: () => `<path d="M41 7 L50 11 L41 16Z M59 7 L50 11 L59 16Z" fill="#1c7ed6" ${o(2.5)}/><circle cx="50" cy="11.5" r="2.6" fill="#1c7ed6" ${o(2)}/>` },
-    backpack: { price: 30, back: () => `<rect x="21" y="12" width="58" height="42" rx="10" fill="#f08c00" ${o(3)}/>`, draw: () => `<path d="M38 8 L36 48 M62 8 L64 48" fill="none" stroke="${K}" stroke-width="7" stroke-linecap="round"/><path d="M38 8 L36 48 M62 8 L64 48" fill="none" stroke="#d9480f" stroke-width="4" stroke-linecap="round"/>` },
-    cape: { price: 60, back: () => `<path d="M30 8 Q50 3 70 8 L88 94 Q50 102 12 94Z" fill="#7048e8" ${o(3)}/><path d="M30 8 Q50 3 70 8 L72 14 Q50 9 28 14Z" fill="#e03131" ${o(2.5)}/>` },
-    medal: { price: 80, draw: () => `<path d="M43 6 L50 26 L57 6" fill="none" stroke="${K}" stroke-width="6"/><path d="M43 6 L50 26 L57 6" fill="none" stroke="#1c7ed6" stroke-width="3"/><circle cx="50" cy="31" r="7" fill="#ffd43b" ${o(2.5)}/><path d="M50 26.5 l1.6 3.2 3.4 .4 -2.5 2.3 .7 3.4 -3.2 -1.7 -3.2 1.7 .7 -3.4 -2.5 -2.3 3.4 -.4Z" fill="#f08c00"/>` },
+    scarf: { main: "#e03131", price: 20, draw: () => `<path d="M35 7 Q50 15 65 7 L65 14 Q50 22 35 14Z" fill="#e03131" ${o(3)}/><path d="M57 15 L59 36 L66 34 L63 13Z" fill="#e03131" ${o(2.5)}/><path d="M58 30 L65 29" fill="none" stroke="#fff" stroke-width="2"/>` },
+    bowtie: { main: "#1c7ed6", price: 15, draw: () => `<path d="M41 7 L50 11 L41 16Z M59 7 L50 11 L59 16Z" fill="#1c7ed6" ${o(2.5)}/><circle cx="50" cy="11.5" r="2.6" fill="#1c7ed6" ${o(2)}/>` },
+    backpack: { main: "#f08c00", shade: "#d9480f", price: 30, back: () => `<rect x="21" y="12" width="58" height="42" rx="10" fill="#f08c00" ${o(3)}/>`, draw: () => `<path d="M38 8 L36 48 M62 8 L64 48" fill="none" stroke="${K}" stroke-width="7" stroke-linecap="round"/><path d="M38 8 L36 48 M62 8 L64 48" fill="none" stroke="#d9480f" stroke-width="4" stroke-linecap="round"/>` },
+    cape: { main: "#7048e8", price: 60, back: () => `<path d="M30 8 Q50 3 70 8 L88 94 Q50 102 12 94Z" fill="#7048e8" ${o(3)}/><path d="M30 8 Q50 3 70 8 L72 14 Q50 9 28 14Z" fill="#e03131" ${o(2.5)}/>` },
+    medal: { main: "#1c7ed6", price: 80, draw: () => `<path d="M43 6 L50 26 L57 6" fill="none" stroke="${K}" stroke-width="6"/><path d="M43 6 L50 26 L57 6" fill="none" stroke="#1c7ed6" stroke-width="3"/><circle cx="50" cy="31" r="7" fill="#ffd43b" ${o(2.5)}/><path d="M50 26.5 l1.6 3.2 3.4 .4 -2.5 2.3 .7 3.4 -3.2 -1.7 -3.2 1.7 .7 -3.4 -2.5 -2.3 3.4 -.4Z" fill="#f08c00"/>` },
   },
 };
 export const OUTFIT_DEFAULT = { top: "tshirt", bottom: "jeans", shoes: "sneakers", extra: "" };
@@ -261,18 +275,21 @@ export function bodySvg(av = {}, only = null) {
   const pick = g => (only ? (only[0] === g ? only[1] : "") : (av[g] ?? OUTFIT_DEFAULT[g] ?? ""));
   const top = OUTFIT.top[pick("top")], bot = OUTFIT.bottom[pick("bottom")], sh = OUTFIT.shoes[pick("shoes")], ex = OUTFIT.extra[pick("extra")];
   const sleeve = top?.sleeve || "none", armCol = sleeve === "long" ? c : fur;
+  const pickC = k => av[k] || "";
+  // Zubehör umfärben: Hauptfarbe → gewählte Farbe, Schatten → dunklere Variante
+  const paint = (item, str, color) => (color && item.main ? str.split(`"${item.main}"`).join(`"${color}"`).split(item.shade ? `"${item.shade}"` : "\u0000").join(`"${darken(color)}"`) : str);
   const limb = (d, col, w = 7) => `<path d="${d}" fill="none" stroke="${K}" stroke-width="${w + 5}" stroke-linecap="round"/><path d="${d}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round"/>`;
   const L = "M31 12 Q19 30 17 50", R = "M69 12 Q81 30 83 50";
-  const body = (ex?.back ? ex.back(c) : "")
+  const body = (ex?.back ? paint(ex, ex.back(c), pickC("extraColor")) : "")
     + `<rect x="36" y="54" width="12" height="44" rx="5" fill="${fur}" ${o(3)}/><rect x="52" y="54" width="12" height="44" rx="5" fill="${fur}" ${o(3)}/>`
     + (bot ? bot.draw(bc) : "")
-    + (sh ? sh.draw(c) : `<ellipse cx="41" cy="100" rx="9" ry="5" fill="${fur}" ${o(3)}/><ellipse cx="59" cy="100" rx="9" ry="5" fill="${fur}" ${o(3)}/>`)
+    + (sh ? paint(sh, sh.draw(), pickC("shoesColor")) : `<ellipse cx="41" cy="100" rx="9" ry="5" fill="${fur}" ${o(3)}/><ellipse cx="59" cy="100" rx="9" ry="5" fill="${fur}" ${o(3)}/>`)
     + (top?.draw && top === OUTFIT.top.dress ? "" : `<path d="M30 8 Q50 2 70 8 L73 58 Q50 65 27 58Z" fill="${fur}" ${o(3)}/>`)
     + (top ? top.draw(c) : "")
     + limb(L, armCol) + limb(R, armCol)
     + (sleeve === "short" ? limb("M31 12 Q27 19 25 26", c, 9) + limb("M69 12 Q73 19 75 26", c, 9) : "")
     + `<circle cx="17" cy="52" r="5.5" fill="${fur}" ${o(3)}/><circle cx="83" cy="52" r="5.5" fill="${fur}" ${o(3)}/>`
-    + (ex?.draw ? ex.draw(c) : "");
+    + (ex?.draw ? paint(ex, ex.draw(c), pickC("extraColor")) : "");
   return svg("0 0 100 110", body);
 }
-export const outfitPreview = (kind, key, av = {}) => bodySvg({ topColor: av.topColor || av.color, bottomColor: av.bottomColor }, [kind, key]);
+export const outfitPreview = (kind, key, av = {}) => bodySvg({ topColor: av.topColor || av.color, bottomColor: av.bottomColor, shoesColor: av.shoesColor, extraColor: av.extraColor }, [kind, key]);
