@@ -1,10 +1,10 @@
-import { Store, Device, isCloud } from "./store.js?v=20261117q";
-import { esc, uid, sha, pinHash, randomPin, LANG_FLAG, LANG_NAME, PIN_NAMES } from "./util.js?v=20261117q";
-import { art, hat } from "./art.js?v=20261117q";
-import { currentGoal, DEFAULT_REWARDS, START_TARGET, START_PER_KID, rewardsOf, BUILDINGS } from "./goal.js?v=20261117q";
-import { render, $, $$, toast, modal, confirmBox, pic, avatarHtml, fmtMin, relDay } from "./ui.js?v=20261117q";
-import { lessonStats, weekSummary, currentStreak, emptyProgress, todayStr, DAY, wstate, stripArticle, norm, mondayOf, weekLabel, weekState, sortLessons, perDayFor } from "./srs.js?v=20261117q";
-import { fileToLines, splitLines, linesToPairs, prepareImage, matchImages, searchOpenverse, fetchImageBlob } from "./import.js?v=20261117q";
+import { Store, Device, isCloud } from "./store.js?v=20261118b";
+import { esc, uid, sha, pinHash, randomPin, LANG_FLAG, LANG_NAME, PIN_NAMES } from "./util.js?v=20261118b";
+import { art, hat } from "./art.js?v=20261118b";
+import { currentGoal, DEFAULT_REWARDS, START_TARGET, START_PER_KID, rewardsOf, BUILDINGS } from "./goal.js?v=20261118b";
+import { render, $, $$, toast, modal, confirmBox, pic, avatarHtml, fmtMin, relDay } from "./ui.js?v=20261118b";
+import { lessonStats, weekSummary, currentStreak, emptyProgress, todayStr, DAY, wstate, stripArticle, norm, mondayOf, weekLabel, weekState, sortLessons, perDayFor } from "./srs.js?v=20261118b";
+import { fileToLines, splitLines, linesToPairs, prepareImage, matchImages, searchOpenverse, fetchImageBlob } from "./import.js?v=20261118b";
 
 // ---- Bilder speichern (hohe Auflösung, wenn der Online-Bildspeicher eingerichtet ist) ----
 async function storeImageFile(fileOrBlob) {
@@ -51,7 +51,7 @@ function searchImage(query, { title = "Bild suchen", alt = [], series = false } 
   });
 }
 const searchTerm = s => stripArticle(norm(String(s || "").split(/[\/;]/)[0]));
-import { say } from "./speech.js?v=20261117q";
+import { say } from "./speech.js?v=20261118b";
 
 const T = { cls: null, tab: "overview", students: [], lessons: [], progs: {}, back: null };
 // Fortschritt zurücksetzen: neuer Stand mit neuer Kennung – ein noch angemeldetes Kinder-Gerät
@@ -95,7 +95,8 @@ export function teacherLogin(back) {
       if (!cls) return toast("Diese Klasse gibt es nicht. Bitte den Code prüfen.");
       if (!(await Store.teacherLogin(c, p))) return toast("Die PIN stimmt nicht.");
       Device.set("classCode", c);
-      T.cls = cls; dashboard();
+      T.cls = cls;
+      if (await ensureKey()) dashboard();
     } catch (e) { toast(e.message); }
   };
   $("#tp").onkeydown = e => { if (e.key === "Enter") $("#open").click(); };
@@ -106,11 +107,65 @@ export function teacherLogin(back) {
     if (!/^\d{4,}$/.test(p)) return toast("Die PIN braucht mindestens 4 Ziffern.");
     try {
       if (await Store.classExists(c)) return toast("Diesen Klassencode gibt es schon. Bitte einen anderen wählen.");
-      const cls = { name, goal: { title: "Leuchtturm bauen", target: 300 }, allOpen: false, created: Date.now() };
+      Store.code = c; Store.setKey(c, Store.newKeyRaw());
+      const cls = { name, goal: { title: "Leuchtturm bauen", target: 300 }, allOpen: false, created: Date.now(), keyCheck: await Store.makeKeyCheck() };
       await Store.createClass(c, cls, p);
+      T.setupNew = true;
       Device.set("classCode", c);
       T.cls = cls; T.tab = "students"; dashboard();
       toast("Klasse angelegt! Lege jetzt die Kinder an.");
+    } catch (e) { toast(e.message); }
+  };
+}
+
+// Klassenschlüssel: beim ersten Öffnen nach dem Datenschutz-Update erzeugen,
+// auf neuen Geräten über den Klassen-Link übernehmen
+async function ensureKey() {
+  if (T.cls.keyCheck) {
+    if (await Store.keyMatches(T.cls)) return true;
+    keyScreen(); return false;
+  }
+  if (!Store.keyRaw()) Store.setKey(Store.code, Store.newKeyRaw());
+  const full = await Store.getOne("class", "main");
+  T.cls = { ...(full || T.cls), keyCheck: await Store.makeKeyCheck() };
+  await Store.put("class", "main", T.cls);
+  T.setupNew = true; T.tab = "settings";
+  return true;
+}
+
+function keyScreen() {
+  document.body.classList.remove("teacher-mode");
+  render(`<div class="wrap narrow">
+    <div class="row"><button class="btn ghost small" id="back">Zurück</button></div>
+    <div class="panel stack">
+      <h2>🔒 Klassenschlüssel fehlt auf diesem Gerät</h2>
+      <p style="margin:0">Die Namen der Kinder sind verschlüsselt. Öffne auf diesem Gerät den <b>Klassen-Link</b> (oder scanne den QR-Code) – oder füge den Link hier ein:</p>
+      <input class="input" id="kl" placeholder="https://…#k=${esc(Store.code)}&s=…" autocomplete="off">
+      <button class="btn green" id="kok">Übernehmen</button>
+    </div>
+    <details class="panel"><summary><b>Klassen-Link verloren?</b></summary>
+      <p class="small">Du kannst einen neuen Schlüssel erstellen. Dann lassen sich die bisherigen <b>Namen, Lernhilfen und Bild-PINs nicht mehr lesen</b> – du trägst die Namen neu ein und richtest alle Geräte neu ein. Lernfortschritt, Lektionen und Klassenziel bleiben erhalten.</p>
+      <button class="btn coral small" id="knew">Neuen Schlüssel erstellen</button>
+    </details>
+  </div>`);
+  $("#back").onclick = () => { Store.teacherLogout(); T.back(); };
+  $("#kok").onclick = async () => {
+    const k = Store.parseKey($("#kl").value);
+    if (!k) return toast("Das ist kein gültiger Klassen-Link.");
+    if (k.code && k.code !== Store.code) return toast(`Dieser Link gehört zur Klasse ${k.code}.`);
+    Store.setKey(Store.code, k.key);
+    if (await Store.keyMatches(T.cls)) { toast("🔒 Gerät eingerichtet ✔"); dashboard(); }
+    else { Store.forgetKey(); toast("Dieser Schlüssel passt nicht zur Klasse."); }
+  };
+  $("#kl").onkeydown = e => { if (e.key === "Enter") $("#kok").click(); };
+  $("#knew").onclick = async () => {
+    if (!await confirmBox("Wirklich einen neuen Schlüssel erstellen? Die bisherigen Namen, Lernhilfen und Bild-PINs sind danach nicht mehr lesbar. Das kann nicht rückgängig gemacht werden.", "Neuen Schlüssel erstellen", "Abbrechen", true)) return;
+    try {
+      Store.setKey(Store.code, Store.newKeyRaw());
+      const full = await Store.getOne("class", "main");
+      T.cls = { ...(full || T.cls), keyCheck: await Store.makeKeyCheck() };
+      await Store.put("class", "main", T.cls);
+      T.setupNew = true; T.tab = "students"; dashboard();
     } catch (e) { toast(e.message); }
   };
 }
@@ -125,10 +180,12 @@ function suggestCode() {
 // ------------------------------------------------------------------
 async function loadAll() {
   const [students, lessons, progs, cls] = await Promise.all([Store.list("student"), Store.list("lesson"), Store.list("progress"), Store.getOne("class", "main")]);
+  for (const s of students) if (s._locked) s.name = "❓ Name fehlt";
   T.students = students.sort((a, b) => a.name.localeCompare(b.name, "de"));
   T.lessons = sortLessons(lessons);
   const classRows = await Store.list("class");
-  T.reports = classRows.filter(r => r.id.startsWith("report-")).sort((a, b) => b.week.localeCompare(a.week));
+  T.reports = classRows.filter(r => r.id.startsWith("report-") && !r._locked && r.summary).sort((a, b) => b.week.localeCompare(a.week));
+  T.plainLeft = [...students.filter(s => s._plain).map(s => ["student", s]), ...classRows.filter(r => r._plain).map(r => ["class", r])];
   T.progs = Object.fromEntries(progs.map(p => [p.id, { ...emptyProgress(), ...p }]));
   if (cls) T.cls = cls;
 }
@@ -137,6 +194,11 @@ async function dashboard() {
   document.body.classList.add("teacher-mode");
   render(`<div class="wrap"><div class="t-panel">Lade Daten …</div></div>`);
   try { await loadAll(); } catch (e) { render(`<div class="wrap"><div class="t-panel">${esc(e.message)}</div></div>`); return; }
+  // Datenschutz-Update: noch unverschlüsselte Namen und Berichte jetzt verschlüsseln
+  if (T.plainLeft?.length && await Store.key()) {
+    try { for (const [kind, o] of T.plainLeft) await Store.put(kind, o.id, o); await loadAll(); }
+    catch (e) { toast("Verschlüsseln fehlgeschlagen: " + e.message, 5000); }
+  }
   try { T.goal = await currentGoal(T.cls, Object.values(T.progs), T.students.length); } catch { T.goal = null; }
   const fresh = await autoWeekReport();
   const tabs = [["overview", "📊 Übersicht"], ["lessons", "📚 Lektionen"], ["reports", "📅 Wochenberichte"], ["students", "👧 Kinder"], ["diploma", "🏅 Diplome"], ["settings", "⚙️ Einstellungen"]];
@@ -144,10 +206,12 @@ async function dashboard() {
     <div class="t-head"><span class="logo">${art("mascotHead")}</span><h1>${esc(T.cls.name)} <span class="pill">${esc(Store.code)}</span></h1>
       <nav class="tabs">${tabs.map(([k, n]) => `<button data-t="${k}" class="${T.tab === k ? "on" : ""}">${n}</button>`).join("")}</nav>
       <button class="btn ghost small" id="logout">Abmelden</button></div>
+    ${T.setupNew ? `<div class="banner no-print good-banner">🔒 <b>Namen, Lernhilfen und Wochenberichte sind jetzt verschlüsselt.</b> Bitte jetzt unter ⚙️ Einstellungen den Klassen-Link sichern und jedes Tablet einmal damit einrichten.</div>` : ""}
     ${!isCloud ? `<div class="banner no-print">Demo-Modus: Daten werden nur auf diesem Gerät gespeichert. Für die ganze Klasse auf allen Geräten bitte Supabase einrichten (siehe Anleitung).</div>` : ""}
     ${T.goal && T.goal.achieved >= T.goal.target ? `<div class="banner no-print good-banner">🎉 Klassenziel erreicht${T.goal.day ? ` am ${new Date(T.goal.day + "T12:00").toLocaleDateString("de", { weekday: "long" })}` : ""}: ${esc(T.goal.building.name)} fertig (${T.goal.achieved}/${T.goal.target} Wörter). Belohnung laut Glücksrad: <b>${esc(T.goal.rewards[T.goal.rewardIdx])}</b></div>` : ""}
     ${fresh ? `<div class="banner no-print row between"><span>📅 Neuer Wochenbericht: ${esc(weekLabel(fresh.week))}</span><button class="btn blue small" id="openRep">Ansehen</button></div>` : ""}
     <div id="tab"></div></div>`);
+  T.setupNew = false;
   if ($("#openRep")) $("#openRep").onclick = () => { T.tab = "reports"; $$(".tabs button").forEach(x => x.classList.toggle("on", x.dataset.t === "reports")); showReport(fresh); };
   $$(".tabs button").forEach(b => b.onclick = () => { T.tab = b.dataset.t; $$(".tabs button").forEach(x => x.classList.toggle("on", x === b)); showTab(); });
   $("#logout").onclick = () => { document.body.classList.remove("teacher-mode"); Store.teacherLogout(); T.back(); };
@@ -254,7 +318,7 @@ function spark(p) {
 
 async function studentDetail(r) {
   const hardWords = [];
-  for (const l of r.my) for (const w of l.words) { const s = wstate(r.p, l.id, w.id); if (s.w >= 2 || (s.b === 1 && s.w >= 1)) hardWords.push({ w, s }); }
+  for (const l of r.my) for (const w of l.words) { const s = wstate(r.p, l.id, w.id); if (s.b <= 2 && (s.w >= 2 || (s.b === 1 && s.w >= 1))) hardWords.push({ w, s }); }
   hardWords.sort((a, b) => b.s.w - a.s.w);
   const res = await modal(`<div class="row" style="gap:12px">${avatarHtml(r.p.avatar)}<div><h2>${esc(r.s.name)}</h2><span class="muted small">zuletzt aktiv: ${relDay(r.lastTs)} · 🔥 ${currentStreak(r.p)} · 🪙 ${r.p.coins}</span></div></div>
     <div class="stack" style="gap:8px">${r.my.map(l => { const st = lessonStats(r.p, l); return `<div><div class="row between small"><span>${esc(l.icon || "")} ${esc(l.title)} ${"⭐".repeat(st.stars)}</span><span>${st.known}/${st.total} sicher · ${st.master} gemeistert · ${st.due} fällig</span></div><div class="bar"><i style="width:${st.knownPct}%"></i></div></div>`; }).join("") || "Keine Lektionen zugewiesen."}</div>
@@ -743,7 +807,9 @@ function studentsTab(el) {
 function settings(el) {
   const g = T.cls.goal || {};
   const hist = (T.goal?.history || []).slice(-6);
-  const link = location.origin + location.pathname + "#k=" + encodeURIComponent(Store.code);
+  const link = Store.classLink();
+  let qr = "";
+  try { const q = qrcode(0, "M"); q.addData(link); q.make(); qr = q.createSvgTag(4, 8); } catch {}
   el.innerHTML = `<div class="grid2">
     <div class="t-panel"><h2>Klasse</h2>
       <div class="field"><label for="cn">Name</label><input class="input" id="cn" value="${esc(T.cls.name)}"></div>
@@ -758,23 +824,59 @@ function settings(el) {
       <label class="check"><input type="checkbox" id="rep" ${T.cls.report?.enabled ? "checked" : ""}> Wochenbericht automatisch erstellen (jeden Montag ab 7:00)</label>
       <button class="btn green small" id="sv" style="justify-self:start">Speichern</button>
     </div>
-    <div class="t-panel"><h2>Link für die Kinder</h2>
-      <p class="small" style="margin:0">Mit diesem Link ist der Klassencode schon eingetragen. Als Lesezeichen auf dem iPad-Home-Bildschirm speichern (Teilen → „Zum Home-Bildschirm“).</p>
+    <div class="t-panel" id="keyPanel"><h2>🔒 Klassen-Link mit Schlüssel</h2>
+      <p class="small" style="margin:0">Öffne diesen Link <b>einmal auf jedem Tablet</b> oder scanne den QR-Code mit der Kamera. Danach ist das Gerät eingerichtet und zeigt die Namen der Kinder. Tipp: dann als Lesezeichen auf den Home-Bildschirm legen (Teilen → „Zum Home-Bildschirm“).</p>
+      ${qr ? `<div class="qr-box">${qr}</div>` : ""}
       <input class="input" id="lnk" value="${esc(link)}" readonly>
-      <button class="btn blue small" id="cp" style="justify-self:start">Link kopieren</button>
+      <div class="row"><button class="btn blue small" id="cp">Link kopieren</button><button class="btn ghost small" id="keyf">⬇ Als Datei sichern</button>${qr ? `<button class="btn ghost small" id="qrp">🖨 QR-Code drucken</button>` : ""}</div>
+      <p class="small muted" style="margin:0">Namen, Lernhilfen, Bild-PINs und Wochenberichte werden auf dem Gerät verschlüsselt. Den Schlüssel enthält <b>nur dieser Link</b> – die Datenbank (Supabase) und GitHub sehen ihn nie. <b>Gut aufbewahren und nicht öffentlich teilen.</b> Ohne Link lassen sich die Namen nicht wiederherstellen (Lernfortschritt und Lektionen bleiben).</p>
       <h2 style="margin-top:8px">Lehrer-PIN ändern</h2>
       <div class="field"><label for="np1">Neue PIN</label><input class="input" id="np1" type="password" inputmode="numeric" autocomplete="new-password"></div>
       <button class="btn ghost small" id="pinsv" style="justify-self:start">PIN ändern</button>
     </div>
     <div class="t-panel"><h2>Sicherung</h2>
-      <p class="small muted" style="margin:0">Alle Lektionen, Kinder und Fortschritte als Datei sichern oder wiederherstellen.</p>
+      <p class="small muted" style="margin:0">Alle Lektionen, Kinder und Fortschritte als Datei sichern oder wiederherstellen. Die Datei enthält die Namen <b>unverschlüsselt</b> – nur auf deinem Gerät aufbewahren.</p>
       <div class="row"><button class="btn blue small" id="exp">⬇ Sicherung herunterladen</button><label class="btn ghost small" for="impf">⬆ Sicherung einspielen</label><input type="file" id="impf" class="hidden" accept=".json"></div>
       <h2 style="margin-top:8px">Speicherort</h2>
       <p class="small" style="margin:0">${isCloud ? "✅ Online-Datenbank (Supabase) ist verbunden. Alle Geräte sehen dieselben Daten." : "⚠️ Demo-Modus: Daten liegen nur auf diesem Gerät. Für die Klassenübersicht Supabase einrichten (README, Schritt 2)."}</p>
       ${isCloud ? `<p class="small" style="margin:0" id="bucketState">Bildspeicher: wird geprüft …</p>
       <p class="small" style="margin:0">${Store.v2 ? "🔒 Sicherheits-Update aktiv: Nur mit Lehrer-PIN lassen sich Lektionen, Kinder und Einstellungen ändern; PINs sind auf Kinder-Geräten unsichtbar." : "⚠️ Sicherheits-Update noch nicht installiert. In Supabase im SQL Editor die Datei <b>supabase/update-sicherheit.sql</b> ausführen (siehe Anleitung)."}</p>` : ""}
     </div>
+    <div class="t-panel"><h2>🗑 Schuljahresende</h2>
+      <p class="small muted" style="margin:0">Löscht die Klasse <b>endgültig</b> aus der Datenbank: Kinder, Lernfortschritt, Lektionen, Wochenberichte, Zeichnungen und Klassenziel. Tipp: vorher „Sicherung herunterladen“, wenn du die Lektionen behalten möchtest.${isCloud ? " Hochgeladene Bilder (ohne Namen) bleiben im Bildspeicher; sie lassen sich in Supabase unter <i>Storage → vokabel-bilder</i> löschen." : ""}</p>
+      <button class="btn coral small" id="wipe" style="justify-self:start">Klasse endgültig löschen</button>
+    </div>
   </div>`;
+  $("#keyf").onclick = () => {
+    const txt = `Plapperlapapp – Klassen-Link mit Schlüssel\nKlasse: ${T.cls.name} (${Store.code})\nErstellt: ${new Date().toLocaleDateString("de")}\n\n${link}\n\nDiesen Link einmal auf jedem Gerät öffnen. Gut aufbewahren, nicht öffentlich teilen.\n`;
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([txt], { type: "text/plain" })); a.download = `plapperlapapp-${Store.code}-schluessel.txt`; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  if ($("#qrp")) $("#qrp").onclick = () => {
+    const w = window.open("", "_blank"); if (!w) return toast("Bitte Pop-ups erlauben.");
+    w.document.write(`<!doctype html><meta charset="utf-8"><title>Klassen-Link ${esc(Store.code)}</title><body style="font-family:sans-serif;text-align:center;padding:30px"><h1>Plapperlapapp</h1><h2>${esc(T.cls.name)} · ${esc(Store.code)}</h2><div style="width:320px;margin:20px auto">${qr.replace("<svg ", '<svg style="width:100%;height:auto" ')}</div><p>Mit der Kamera scannen, um dieses Gerät für die Klasse einzurichten.</p><p style="font-size:12px;color:#666">Vertraulich – nur für die Klasse. Nicht öffentlich aushängen.</p><script>setTimeout(()=>print(),300)<\/script></body>`);
+    w.document.close();
+  };
+  $("#wipe").onclick = async () => {
+    if (!await confirmBox(`Die Klasse ${Store.code} mit allen ${T.students.length} Kindern, Lektionen und Fortschritten endgültig löschen? Das kann nicht rückgängig gemacht werden.`, "Weiter", "Abbrechen", true)) return;
+    const typed = await modal(`<h2>Zur Sicherheit</h2><p>Bitte den Klassencode <b>${esc(Store.code)}</b> eintippen:</p><input class="input" id="wc" autocapitalize="characters" autocomplete="off"><div class="row" style="justify-content:flex-end"><button class="btn ghost small" data-close="">Abbrechen</button><button class="btn coral small" id="ok">Endgültig löschen</button></div>`,
+      { onMount: (m, close) => { const i = m.querySelector("#wc"); i.focus(); m.querySelector("#ok").onclick = () => close(i.value); } });
+    if (!typed) return;
+    if (Store.normCode(typed) !== Store.code) return toast("Abgebrochen – der Code stimmte nicht.");
+    render(`<div class="wrap narrow"><div class="panel center">Lösche Klasse …</div></div>`);
+    try {
+      for (const kind of ["progress", "art", "student", "lesson"]) {
+        const rows = await Store.list(kind).catch(() => []);
+        await Promise.all(rows.map(r => Store.del(kind, r.id)));
+      }
+      const cls = await Store.list("class");
+      await Promise.all(cls.filter(r => r.id !== "main").map(r => Store.del("class", r.id)));
+      await Store.del("class", "main");
+      Store.forgetKey(); Device.del("classCode"); Device.del("lastStudent");
+      Store.teacherLogout(); document.body.classList.remove("teacher-mode");
+      toast("Die Klasse wurde vollständig gelöscht.", 4000); T.back();
+    } catch (e) { toast("Löschen fehlgeschlagen: " + e.message, 6000); dashboard(); }
+  };
   $("#sv").onclick = async () => {
     T.cls = { ...T.cls, name: $("#cn").value.trim() || T.cls.name, goal: { unit: "w3", start: Math.max(START_PER_KID * T.students.length, +$("#gs").value || 0), auto: $("#ga").checked, override: +$("#go").value > 0 ? Math.max(START_PER_KID * T.students.length, +$("#go").value) : null },
       rewards: $("#rw").value.split("\n").map(x => x.trim()).filter(Boolean).slice(0, 12), allOpen: $("#ao").checked, report: { ...(T.cls.report || {}), enabled: $("#rep").checked } };
@@ -803,7 +905,7 @@ function settings(el) {
       const d = JSON.parse(await f.text());
       if (d.app !== "vokabel-insel") throw new Error("Das ist keine Sicherung dieser App.");
       if (!await confirmBox(`Sicherung vom ${new Date(d.exported).toLocaleDateString("de")} einspielen? Vorhandene Einträge mit gleicher ID werden überschrieben.`, "Einspielen")) return;
-      const { teacherPinHash, ...clsRest } = d.class || {};
+      const { teacherPinHash, keyCheck, ...clsRest } = d.class || {};
       await Store.put("class", "main", { ...T.cls, ...clsRest });
       for (const s of d.students || []) await Store.put("student", s.id, s);
       for (const l of d.lessons || []) await Store.put("lesson", l.id, l);

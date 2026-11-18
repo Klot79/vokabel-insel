@@ -1,19 +1,19 @@
-import { Store, Device, isCloud } from "./store.js?v=20261117q";
-import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261117q";
-import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261117q";
-import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js?v=20261117q";
-import { currentGoal, der, unser, zum } from "./goal.js?v=20261117q";
-import { buildingSvg } from "./buildings.js?v=20261117q";
-import { uid } from "./util.js?v=20261117q";
-import { say, listen, canListen } from "./speech.js?v=20261117q";
-import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261117q";
+import { Store, Device, isCloud } from "./store.js?v=20261118b";
+import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261118b";
+import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261118b";
+import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js?v=20261118b";
+import { currentGoal, der, unser, zum } from "./goal.js?v=20261118b";
+import { buildingSvg } from "./buildings.js?v=20261118b";
+import { uid } from "./util.js?v=20261118b";
+import { say, listen, canListen } from "./speech.js?v=20261118b";
+import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261118b";
 import {
   emptyProgress, lessonStats, overallStats, unlockedLessons, planLearn, markSeen, countAnswer, fallBack, promote,
   checkWritten, checkSpoken, logActivity, currentStreak, weekSummary, checkBadges, BADGES, wstate, shuffle,
   stripArticle, todayStr, DAY, NEEDED_TODAY, MIN_GAP, BOX_NAMES, wkey,
   weekState, weekLabel, schoolDay, perDayFor, newAllowed, sortLessons, DAILY_GOAL_SEC, todaySeconds, mondayOf,
-  writePoint, WRITES_FOR_POINT, countCard,
-} from "./srs.js?v=20261117q";
+  writePoint, WRITES_FOR_POINT, countCard, firstForm,
+} from "./srs.js?v=20261118b";
 
 // ---- Ton an/aus (gilt auf diesem Gerät, überall) ----
 setSound(!Device.get("audioOff", false));
@@ -166,6 +166,15 @@ export async function studentLogin(cls, back) {
   try { [students, progs] = await Promise.all([Store.list("student"), Store.list("progress")]); }
   catch (e) { render(`<div class="wrap narrow"><div class="panel">${esc(e.message)}</div></div>`); return; }
   S.cache = { students, progs };
+  if (students.some(s => s._locked)) {
+    render(`<div class="wrap narrow">
+      <div class="row"><button class="icon-btn" id="back" aria-label="${t("Zurück")}">${ICON.back}</button></div>
+      <div class="hello"><span class="mascot">${art("parrot")}</span><div class="bubble"><h1>🔒 ${t("Dieses Gerät ist noch nicht eingerichtet")}</h1>
+      <p>${t("Bitte deine Lehrkraft, auf diesem Gerät den Klassen-Link zu öffnen oder den QR-Code zu scannen.")}</p></div></div>
+    </div>`);
+    $("#back").onclick = back;
+    return;
+  }
   const pmap = Object.fromEntries(progs.map(p => [p.id, p]));
   students.sort((a, b) => a.name.localeCompare(b.name, "de"));
   render(`<div class="wrap narrow">
@@ -660,7 +669,7 @@ function recallTask(item, type, ctx, cb, { test = false } = {}) {
   }
 
   if (type === "scramble") {
-    const full = w.fr.split(/\s*\/\s*/)[0];
+    const full = firstForm(w.fr);
     const low = full.toLowerCase();
     const core = stripArticle(low) === low ? full : full.slice(full.length - stripArticle(low).length);
     const art_ = full.slice(0, full.length - core.length);
@@ -1289,7 +1298,9 @@ function weekCard(unlocked) {
 }
 function hardWords() {
   const out = [];
-  for (const l of S.lessons) for (const w of l.words) { const s = wstate(S.prog, l.id, w.id), wr = (s.w || 0) + (s.cw || 0); if (wr >= 2 || (s.b === 1 && wr >= 1)) out.push({ l, w, s: { ...s, w: wr } }); }
+  // Nur Wörter, die GERADE schwierig sind: Fehler gemacht und seit dem letzten Fehler
+  // noch nicht an zwei verschiedenen Tagen richtig (Fach 3 = heute + nächste Wiederholung geschafft)
+  for (const l of S.lessons) for (const w of l.words) { const s = wstate(S.prog, l.id, w.id), wr = (s.w || 0) + (s.cw || 0); if (s.b <= 2 && (wr >= 2 || (s.b === 1 && wr >= 1))) out.push({ l, w, s: { ...s, w: wr } }); }
   return out.sort((a, b) => b.s.w - a.s.w);
 }
 function hardCard() {

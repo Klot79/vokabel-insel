@@ -3,7 +3,7 @@
 //  t("deutscher Text {x}", {x}) liefert den Text in der gewählten Sprache.
 //  Fehlt eine Übersetzung, bleibt der deutsche Text stehen.
 // ---------------------------------------------------------------
-import { Device } from "./store.js?v=20261117q";
+import { Device } from "./store.js?v=20261118b";
 
 export const UI_LANGS = [
   { k: "de", flag: "🇩🇪", name: "Deutsch" },
@@ -541,4 +541,7 @@ const D = {
   "Bonus! 3 richtig – +1 Münze": ["Bonus ! 3 bonnes réponses – +1 pièce", "Bónus! 3 certas – +1 moeda"],
   "Noch {n} Wort!": ["Encore {n} mot !", "Falta {n} palavra!"],
   "Noch {n} Wörter!": ["Encore {n} mots !", "Faltam {n} palavras!"],
+  "Dieses Gerät ist noch nicht eingerichtet": ["Cet appareil n'est pas encore prêt", "Este aparelho ainda não está preparado"],
+  "Bitte deine Lehrkraft, auf diesem Gerät den Klassen-Link zu öffnen oder den QR-Code zu scannen.": ["Demande à ton enseignant(e) d'ouvrir le lien de la classe sur cet appareil ou de scanner le code QR.", "Pede ao teu professor para abrir o link da turma neste aparelho ou ler o código QR."],
+  "Dieses Gerät ist jetzt für die Klasse eingerichtet.": ["Cet appareil est maintenant prêt pour la classe.", "Este aparelho está agora preparado para a turma."],
 };

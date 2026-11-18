@@ -688,3 +688,7 @@ html.big-text .task-q { font-size: 1.15em; }
 .help-opt b { display: block; } .help-opt small { color: var(--ink-soft); }
 .check.small { font-size: .85rem; white-space: nowrap; }
 .check.small input { width: 18px; height: 18px; }
+
+/* Klassen-Link / QR */
+.qr-box { justify-self: start; background: #fff; border: 2px solid var(--line); border-radius: 14px; padding: 6px; }
+.qr-box svg { display: block; width: 180px; height: auto; }

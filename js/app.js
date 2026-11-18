@@ -1,18 +1,25 @@
-import { Store, Device, isCloud } from "./store.js?v=20261117q";
-import { render, $, toast } from "./ui.js?v=20261117q";
-import { esc } from "./util.js?v=20261117q";
-import { art } from "./art.js?v=20261117q";
-import { studentLogin } from "./student.js?v=20261117q";
-import { teacherLogin } from "./teacher.js?v=20261117q";
-import { t, setLang, getLang, UI_LANGS } from "./i18n.js?v=20261117q";
+import { Store, Device, isCloud } from "./store.js?v=20261118b";
+import { render, $, toast } from "./ui.js?v=20261118b";
+import { esc } from "./util.js?v=20261118b";
+import { art } from "./art.js?v=20261118b";
+import { studentLogin } from "./student.js?v=20261118b";
+import { teacherLogin } from "./teacher.js?v=20261118b";
+import { t, setLang, getLang, UI_LANGS } from "./i18n.js?v=20261118b";
 
 const langRow = () => `<div class="lang-pick">${UI_LANGS.map(x => `<button class="lang-btn ${getLang() === x.k ? "on" : ""}" data-lang="${x.k}"><span class="flag-big">${x.flag}</span>${x.name}</button>`).join("")}</div>`;
 const bindLang = redraw => document.querySelectorAll("[data-lang]").forEach(b => b.onclick = () => { setLang(b.dataset.lang); document.documentElement.lang = getLang(); redraw(); });
 document.documentElement.lang = getLang();
 
-// Link mit Klassencode: …/#k=SONNE-4821
+// Klassen-Link: …/#k=SONNE-4821&s=<Schlüssel>  (alles hinter „#“ bleibt auf dem Gerät)
 const m = location.hash.match(/k=([^&]+)/);
-if (m) { Device.set("classCode", Store.normCode(decodeURIComponent(m[1]))); history.replaceState(null, "", location.pathname); }
+let keyJustSet = false;
+if (m) {
+  const c = Store.normCode(decodeURIComponent(m[1]));
+  Device.set("classCode", c);
+  const ks = Store.parseKey(location.hash);
+  if (ks) { Store.setKey(c, ks.key); keyJustSet = true; }
+  history.replaceState(null, "", location.pathname);
+}
 
 function start() {
   document.body.classList.remove("teacher-mode", "kid-mode");
@@ -60,3 +67,4 @@ async function openClass(code, fresh = false) {
 }
 
 start();
+if (keyJustSet) toast("🔒 " + t("Dieses Gerät ist jetzt für die Klasse eingerichtet."), 4000);

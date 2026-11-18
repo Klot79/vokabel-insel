@@ -203,7 +203,16 @@ export function norm(s) {
 }
 const ARTICLES = /^(le |la |les |l'|l |un |une |des |du |de la |de l'|o |a |os |as |um |uma |der |die |das |ein |eine )/;
 export function stripArticle(s) { return s.replace(ARTICLES, "").trim(); }
-export function variants(target) { return String(target).split(/\s*[\/;|]\s*/).map(norm).filter(Boolean); }
+// Mehrere richtige Formen: „/“, „;“, „|“ – und Komma zwischen Formen mit Artikel
+// („le cheveu, les cheveux“ → „le cheveu“ ODER „les cheveux“). „oui, merci“ bleibt ein Ausdruck.
+export function forms(target) {
+  return String(target ?? "").split(/\s*[\/;|]\s*/).flatMap(part => {
+    const bits = part.split(/\s*,\s*/).filter(b => b.trim());
+    return bits.length > 1 && bits.every(b => ARTICLES.test(norm(b) + " ")) ? bits : [part];
+  }).map(x => x.trim()).filter(Boolean);
+}
+export const firstForm = target => forms(target)[0] || String(target ?? "");
+export function variants(target) { return forms(target).map(norm).filter(Boolean); }
 
 export function lev(a, b) {
   if (a === b) return 0;

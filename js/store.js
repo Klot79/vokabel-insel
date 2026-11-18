@@ -7,8 +7,8 @@
 //  • Lehrer-PIN und Bild-PINs der Kinder sind für Kinder-Geräte unsichtbar.
 //  Ohne das Update funktioniert die App wie vorher („alter Modus“).
 // ------------------------------------------------------------------
-import { seedDemo } from "./demo.js?v=20261117q";
-import { uid, sha } from "./util.js?v=20261117q";
+import { seedDemo } from "./demo.js?v=20261118b";
+import { uid, sha } from "./util.js?v=20261118b";
 
 const cfg = window.VOKABEL_CONFIG || {};
 export const isCloud = !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY);
@@ -90,6 +90,34 @@ function cleanLesson(o) {
   return o;
 }
 
+// ---- Klassenschlüssel ------------------------------------------
+//  Namen, Lernhilfen, Bild-PIN-Anzeige und Wochenberichte werden auf dem
+//  Gerät verschlüsselt (AES-GCM, 256 Bit), bevor sie zur Datenbank gehen.
+//  Der Schlüssel steht nur im Klassen-Link hinter „#“ – dieser Teil wird
+//  vom Browser nie an einen Server geschickt – und im Gerätespeicher.
+// ------------------------------------------------------------------
+const b64u = {
+  enc: u8 => { let b = ""; u8.forEach(x => b += String.fromCharCode(x)); return btoa(b).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); },
+  dec: s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), c => c.charCodeAt(0)),
+};
+const SEALED = { student: ["name", "help"] };        // stecken zusammen in „sec“
+const SEALED_SINGLE = { student: ["pinHint"] };      // bleiben eigene Felder (die Datenbank blendet sie für Kinder aus)
+const isReport = (kind, id) => kind === "class" && /^report-/.test(String(id));
+const isSealed = v => typeof v === "string" && v.startsWith("v1.");
+async function importKey(raw) { return crypto.subtle.importKey("raw", b64u.dec(raw), "AES-GCM", false, ["encrypt", "decrypt"]); }
+async function encObj(key, obj, aad) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: new TextEncoder().encode(aad) }, key, new TextEncoder().encode(JSON.stringify(obj))));
+  const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12);
+  return "v1." + b64u.enc(out);
+}
+async function decObj(key, str, aad) {
+  const u = b64u.dec(String(str).slice(3));
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: u.slice(0, 12), additionalData: new TextEncoder().encode(aad) }, key, u.slice(12));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+export class KeyMissingError extends Error { constructor() { super("Auf diesem Gerät fehlt der Klassenschlüssel. Bitte den Klassen-Link öffnen."); this.keyMissing = true; } }
+
 // ---- öffentliche API -----------------------------------------
 export const Store = {
   code: null,
@@ -98,6 +126,68 @@ export const Store = {
   _probe: null,
 
   normCode(c) { return String(c || "").trim().toUpperCase().replace(/\s+/g, ""); },
+
+  // ---- Klassenschlüssel ----
+  _key: null, _keyId: null,
+  keyRaw(code = this.code) { return code ? Device.get("key:" + this.normCode(code), null) : null; },
+  setKey(code, raw) { Device.set("key:" + this.normCode(code), raw); this._keyId = null; },
+  forgetKey(code = this.code) { Device.del("key:" + this.normCode(code)); this._keyId = null; },
+  newKeyRaw() { return b64u.enc(crypto.getRandomValues(new Uint8Array(32))); },
+  parseKey(text) {   // nimmt einen ganzen Klassen-Link oder nur den Schlüssel
+    const t = String(text || "").trim();
+    const m = t.match(/[#&?]s=([A-Za-z0-9_-]{40,})/) || t.match(/^([A-Za-z0-9_-]{43})$/);
+    const c = t.match(/[#&?]k=([^&]+)/);
+    return m ? { key: m[1], code: c ? this.normCode(decodeURIComponent(c[1])) : null } : null;
+  },
+  async key() {
+    const raw = this.keyRaw(); if (!raw) return null;
+    const id = this.code + "|" + raw;
+    if (this._keyId !== id) { try { this._key = await importKey(raw); } catch { this._key = null; } this._keyId = id; }
+    return this._key;
+  },
+  async keyMatches(cls) {
+    const k = await this.key(); if (!k || !cls?.keyCheck) return false;
+    try { return (await decObj(k, cls.keyCheck, "check")) === "ok"; } catch { return false; }
+  },
+  async makeKeyCheck() { const k = await this.key(); if (!k) throw new KeyMissingError(); return encObj(k, "ok", "check"); },
+  classLink(code = this.code) {
+    const raw = this.keyRaw(code);
+    return location.origin + location.pathname + "#k=" + encodeURIComponent(code) + (raw ? "&s=" + raw : "");
+  },
+  async _seal(kind, id, data) {
+    const rep = isReport(kind, id), many = SEALED[kind], single = SEALED_SINGLE[kind];
+    if (!rep && !many && !single) return data;
+    const k = await this.key();
+    if (!k) throw new KeyMissingError();
+    const aad = `${kind}|${id}`;
+    if (rep) { const { type, week, created } = data; return { type, week, created, sec: await encObj(k, data, aad) }; }
+    const out = { ...data }, secret = {};
+    delete out.sec;
+    for (const f of many || []) if (f in out) { secret[f] = out[f]; delete out[f]; }
+    if (many) out.sec = await encObj(k, secret, aad);
+    for (const f of single || []) if (f in out && out[f] != null && !isSealed(out[f])) out[f] = await encObj(k, out[f], aad + "|" + f);
+    return out;
+  },
+  async _open(kind, row) {
+    if (!row) return row;
+    const rep = isReport(kind, row.id), many = SEALED[kind], single = SEALED_SINGLE[kind];
+    if (!rep && !many && !single) return row;
+    const aad = `${kind}|${row.id}`;
+    if (!row.sec) return { ...row, _plain: true };          // noch nicht verschlüsselt (alte Daten)
+    const k = await this.key();
+    try {
+      if (!k) throw 0;
+      const sec = await decObj(k, row.sec, aad);
+      if (rep) return { ...sec, id: row.id, _updated: row._updated };
+      const { sec: _s, ...rest } = row, out = { ...rest, ...sec };
+      for (const f of single || []) if (isSealed(out[f])) { try { out[f] = await decObj(k, out[f], aad + "|" + f); } catch { delete out[f]; } }
+      return out;
+    } catch {
+      const { sec: _s, ...rest } = row;
+      for (const f of single || []) delete rest[f];
+      return { ...rest, name: "", _locked: true };
+    }
+  },
 
   // Prüft einmal, ob das Sicherheits-Update in Supabase installiert ist
   ready() {
@@ -141,17 +231,18 @@ export const Store = {
 
   async list(kind) {
     const rows = await this._get(this.code, kind);
-    const out = rows.map(r => ({ id: r.id, ...r.data, _updated: r.updated_at }));
+    let out = rows.map(r => ({ id: r.id, ...r.data, _updated: r.updated_at }));
+    out = await Promise.all(out.map(o => this._open(kind, o)));
     return kind === "lesson" ? out.map(cleanLesson) : out;
   },
   async getOne(kind, id) {
     const r = await this._getOne(this.code, kind, id);
-    const o = r ? { id: r.id, ...r.data, _updated: r.updated_at } : null;
+    const o = r ? await this._open(kind, { id: r.id, ...r.data, _updated: r.updated_at }) : null;
     return kind === "lesson" ? cleanLesson(o) : o;
   },
   async put(kind, id, obj) {
-    const { id: _i, _updated, ...data } = kind === "lesson" ? cleanLesson({ ...obj }) : obj;
-    await this._put(this.code, kind, id, data);
+    const { id: _i, _updated, _locked, _plain, ...data } = kind === "lesson" ? cleanLesson({ ...obj }) : obj;
+    await this._put(this.code, kind, id, await this._seal(kind, id, data));
   },
   async del(kind, id) { await this._del(this.code, kind, id); },
 
@@ -223,4 +314,4 @@ export const Device = {
   del(k) { try { localStorage.removeItem("vi-dev:" + k); } catch {} },
 };
 
-export { uid, sha } from "./util.js?v=20261117q";
+export { uid, sha } from "./util.js?v=20261118b";
