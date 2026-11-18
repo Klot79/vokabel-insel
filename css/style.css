@@ -794,3 +794,7 @@ html.big-text .task-q { font-size: 1.15em; }
 .color-dot.sel { outline: 4px solid #ffc531; outline-offset: 2px; }
 .color-dot[data-c="#f8f9fa"] { box-shadow: inset 0 0 0 2px #ced4da; }
 .color-dot.std { background: #fff; border: 2px dashed #adb5bd; font-weight: 800; color: var(--ink-soft); }
+
+/* Rahmen um den ganzen Avatar + Farbwahl beim Kleidungsstück */
+.avfull { border-radius: 28px; padding: 8px 10px 12px; }
+.color-pick { display: grid; gap: 6px; padding-top: 8px; border-top: 2px dashed var(--line); }

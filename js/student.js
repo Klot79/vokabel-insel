@@ -1,19 +1,19 @@
-import { Store, Device, isCloud } from "./store.js?v=20261118h";
-import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261118h";
-import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, avatarFull, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261118h";
-import { art, hat, ANIMAL_KEYS, HAT_KEYS, OUTFIT, OUTFIT_DEFAULT, outfitPreview } from "./art.js?v=20261118h";
-import { currentGoal, der, unser, zum } from "./goal.js?v=20261118h";
-import { buildingSvg } from "./buildings.js?v=20261118h";
-import { uid } from "./util.js?v=20261118h";
-import { say, listen, canListen } from "./speech.js?v=20261118h";
-import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261118h";
+import { Store, Device, isCloud } from "./store.js?v=20261118j";
+import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261118j";
+import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, avatarFull, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261118j";
+import { art, hat, ANIMAL_KEYS, HAT_KEYS, OUTFIT, OUTFIT_DEFAULT, outfitPreview } from "./art.js?v=20261118j";
+import { currentGoal, der, unser, zum } from "./goal.js?v=20261118j";
+import { buildingSvg } from "./buildings.js?v=20261118j";
+import { uid } from "./util.js?v=20261118j";
+import { say, listen, canListen } from "./speech.js?v=20261118j";
+import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261118j";
 import {
   emptyProgress, lessonStats, overallStats, unlockedLessons, planLearn, markSeen, countAnswer, fallBack, promote,
   checkWritten, checkSpoken, logActivity, currentStreak, weekSummary, checkBadges, BADGES, wstate, shuffle,
   stripArticle, todayStr, DAY, NEEDED_TODAY, MIN_GAP, BOX_NAMES, wkey,
   weekState, weekLabel, schoolDay, perDayFor, newAllowed, sortLessons, DAILY_GOAL_SEC, todaySeconds, mondayOf,
   writePoint, WRITES_FOR_POINT, countCard, firstForm, forms, pairForms, spellDiff, closestForm, stripAccents, lev,
-} from "./srs.js?v=20261118h";
+} from "./srs.js?v=20261118j";
 
 // ---- Lernzeit heute: läuft während einer Übung live mit ----
 const liveSec = () => (S.prog ? todaySeconds(S.prog) : 0) + (S.actStart ? Math.round((Date.now() - S.actStart) / 1000) : 0);
@@ -1312,6 +1312,8 @@ function myProgress() {
 const PRICES_A = { "🦊": 0, "🐈": 0, "😺": 0, "😸": 20, "🐺": 30, "🐢": 0, "🐻": 0, "🐬": 0, "🦋": 20, "🐧": 30, "🐸": 30, "🐙": 40, "🦜": 40, "🐼": 50, "🦄": 80, "🦖": 100 };
 const PRICES_H = { "": 0, "🌸": 10, "🧢": 15, "🎀": 15, "⛑️": 25, "🤠": 30, "🎓": 40, "🎩": 50, "🏴‍☠️": 60, "👑": 80 };
 const OUTFIT_GROUPS = [["top", "Oberteil"], ["bottom", "Hose oder Rock"], ["shoes", "Schuhe"], ["extra", "Extra"]];
+// Farbauswahl direkt beim Kleidungsstück
+const colorRow = (k, label, cur) => `<div class="color-pick"><span class="small"><b>🎨 ${t(label)}</b></span><div class="row wrap-row">${k === "bottomColor" ? `<button class="color-dot std ${!cur ? "sel" : ""}" data-ck="${k}" data-c="" aria-label="${t("Standard")}" title="${t("Standard")}">↺</button>` : ""}${CLOTH_COLORS.map(c => `<button class="color-dot ${cur === c ? "sel" : ""}" data-ck="${k}" data-c="${c}" aria-label="${t("Farbe")}" style="background:${c}"></button>`).join("")}</div></div>`;
 const CLOTH_COLORS = ["#e03131", "#f76707", "#fcc419", "#37b24d", "#1c7ed6", "#4263eb", "#7048e8", "#e64980", "#a0673a", "#868e96", "#212529", "#f8f9fa"];
 const COLORS = ["#2f9e8f", "#1c7ed6", "#7048e8", "#d6336c", "#e8590c", "#f08c00", "#2b8a3e", "#495057"];
 
@@ -1331,10 +1333,9 @@ function shop() {
       <div><h1>${t("Mein Avatar")}</h1><p class="muted" style="margin:0">${t("Du hast {coin} <b>{n}</b> Münzen. Münzen bekommst du für richtige Antworten.", { coin: art("coin", "ic"), n: S.prog.coins })}</p></div>
     </div>
     <div class="panel stack"><h3>${t("Tier")}</h3><div class="shop">${ANIMAL_KEYS.map(k => item("animal", k, PRICES_A[k] ?? 30)).join("")}</div></div>
-    <div class="panel stack"><h3>${t("Hut")}</h3><div class="shop">${["", ...HAT_KEYS].map(k => item("hat", k, PRICES_H[k] ?? 30)).join("")}</div></div>
-    ${OUTFIT_GROUPS.map(([g, label]) => `<div class="panel stack"><h3>${t(label)}</h3><div class="shop">${["", ...Object.keys(OUTFIT[g])].map(k => item(g, k, k ? OUTFIT[g][k].price : 0)).join("")}</div></div>`).join("")}
-    ${[["topColor", "Farbe vom Oberteil", av.topColor || av.color], ["bottomColor", "Farbe von Hose oder Rock", av.bottomColor || ""]].map(([k, label, cur]) => `<div class="panel stack"><h3>${t(label)}</h3><div class="row wrap-row">${k === "bottomColor" ? `<button class="color-dot std ${!cur ? "sel" : ""}" data-ck="${k}" data-c="" aria-label="${t("Standard")}" title="${t("Standard")}">↺</button>` : ""}${CLOTH_COLORS.map(c => `<button class="color-dot ${cur === c ? "sel" : ""}" data-ck="${k}" data-c="${c}" aria-label="${t("Farbe")}" style="background:${c}"></button>`).join("")}</div></div>`).join("")}
     <div class="panel stack"><h3>${t("Farbe vom Rahmen")}</h3><div class="row">${COLORS.map(c => `<button class="color-dot" data-color="${c}" aria-label="${t("Farbe")}" style="background:${c};${av.color === c ? "outline:4px solid #ffc531;outline-offset:2px" : ""}"></button>`).join("")}</div></div>
+    <div class="panel stack"><h3>${t("Hut")}</h3><div class="shop">${["", ...HAT_KEYS].map(k => item("hat", k, PRICES_H[k] ?? 30)).join("")}</div></div>
+    ${OUTFIT_GROUPS.map(([g, label]) => `<div class="panel stack"><h3>${t(label)}</h3><div class="shop">${["", ...Object.keys(OUTFIT[g])].map(k => item(g, k, k ? OUTFIT[g][k].price : 0)).join("")}</div>${g === "top" ? colorRow("topColor", "Farbe vom Oberteil", av.topColor || av.color) : g === "bottom" ? colorRow("bottomColor", "Farbe von Hose oder Rock", av.bottomColor || "") : ""}</div>`).join("")}
   </div>`);
   bindTop();
   $$(".shop button").forEach(b => b.onclick = () => {
@@ -1347,7 +1348,8 @@ function shop() {
     S.prog.avatar = { ...S.prog.avatar, [kind]: e };
     save(); shop();
   });
-  $$("[data-color]").forEach(b => b.onclick = () => { S.prog.avatar = { ...S.prog.avatar, color: b.dataset.color }; save(); shop(); });
+  // Rahmenfarbe ändern, ohne dass sich das Oberteil mitfärbt
+  $$("[data-color]").forEach(b => b.onclick = () => { const a = S.prog.avatar; S.prog.avatar = { ...a, topColor: a.topColor || a.color || "#2b9ad1", color: b.dataset.color }; save(); shop(); });
   $$("[data-ck]").forEach(b => b.onclick = () => { S.prog.avatar = { ...S.prog.avatar, [b.dataset.ck]: b.dataset.c }; sfx.tap(); save(); shop(); });
 }
 

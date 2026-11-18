@@ -1,5 +1,5 @@
-import { esc } from "./util.js?v=20261118h";
-import { art, hat, hatStyle, bodySvg } from "./art.js?v=20261118h";
+import { esc } from "./util.js?v=20261118j";
+import { art, hat, hatStyle, bodySvg } from "./art.js?v=20261118j";
 
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -58,7 +58,8 @@ export function avatarHtml(av = {}, size = "") {
 // Ganzer Avatar: Tierkopf (mit Hut) auf einem Körper mit Kleidung
 export function avatarFull(av = {}, size = "") {
   const animal = av.animal || "🐢";
-  return `<span class="avfull ${size}"><span class="avf-head">${art(animal, "av-art")}${av.hat ? `<span class="hat" style="${hatStyle(animal, av.hat)}">${hat(av.hat)}</span>` : ""}</span><span class="avf-body">${bodySvg(av)}</span></span>`;
+  const col = esc(av.color || "#2b9ad1");
+  return `<span class="avfull ${size}" style="background:${col}1f;box-shadow:inset 0 0 0 4px ${col}"><span class="avf-head">${art(animal, "av-art")}${av.hat ? `<span class="hat" style="${hatStyle(animal, av.hat)}">${hat(av.hat)}</span>` : ""}</span><span class="avf-body">${bodySvg(av)}</span></span>`;
 }
 
 // Einfache Symbole für Knöpfe (weiß, folgen der Textfarbe)
