@@ -1,19 +1,27 @@
-import { Store, Device, isCloud } from "./store.js?v=20261118b";
-import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261118b";
-import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261118b";
-import { art, hat, ANIMAL_KEYS, HAT_KEYS } from "./art.js?v=20261118b";
-import { currentGoal, der, unser, zum } from "./goal.js?v=20261118b";
-import { buildingSvg } from "./buildings.js?v=20261118b";
-import { uid } from "./util.js?v=20261118b";
-import { say, listen, canListen } from "./speech.js?v=20261118b";
-import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261118b";
+import { Store, Device, isCloud } from "./store.js?v=20261118g";
+import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261118g";
+import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, avatarFull, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261118g";
+import { art, hat, ANIMAL_KEYS, HAT_KEYS, OUTFIT, OUTFIT_DEFAULT, outfitPreview } from "./art.js?v=20261118g";
+import { currentGoal, der, unser, zum } from "./goal.js?v=20261118g";
+import { buildingSvg } from "./buildings.js?v=20261118g";
+import { uid } from "./util.js?v=20261118g";
+import { say, listen, canListen } from "./speech.js?v=20261118g";
+import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261118g";
 import {
   emptyProgress, lessonStats, overallStats, unlockedLessons, planLearn, markSeen, countAnswer, fallBack, promote,
   checkWritten, checkSpoken, logActivity, currentStreak, weekSummary, checkBadges, BADGES, wstate, shuffle,
   stripArticle, todayStr, DAY, NEEDED_TODAY, MIN_GAP, BOX_NAMES, wkey,
   weekState, weekLabel, schoolDay, perDayFor, newAllowed, sortLessons, DAILY_GOAL_SEC, todaySeconds, mondayOf,
-  writePoint, WRITES_FOR_POINT, countCard, firstForm,
-} from "./srs.js?v=20261118b";
+  writePoint, WRITES_FOR_POINT, countCard, firstForm, forms, pairForms, spellDiff, closestForm, stripAccents, lev,
+} from "./srs.js?v=20261118g";
+
+// ---- Lernzeit heute: läuft während einer Übung live mit ----
+const liveSec = () => (S.prog ? todaySeconds(S.prog) : 0) + (S.actStart ? Math.round((Date.now() - S.actStart) / 1000) : 0);
+const fmtClock = () => { const x = liveSec(); return `${Math.floor(x / 60)}:${String(x % 60).padStart(2, "0")}`; };
+const clockChip = () => `<span class="chip clock" title="${t("Heute gelernt")}">⏱ <b class="clock-v">${fmtClock()}</b></span>`;
+setInterval(() => { const v = fmtClock(); document.querySelectorAll(".clock-v").forEach(e => { e.textContent = v; }); }, 1000);
+// Übungszeit eintragen und die laufende Uhr zurücksetzen
+function logAct(o) { S.actStart = null; return logActivity(S.prog, o); }
 
 // ---- Ton an/aus (gilt auf diesem Gerät, überall) ----
 setSound(!Device.get("audioOff", false));
@@ -321,11 +329,13 @@ function earn(kind, n, cap) {
 // ------------------------------------------------------------------
 function topbar() {
   document.body.classList.remove("calm"); applyHelpLook();
+  S.actStart = null;
   return `<div class="topbar">
     ${avatarHtml(S.prog.avatar, "sm")}
     <span class="name">${esc(S.student.name)}</span>
     <span class="chip fire" title="${t("Tage hintereinander geübt")}">${art("flame", "ic")} ${currentStreak(S.prog)}</span>
     <span class="chip coin" title="${t("Münzen")}">${art("coin", "ic")} ${S.prog.coins}</span>
+    ${clockChip()}
     ${audioBtn()}
     <button class="icon-btn lang-top" id="tb-lang" aria-label="${t("Sprache")}" title="${t("Sprache")}">${UI_LANGS.find(x => x.k === getLang()).flag}</button>
     <nav class="navbtns">
@@ -490,13 +500,20 @@ function actsHtml(l) {
   const G = [
     ["🎧", "Hören & Sprechen", [
       ["shower", "shower", "Vokabeldusche", "zuhören und nachsprechen"],
-      ["rec", "mascotHead", "Meine Vokabeldusche", "selbst aufnehmen und anhören"],
-      ["move", "jump", "Bewegungsrunde", "hüpfen und sprechen"]]],
+      ["rec", "mascotHead", "Meine Vokabeldusche", "selbst aufnehmen und anhören"]]],
     ["🎲", "Spielen", [
       ["memory", "games", "Memory", "Finde die Paare"],
       ["match", "postit", "Post-its zuordnen", "Wort zum Bild"],
       ["sort", "baskets", "Sortieren", canSortArticle(l) ? "le oder la?" : "kurz oder lang?"],
       ["blitz", "flame", "Blitzrunde", "60 Sekunden"]]],
+    ["🧩", "Rätsel & Wortspiele", [
+      ["snake", "🐍", "Schlangensätze", "Wörter trennen"],
+      ["jumble", "🔀", "Buchstabenwirrwarr", "Welches Wort ist das?"],
+      ["typo", "🔍", "Finde den Fehler", "richtig oder falsch?"],
+      ["intruder", "🕵️", "Fremdes Wort", "Wer gehört nicht in den Satz?"],
+      ["leaf", "🍃", "Löcher im Wort", "Blätter verdecken Buchstaben"],
+      ["cross", "✏️", "Kreuzworträtsel", "Wörter eintragen"],
+      ["hang", "🎈", "Ballon-Raten", "Buchstaben raten"]]],
     ["✏️", "Schreiben, Malen & Zuhause", [
       ["net", "bulbArt", "Wortnetz", "neue Wörter ans Kopfwort knüpfen"],
       ["words", "telescope", "Wörter ansehen", "malen und Eselsbrücken"],
@@ -505,7 +522,8 @@ function actsHtml(l) {
   return G.map(([ic, name, A]) => `<h3 class="act-group"><span aria-hidden="true">${ic}</span> ${t(name)}</h3><div class="acts">${A.map(([k, a, n, sub]) => `<button class="act" data-k="${k}">${art(a)}<b>${t(n)}</b><small>${t(sub)}</small></button>`).join("")}</div>`).join("");
 }
 function bindActs(l) {
-  const F = { words: wordList, memory: memoryGame, blitz, shower: vocabShower, match: matchGame, sort: sortGame, move: moveGame, rec: recordShower, net: wordNet, paper: homeTest };
+  const F = { words: wordList, memory: memoryGame, blitz, shower: vocabShower, match: matchGame, sort: sortGame, rec: recordShower, net: wordNet, paper: homeTest,
+    snake: snakeGame, jumble: jumbleGame, typo: typoGame, intruder: intruderGame, leaf: leafGame, cross: crossGame, hang: hangGame };
   $$(".act[data-k]").forEach(b => b.onclick = () => F[b.dataset.k](l));
 }
 function starHint(st) {
@@ -536,11 +554,13 @@ function exFrame({ mode, label, progress, coins, skip, skipNote, switchMode }, i
       <div class="ex-progress"><i style="width:${progress}%"></i></div>
       ${switchMode ? `<button class="btn ghost small switch-btn" id="switchMode" title="${t("Übungsart wechseln")}">⇄ ${t("Übungsart")}</button>` : ""}
       ${audioBtn()}
+      ${clockChip()}
       <span class="chip coin">${art("coin", "ic")} ${coins}</span>
     </div>
     <div class="card ${mode}" id="card"><div class="card-tag"><span class="pill ${mode === "test" ? "orange" : "green"}">${mode === "test" ? t("Testen") : t("Lernen")}</span><span class="small muted">${esc(label || "")}</span></div>${inner}</div>
     ${skip ? `<div class="ex-foot"><button class="btn ghost skip-btn" id="skip">${t("Überspringen")} ⏭</button><span class="small muted">${esc(skipNote || "")}</span></div>` : ""}</div>`);
   $("#quit").onclick = () => onQuit && onQuit();
+  if (!S.actStart) S.actStart = Date.now();
   document.body.classList.toggle("calm", isFocus());
   readAloudCard();
   // Überspringen / Übungsart wechseln – nur solange die Aufgabe noch offen ist
@@ -561,10 +581,54 @@ async function useMic(btn, out) {
   btn.classList.add("on"); out.textContent = t("Ich höre zu …");
   const r = await listen("fr", { onInterim: t => { out.textContent = `„${t}“`; } });
   btn.classList.remove("on");
-  if (r.error === "not-allowed" || r.error === "service-not-allowed") { out.textContent = t("Das Mikrofon ist nicht erlaubt. Bitte die Lehrkraft, es freizugeben."); return null; }
+  if (r.error === "not-allowed" || r.error === "service-not-allowed") { out.innerHTML = `<div class="mic-help"><b>${t("Das Mikrofon ist nicht erlaubt.")}</b><span>${t("iPad: Tippe oben links auf „aA“ → Website-Einstellungen → Mikrofon → Erlauben. Siri & Diktieren muss eingeschaltet sein. Sonst frag deine Lehrkraft.")}</span></div>`; return null; }
   if (!r.alts.length) { out.textContent = t("Ich habe nichts gehört. Sprich etwas lauter und tippe nochmal."); return null; }
   out.textContent = t("Ich habe „{x}“ gehört.", { x: r.alts[0] });
   return r.alts;
+}
+
+// ---- Schreibfelder: ein Feld, oder bei „la dent, les dents“ zwei Felder (Einzahl + Mehrzahl) ----
+const ACCENTS = ["é", "è", "ê", "à", "ç", "ô", "î", "û", "ë", "œ", "'"];
+const accentsHtml = () => `<div class="accents">${ACCENTS.map(c => `<button data-c="${c}">${c}</button>`).join("")}</div>`;
+const inAttr = `class="input write-in" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"`;
+function fieldsHtml(pair, firstId = "inp") {
+  if (!pair) return `<input ${inAttr} id="${firstId}" data-f="0" aria-label="${t("Antwort")}">`;
+  return `<div class="pair-fields"><label class="pf"><span>${t("Einzahl")}</span><input ${inAttr} id="${firstId}" data-f="0" aria-label="${t("Einzahl")}"></label><label class="pf"><span>${t("Mehrzahl")}</span><input ${inAttr} data-f="1" aria-label="${t("Mehrzahl")}"></label></div>`;
+}
+// Akzent-Tasten schreiben ins zuletzt benutzte Feld
+function bindFields(root) {
+  const ins = [...root.querySelectorAll("input[data-f]")];
+  let last = ins[0];
+  ins.forEach(i => i.addEventListener("focus", () => { last = i; }));
+  root.querySelectorAll(".accents button").forEach(b => b.onclick = () => {
+    const inp = last; if (!inp || inp.disabled) return;
+    const p = inp.selectionStart ?? inp.value.length;
+    inp.value = inp.value.slice(0, p) + b.dataset.c + inp.value.slice(inp.selectionEnd ?? p);
+    inp.focus(); inp.setSelectionRange(p + 1, p + 1);
+  });
+  return ins;
+}
+// Prüft ein Feld oder beide Felder. Ergebnis wie checkWritten + pairs für die Fehleranzeige
+const RANK = { perfect: 0, accent: 1, article: 2, almost: 3, wrong: 4 };
+function checkFields(ins, fr) {
+  const pair = pairForms(fr);
+  if (!pair || ins.length < 2) { const v = ins[0].value; return { r: checkWritten(v, fr), typed: v }; }
+  const pairs = ins.map((inp, k) => { const r = checkWritten(inp.value, pair[k]); return { typed: inp.value, form: pair[k], r, ok: r === "perfect" || r === "accent" || r === "article" }; });
+  const r = pairs.reduce((a, x) => (RANK[x.r] > RANK[a] ? x.r : a), "perfect");
+  return { r, typed: pairs.map(x => x.typed).join(", "), pairs };
+}
+// Fehler sichtbar machen: was wurde geschrieben, was fehlt, was ist falsch?
+function diffHtml(typed, form) {
+  if (!String(typed || "").trim()) return "";
+  const d = spellDiff(typed, form);
+  const you = d.map(o => o.t === "ok" ? esc(o.c) : o.t === "sub" ? `<mark class="bad">${esc(o.c)}</mark>` : o.t === "del" ? `<mark class="extra">${esc(o.c)}</mark>` : `<mark class="gap">_</mark>`).join("");
+  const right = d.map(o => o.t === "ok" ? esc(o.r) : o.t === "del" ? "" : `<mark class="good">${esc(o.r)}</mark>`).join("");
+  return `<div class="diff"><div class="dl"><small>${t("Du")}</small><span class="dw">${you}</span></div><div class="dl"><small>${t("Richtig")}</small><span class="dw">${right}</span></div></div>`;
+}
+function diffBlock(x, fr) {
+  const rows = x.pairs ? x.pairs.filter(p => !p.ok).map(p => diffHtml(p.typed, p.form)) : x.typed ? [diffHtml(x.typed, closestForm(x.typed, fr))] : [];
+  const html = rows.filter(Boolean).join("");
+  return html ? `<div class="diff-box"><span class="small">${t("Hier steckt der Fehler:")}</span>${html}<span class="small muted">${t("Rot = dein Fehler · Grün = so ist es richtig")}</span></div>` : "";
 }
 
 // Deutliche Rückmeldung: großes ✓/✗, Farbe, Klang, immer Schreibweise + Aussprache
@@ -613,7 +677,7 @@ function feedbackBox(ok, w, msg, onNext, auto, memo, x = {}) {
   fb.innerHTML = `
     <div class="fb-head"><span class="fb-icon">${ok ? ICON.check : ICON.cross}</span><span class="fb-title">${esc(msg || t(ok ? ["Richtig!", "Super!", "Genau!", "Klasse!"][Math.floor(Math.random() * 4)] : "Nicht ganz."))}</span></div>
     <div class="fb-motto">${ok ? "🌟" : "💪"} ${esc(motto(ok, !!x.heard || x.how === "speak"))}</div>
-    ${x.heard ? `<div class="fb-heard">${t("Du hast gesagt: „{x}“", { x: esc(x.heard) })}</div>` : x.typed && !ok ? `<div class="fb-heard">${t("Du hast geschrieben: „{x}“", { x: esc(x.typed) })}</div>` : ""}
+    ${x.heard ? `<div class="fb-heard">${t("Du hast gesagt: „{x}“", { x: esc(x.heard) })}</div>` : !ok && x.how !== "speak" && (x.typed || x.pairs) ? diffBlock(x, w.fr) : ""}
     <div class="fb-sol"><span class="small">${t("So schreibt man es:")}</span><span class="sol">${esc(w.fr)}</span><button class="round-btn blue" id="solHear" aria-label="${t("So spricht man es aus")}">${ICON.speaker}</button><span class="small">${t("So spricht man es aus")}</span></div>
     ${dots}
     ${x.point ? `<div class="fb-point">${art("rocket", "ic")} ${t("+1 Wort für die Klasse!")}</div>` : x.already ? `<div class="small">${t("Dieses Wort hat diese Woche schon für die Klasse gezählt.")}</div>` : ""}
@@ -698,32 +762,39 @@ function recallTask(item, type, ctx, cb, { test = false } = {}) {
     return;
   }
 
-  // Schreiben (mit Mikrofon als zweitem Weg)
-  exFrame(ctx, `<span class="task-q">${t("Schreib das Wort auf Französisch")}</span>${picBox(w, l)}<div class="word-tr">${esc(w.tr)}</div>
-    <div class="write-row"><input class="input write-in" id="inp" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="${t("Antwort")}">${speakerBtn("hear")}${micBtn("mic")}</div>
+  // Schreiben (mit Mikrofon als zweitem Weg). Einzahl + Mehrzahl → zwei Felder
+  const pair = pairForms(w.fr);
+  exFrame(ctx, `<span class="task-q">${pair ? t("Schreib Einzahl und Mehrzahl auf Französisch") : t("Schreib das Wort auf Französisch")}</span>${picBox(w, l)}<div class="word-tr">${esc(w.tr)}</div>
+    <div class="write-row">${fieldsHtml(pair)}${speakerBtn("hear")}${micBtn("mic")}</div>
     <div id="heard" class="heard"></div>
-    <div class="accents">${["é", "è", "ê", "à", "ç", "ô", "î", "û", "ë", "œ", "'"].map(c => `<button data-c="${c}">${c}</button>`).join("")}</div>
+    ${accentsHtml()}
     <div class="row center-row">${test ? "" : `<button class="btn ghost" id="hint">${ICON.bulb} ${t("Tipp")}</button>`}<button class="btn green" id="chk">${t("Prüfen")}</button></div>`);
-  const inp = $("#inp"); inp.focus();
+  const ins = bindFields($("#card")), inp = ins[0]; inp.focus();
   $("#hear").onclick = help;
-  $$(".accents button").forEach(b => b.onclick = () => { const p = inp.selectionStart ?? inp.value.length; inp.value = inp.value.slice(0, p) + b.dataset.c + inp.value.slice(inp.selectionEnd ?? p); inp.focus(); inp.setSelectionRange(p + 1, p + 1); });
   let hints = 0, tries = 0, finished = false;
-  if ($("#hint")) $("#hint").onclick = () => { hints++; helped = true; const sol = w.fr.split(/\s*\/\s*/)[0]; inp.value = sol.slice(0, Math.min(sol.length - 1, hints * Math.max(1, Math.ceil(sol.length / 4)))); inp.focus(); };
+  if ($("#hint")) $("#hint").onclick = () => {
+    hints++; helped = true;
+    const sols = pair || [firstForm(w.fr)];
+    const k = Math.max(0, ins.findIndex((x, i) => norm(x.value) !== norm(sols[i])));
+    const sol = sols[k] || sols[0];
+    ins[k].value = sol.slice(0, Math.min(sol.length - 1, hints * Math.max(1, Math.ceil(sol.length / 4)))); ins[k].focus();
+  };
   let heardText = "";
-  const finish = (ok, how, note, kind) => { if (finished) return; finished = true; $("#chk").disabled = true; inp.disabled = true; cb({ ok, helped, how, note, spelling: kind === "accent" || kind === "article", heard: heardText, typed: inp.value }); };
+  const finish = (ok, how, note, kind, res = {}) => { if (finished) return; finished = true; $("#chk").disabled = true; ins.forEach(i => { i.disabled = true; }); cb({ ok, helped, how, note, spelling: kind === "accent" || kind === "article", heard: heardText, typed: res.typed ?? inp.value, pairs: res.pairs }); };
   const check = () => {
-    const r = checkWritten(inp.value, w.fr);
+    if (!ins.some(i => i.value.trim())) { toast(t("Schreib zuerst das Wort.")); inp.focus(); return; }
+    const res = checkFields(ins, w.fr), r = res.r;
     if (r === "almost" && tries === 0 && !test) { tries++; sfx.no(); toast(t("Fast! Schau nochmal genau hin.")); inp.focus(); return; }
     const ok = r === "perfect" || r === "accent" || r === "article";
-    finish(ok, "write", r === "accent" ? t("Achte auf die Akzente: {w}", { w: w.fr }) : r === "article" ? t("Denk an den Artikel: {w}", { w: w.fr }) : "", r);
+    finish(ok, "write", r === "accent" ? t("Achte auf die Akzente: {w}", { w: w.fr }) : r === "article" ? t("Denk an den Artikel: {w}", { w: w.fr }) : "", r, res);
   };
   $("#chk").onclick = check;
-  inp.onkeydown = e => { if (e.key === "Enter" && !finished) check(); };
+  ins.forEach(i => { i.onkeydown = e => { if (e.key === "Enter" && !finished) check(); }; });
   if ($("#mic")) $("#mic").onclick = async () => {
     const alts = await useMic($("#mic"), $("#heard"));
     if (!alts) return;
     const ok = checkSpoken(alts, w.fr);
-    if (ok) { inp.value = w.fr; heardText = alts[0]; finish(true, "speak"); }
+    if (ok) { if (pair) ins.forEach((x, k) => { x.value = pair[k]; }); else inp.value = w.fr; heardText = alts[0]; finish(true, "speak"); }
     else if (test) { heardText = alts[0]; finish(false, "speak"); }
     else { sfx.no(); $("#heard").textContent += " " + t("Versuch es nochmal oder schreib es."); }
   };
@@ -764,9 +835,9 @@ function introCard(item, ctx, cb, writeMode = false, copyOnly = false) {
     ${memoOf(l, w) ? `<div class="memo">${art("bulbArt", "ic")} <span>${esc(memoOf(l, w))}</span></div>` : ""}
     <div class="row center-row">${canListen ? micBtn("mic") + `<span class="small muted">${t("Sprich es nach!")}</span>` : `<span class="small muted">${t("Sprich das Wort laut nach!")}</span>`}<button class="btn ghost small" id="draw">${t("Malen")}</button></div>
     <div id="heard" class="heard"></div>
-    ${writeMode ? `<div class="copy-box"><span class="small"><b>${t("Schreib das Wort ab:")}</b></span>
-      <div class="write-row"><input class="input write-in" id="cpy" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="${t("Wort abschreiben")}"></div>
-      <div class="accents">${["é", "è", "ê", "à", "ç", "ô", "î", "û", "ë", "œ", "'"].map(c => `<button data-c="${c}">${c}</button>`).join("")}</div>
+    ${writeMode ? `<div class="copy-box"><span class="small"><b>${pairForms(w.fr) ? t("Schreib Einzahl und Mehrzahl ab:") : t("Schreib das Wort ab:")}</b></span>
+      <div class="write-row">${fieldsHtml(pairForms(w.fr), "cpy")}</div>
+      ${accentsHtml()}
       <div id="cpyRes" class="small"></div></div>` : ""}
     <button class="btn green big" id="nxt">${writeMode ? t("Prüfen") : t("Weiter")}</button>`);
   $("#hear").onclick = () => sayWord(w.fr);   // nur auf Knopfdruck vorlesen
@@ -778,26 +849,25 @@ function introCard(item, ctx, cb, writeMode = false, copyOnly = false) {
   };
   $("#draw").onclick = () => drawWord(l, w, () => {});
   if (!writeMode) { $("#nxt").onclick = cb; return; }
-  const inp = $("#cpy");
-  $$(".copy-box .accents button").forEach(b => b.onclick = () => { const p = inp.selectionStart ?? inp.value.length; inp.value = inp.value.slice(0, p) + b.dataset.c + inp.value.slice(inp.selectionEnd ?? p); inp.focus(); inp.setSelectionRange(p + 1, p + 1); });
+  const ins = bindFields($(".copy-box")), inp = ins[0];
   let checked = false;
   const check = () => {
     if (checked) return cb();
-    if (!inp.value.trim()) { toast(t("Schreib das Wort zuerst ab.")); inp.focus(); return; }
-    const r = checkWritten(inp.value, w.fr);
+    if (!ins.some(i => i.value.trim())) { toast(t("Schreib das Wort zuerst ab.")); inp.focus(); return; }
+    const res = checkFields(ins, w.fr), r = res.r;
     if (r === "perfect") {
-      checked = true; inp.disabled = true; sfx.ok();
+      checked = true; ins.forEach(i => { i.disabled = true; }); sfx.ok();
       $(".copy-box").classList.add("ok");
       $("#cpyRes").innerHTML = `<b>${t("🌟 Richtig abgeschrieben!")}</b>`;
       $("#nxt").textContent = t("Weiter");
     } else {
       sfx.no(); $(".copy-box").classList.remove("ok"); $(".copy-box").classList.add("no");
-      $("#cpyRes").innerHTML = `<b>${t("Schau nochmal genau hin – Buchstabe für Buchstabe.")}</b> 💪`;
+      $("#cpyRes").innerHTML = `<b>${t("Schau nochmal genau hin – Buchstabe für Buchstabe.")}</b> 💪${diffBlock(res, w.fr)}`;
       inp.focus();
     }
   };
   $("#nxt").onclick = check;
-  inp.onkeydown = e => { if (e.key === "Enter") check(); };
+  ins.forEach(i => { i.onkeydown = e => { if (e.key === "Enter") check(); }; });
 }
 
 // Lernkarte: vorne Bedeutung (Deutsch bzw. Portugiesisch) + Bild, hinten Französisch + Bild
@@ -829,6 +899,8 @@ function flashCard(item, ctx, cb) {
 //  LERNEN – Einheit nach „2× richtig mit Abstand“
 // ------------------------------------------------------------------
 function runLearn(items, opts) {
+  // dasselbe Wort (z. B. in zwei Lektionen) nur einmal pro Runde
+  items = items.filter((it, i, a) => a.findIndex(x => norm(firstForm(x.w.fr)) === norm(firstForm(it.w.fr))) === i);
   const extra = items.every(i => i.kind === "extra");
   // neue Wörter zwischen die Wiederholungen streuen
   const rev = items.filter(i => i.kind !== "new"), neu = items.filter(i => i.kind === "new");
@@ -856,6 +928,7 @@ function runLearn(items, opts) {
   };
   const recallType = it => {
     const p = opts.pref;
+    if (it.forceWrite && p !== "speak") return "write";       // für den Klassenpunkt nochmal schreiben
     if (p === "write") return "write";
     if (p === "speak") return canListen ? "speak" : "write";
     if (it.recalls === 0 && it.kind !== "review") return Math.random() < 0.5 ? "scramble" : "write";
@@ -877,7 +950,7 @@ function runLearn(items, opts) {
     const left = q.filter(x => !x.done).length;
     const ctx = { mode: "learn", label: isFocus() ? tn(left, "Noch {n} Wort!", "Noch {n} Wörter!") : opts.lesson ? opts.lesson.title : t("Lernen"), progress: Math.round((1 - totalSteps() / Math.max(1, startSteps)) * 100), coins: st.coins,
       // Überspringen: Wort kommt später in dieser Runde wieder, zählt nicht als Fehler
-      skip: q.filter(x => !x.done).length > 1 ? () => { it.last = st.pos; st.pos++; next(); } : null,
+      skip: it.phase !== "intro" && q.filter(x => !x.done).length > 1 ? () => { it.last = st.pos; st.pos++; next(); } : null,
       skipNote: t("Das Wort kommt später nochmal."),
       // Übungsart wechseln, ohne die Runde zu beenden
       switchMode: async () => {
@@ -929,14 +1002,21 @@ function runLearn(items, opts) {
         else { after(); feedbackBox(false, it.w, "", next); }
       });
     }
-    recallTask(it, recallType(it), ctx, ({ ok, helped, how, note, heard, typed }) => {
+    recallTask(it, recallType(it), ctx, ({ ok, helped, how, note, heard, typed, pairs }) => {
       st.ans++;
       countAnswer(S.prog, it.l, it.w, ok);
-      const fx = { heard: how === "speak" ? heard : "", typed, how };
+      const fx = { heard: how === "speak" ? heard : "", typed, pairs, how };
+      let keepMsg = "";
       if (ok) {
         st.ok++; st.coins += 1; bonus(true);
         if (how === "speak") S.prog.spoken++; else S.prog.typed++;
-        if ((how === "write" || (isLrs() && (how === "scramble" || how === "speak"))) && !helped) { const r = writePoint(S.prog, it.l, it.w); st.wp += r.point; fx.wc = r.count; fx.point = r.point; fx.already = r.already; }
+        if ((how === "write" || (isLrs() && (how === "scramble" || how === "speak"))) && !helped) {
+          const r = writePoint(S.prog, it.l, it.w); st.wp += r.point; fx.wc = r.count; fx.point = r.point; fx.already = r.already;
+          // Klassenpunkt in einer Runde: das Wort bleibt, bis es 3× richtig geschrieben ist
+          const left = !r.point && !r.already ? WRITES_FOR_POINT - r.count : 0;
+          if (left > 0) { if (it.need - 1 < left) it.need = left + 1; it.forceWrite = true; keepMsg = t("Richtig! Noch {n}× schreiben – dann zählt das Wort für die Klasse.", { n: left }); }
+          if (r.point) it.forceWrite = false;
+        }
         if (helped) { after(); return feedbackBox(true, it.w, t("Mit Hilfe geschafft! Das Wort kommt gleich nochmal – dann ohne Hilfe."), next, 0, "", fx); }
         it.recalls++; it.need--;
         if (it.need <= 0) {
@@ -945,7 +1025,7 @@ function runLearn(items, opts) {
           if (!extra) { const s = promote(S.prog, it.l, it.w); msg = t(`Für heute geschafft! Das Wort kommt ${({ 2: "morgen", 3: "in 3 Tagen", 4: "in einer Woche", 5: "in einem Monat" })[s.b] || "später"} wieder.`); }
           after(); return feedbackBox(true, it.w, note || msg, next, 2600, "", fx);
         }
-        after(); return feedbackBox(true, it.w, note || t("Richtig! Gleich nochmal – nach ein paar anderen Wörtern."), next, 2400, "", fx);
+        after(); return feedbackBox(true, it.w, note || keepMsg || t("Richtig! Gleich nochmal – nach ein paar anderen Wörtern."), next, 2400, "", fx);
       }
       // Fehler: zurück auf „heute lernen“, wieder 2× richtig nötig
       bonus(false);
@@ -958,7 +1038,7 @@ function runLearn(items, opts) {
   const finish = () => {
     const sec = Math.round((Date.now() - st.t0) / 1000);
     const copy = opts.pref === "copy", cards = opts.pref === "cards";
-    logActivity(S.prog, { sec, ans: cards || copy ? 0 : st.ans, ok: cards || copy ? 0 : st.ok, pts: st.ok, wp: st.wp });
+    logAct({ sec, ans: cards || copy ? 0 : st.ans, ok: cards || copy ? 0 : st.ok, pts: st.ok, wp: st.wp });
     if (cards || copy) st.coins = earn(opts.pref, st.coins, 10);
     else S.prog.coins += st.coins;
     S.prog.xp += st.ok * 10;
@@ -997,7 +1077,7 @@ function runTest(l, mode) {
   const skipped = new Set();
   const res = [];
   let i = 0, coins = 0, wp = 0;
-  const t0 = Date.now();
+  const t0 = Date.now(); S.actStart = S.actStart || t0;
   const typeFor = k => mode === "write" ? "write" : mode === "speak" ? (canListen ? "speak" : "write") : (canListen && k % 2 ? "speak" : "write");
   const next = () => {
     if (i >= words.length) return finish();
@@ -1008,11 +1088,11 @@ function runTest(l, mode) {
       skipNote: t("Im Test kommt das Wort am Ende nochmal."),
       switchMode: async () => { const p = await askAnswerMode(t("Übungsart wechseln")); if (p && p !== mode) { mode = p; next(); } } };
     S.curLang = l.lang;
-    recallTask({ l, w }, typeFor(i), ctx, ({ ok, helped, how, spelling, heard, typed }) => {
+    recallTask({ l, w }, typeFor(i), ctx, ({ ok, helped, how, spelling, heard, typed, pairs }) => {
       if (ok && spelling) helped = true; // Rechtschreibung: Akzent/Artikel fehlt = halber Punkt
       res.push({ w, ok, helped, spelling });
       countAnswer(S.prog, l, w, ok);
-      const fx = { heard: how === "speak" ? heard : "", typed, how };
+      const fx = { heard: how === "speak" ? heard : "", typed, pairs, how };
       if (ok && !helped) {
         coins += 2;
         if (how === "write" || (isLrs() && (how === "scramble" || how === "speak"))) { const r = writePoint(S.prog, l, w); wp += r.point; fx.wc = r.count; fx.point = r.point; fx.already = r.already; }
@@ -1034,7 +1114,7 @@ function runTest(l, mode) {
     if (passed) coins += 10;
     S.prog.coins += coins;
     const ok = res.filter(r => r.ok && !r.helped).length;
-    logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: res.length, ok, pts: ok, wp });
+    logAct({ sec: Math.round((Date.now() - t0) / 1000), ans: res.length, ok, pts: ok, wp });
     if (S.goal) S.goal.achieved += wp;
     const badges = checkBadges(S.prog, S.lessons);
     save(true);
@@ -1105,7 +1185,7 @@ function memoryGame(l) {
   const words = shuffle(withPic).slice(0, Math.min(6, withPic.length));
   const cards = shuffle(words.flatMap(w => [{ w, side: "fr" }, { w, side: "b" }]));
   let open = [], pairs = 0, moves = 0, lock = false;
-  const t0 = Date.now();
+  const t0 = Date.now(); S.actStart = S.actStart || t0;
   render(`<div class="wrap narrow">
     <div class="ex-top"><button class="icon-btn" id="quit" aria-label="${t("Beenden")}">${ICON.close}</button><b class="ex-title">${t("Memory – {t}", { t: esc(l.title) })}</b>${audioBtn()}<span class="chip" id="mv">${t("Züge: {n}", { n: 0 })}</span></div>
     <div class="memory" id="mem">${cards.map((c, i) => `<button class="mem" data-i="${i}" aria-label="${t("Karte {n}", { n: i + 1 })}">${art("mascotHead")}</button>`).join("")}</div></div>`);
@@ -1124,7 +1204,7 @@ function memoryGame(l) {
         sfx.ok(); open.forEach(x => x.classList.replace("open", "done")); open = []; pairs++;
         if (pairs === words.length) {
           const coins = earn("memory", Math.max(3, words.length * 2 - Math.max(0, moves - words.length)), 15);
-          logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: words.length, ok: words.length });
+          logAct({ sec: Math.round((Date.now() - t0) / 1000), ans: words.length, ok: words.length });
           checkBadges(S.prog, S.lessons); save(true);
           setTimeout(() => { sfx.win(); confetti(); modal(`<div class="center stack"><div class="result-art">${art("trophy")}</div><h2>${t("Alle Paare gefunden!")}</h2><p class="muted" style="margin:0">${t("{n} Züge", { n: moves })}</p><div class="reward-row"><span class="reward">${art("coin", "ic")} +${coins}</span></div><button class="btn green" data-close="ok">${t("Weiter")}</button></div>`).then(() => islandView(l)); }, 500);
         }
@@ -1144,7 +1224,7 @@ function blitz(l) {
   const pool = seen.length >= 3 ? seen : l.words;
   const total = isLrs() ? 120 : 60;   // Lese-Schreib-Hilfe: kein Zeitdruck
   let score = 0, wrong = 0, left = total, timer;
-  const t0 = Date.now();
+  const t0 = Date.now(); S.actStart = S.actStart || t0;
   render(`<div class="wrap narrow">
     <div class="ex-top"><button class="icon-btn" id="quit" aria-label="${t("Beenden")}">${ICON.close}</button>
       <div class="ex-progress"><i id="tbar" style="width:100%"></i></div>${audioBtn()}<span class="chip" id="sc">${art("flame", "ic")} 0</span></div>
@@ -1155,7 +1235,7 @@ function blitz(l) {
     const rec = score > best;
     if (rec) S.prog.best["blitz:" + l.id] = score;
     const got = earn("blitz", score, 15);
-    logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: score + wrong, ok: score });
+    logAct({ sec: Math.round((Date.now() - t0) / 1000), ans: score + wrong, ok: score });
     checkBadges(S.prog, S.lessons); save(true);
     if (rec && score > 0) { sfx.win(); confetti(); }
     render(`<div class="wrap narrow"><div class="card result"><div class="result-art">${art("flame")}</div>
@@ -1233,6 +1313,7 @@ function myProgress() {
 // ------------------------------------------------------------------
 const PRICES_A = { "🦊": 0, "🐈": 0, "😺": 0, "😸": 20, "🐺": 30, "🐢": 0, "🐻": 0, "🐬": 0, "🦋": 20, "🐧": 30, "🐸": 30, "🐙": 40, "🦜": 40, "🐼": 50, "🦄": 80, "🦖": 100 };
 const PRICES_H = { "": 0, "🌸": 10, "🧢": 15, "🎀": 15, "⛑️": 25, "🤠": 30, "🎓": 40, "🎩": 50, "🏴‍☠️": 60, "👑": 80 };
+const OUTFIT_GROUPS = [["top", "Oberteil"], ["bottom", "Hose oder Rock"], ["shoes", "Schuhe"], ["extra", "Extra"]];
 const COLORS = ["#2f9e8f", "#1c7ed6", "#7048e8", "#d6336c", "#e8590c", "#f08c00", "#2b8a3e", "#495057"];
 
 function shop() {
@@ -1240,18 +1321,19 @@ function shop() {
   const owned = new Set(S.prog.owned);
   const item = (kind, key, price) => {
     const has = price === 0 || owned.has(kind + key);
-    const sel = av[kind] === key;
-    const look = kind === "animal" ? art(key) : key ? hat(key) : `<span class="none">${t("ohne")}</span>`;
+    const sel = (av[kind] ?? OUTFIT_DEFAULT[kind] ?? "") === key;
+    const look = kind === "animal" ? art(key) : !key ? `<span class="none">${t("ohne")}</span>` : kind === "hat" ? hat(key) : outfitPreview(kind, key, av.color);
     return `<button data-kind="${kind}" data-e="${esc(key)}" data-p="${price}" class="${sel ? "sel" : ""}"><span class="shop-art">${look}</span><small>${sel ? t("ausgewählt") : has ? t("auswählen") : `${art("coin", "ic")} ${price}`}</small></button>`;
   };
   render(`<div class="wrap">
     ${topbar()}
     <div class="panel shop-head">
-      <div>${avatarHtml(av, "lg")}</div>
+      <div class="shop-figure">${avatarFull(av, "lg")}</div>
       <div><h1>${t("Mein Avatar")}</h1><p class="muted" style="margin:0">${t("Du hast {coin} <b>{n}</b> Münzen. Münzen bekommst du für richtige Antworten.", { coin: art("coin", "ic"), n: S.prog.coins })}</p></div>
     </div>
     <div class="panel stack"><h3>${t("Tier")}</h3><div class="shop">${ANIMAL_KEYS.map(k => item("animal", k, PRICES_A[k] ?? 30)).join("")}</div></div>
     <div class="panel stack"><h3>${t("Hut")}</h3><div class="shop">${["", ...HAT_KEYS].map(k => item("hat", k, PRICES_H[k] ?? 30)).join("")}</div></div>
+    ${OUTFIT_GROUPS.map(([g, label]) => `<div class="panel stack"><h3>${t(label)}</h3><div class="shop">${["", ...Object.keys(OUTFIT[g])].map(k => item(g, k, k ? OUTFIT[g][k].price : 0)).join("")}</div></div>`).join("")}
     <div class="panel stack"><h3>${t("Farbe")}</h3><div class="row">${COLORS.map(c => `<button class="color-dot" data-color="${c}" aria-label="${t("Farbe")}" style="background:${c};${av.color === c ? "outline:4px solid #ffc531;outline-offset:2px" : ""}"></button>`).join("")}</div></div>
   </div>`);
   bindTop();
@@ -1321,37 +1403,50 @@ async function practiceHard() {
 //  Vokabeldusche: hören – nachsprechen – Bedeutung hören
 // ------------------------------------------------------------------
 function vocabShower(l) {
-  let i = 0, playing = true, slow = false, stop = false;
-  const t0 = Date.now();
+  let i = 0, playing = true, slow = false, stop = false, gen = 0;
+  const t0 = Date.now(); S.actStart = S.actStart || t0;
   const words = [...l.words];
   render(`<div class="wrap narrow">
-    <div class="ex-top"><button class="icon-btn" id="quit" aria-label="${t("Beenden")}">${ICON.close}</button><b class="ex-title">${t("Vokabeldusche – {t}", { t: esc(l.title) })}</b></div>
+    <div class="ex-top"><button class="icon-btn" id="quit" aria-label="${t("Beenden")}">${ICON.close}</button><b class="ex-title">${t("Vokabeldusche – {t}", { t: esc(l.title) })}</b>${clockChip()}</div>
     <div class="card shower-card" id="card"></div>
-    <div class="row center-row"><button class="btn blue" id="pp">${t("Pause")}</button><button class="btn ghost" id="sl">${t("Langsamer")}</button></div>
+    <div class="row center-row shower-ctl">
+      <button class="btn ghost" id="prev">◀ ${t("Zurück")}</button>
+      <button class="btn blue" id="pp">${t("Pause")}</button>
+      <button class="btn green" id="nx">${t("Nächstes Wort")} ▶</button>
+    </div>
+    <div class="row center-row"><button class="btn ghost small" id="sl">${t("Langsamer")}</button></div>
     <p class="center small muted">${t("Hör zu und sprich jedes Wort laut nach. Am besten jeden Tag einmal – auch beim Anziehen oder Frühstücken.")}</p></div>`);
-  const end = () => { stop = true; window.speechSynthesis?.cancel(); logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000) }); save(); };
+  const end = () => { stop = true; gen++; window.speechSynthesis?.cancel(); logAct({ sec: Math.round((Date.now() - t0) / 1000) }); save(); };
   $("#quit").onclick = () => { end(); islandView(l); };
-  $("#pp").onclick = () => { playing = !playing; $("#pp").textContent = playing ? t("Pause") : t("Weiter"); if (playing) loop(); else window.speechSynthesis?.cancel(); };
-  $("#sl").onclick = () => { slow = !slow; $("#sl").textContent = slow ? t("Normal") : t("Langsamer"); };
   const wait = ms => new Promise(r => setTimeout(r, ms));
-  let running = false;
-  async function loop() {
-    if (running) return; running = true;
-    while (playing && !stop) {
-      const w = words[i % words.length];
-      const card = $("#card"); if (!card) break;
-      card.innerHTML = `${picBox(w, l)}<div class="word-fr">${esc(w.fr)}</div><div class="word-tr" id="trl" style="visibility:hidden">${esc(w.tr)}</div><div class="small muted">${t("{i} von {n}", { i: i % words.length + 1, n: words.length })}</div>`;
-      await say(w.fr, "fr", slow ? 0.55 : 0.8); if (!playing || stop) break;
-      await wait(1800); if (!playing || stop) break;           // Zeit zum Nachsprechen
-      const trl = $("#trl"); if (trl) trl.style.visibility = "visible";
-      await say(w.tr, l.lang || "de", 0.9); if (!playing || stop) break;
-      await say(w.fr, "fr", slow ? 0.55 : 0.8); if (!playing || stop) break;
-      await wait(1200);
-      i++;
-    }
-    running = false;
+  const show = () => {
+    const w = words[i % words.length];
+    $("#card").innerHTML = `${picBox(w, l)}<div class="word-fr">${esc(w.fr)}</div><div class="word-tr" id="trl" style="visibility:hidden">${esc(w.tr)}</div><div class="small muted">${t("{i} von {n}", { i: i % words.length + 1, n: words.length })}</div>`;
+    return w;
+  };
+  // Liest das aktuelle Wort vor; ein neuer Aufruf bricht den alten ab
+  async function play(auto = true) {
+    const my = ++gen;
+    window.speechSynthesis?.cancel();
+    const alive = () => my === gen && !stop;
+    const w = show();
+    await say(w.fr, "fr", slow ? 0.55 : 0.8); if (!alive()) return;
+    await wait(1800); if (!alive()) return;           // Zeit zum Nachsprechen
+    const trl = $("#trl"); if (trl) trl.style.visibility = "visible";
+    await say(w.tr, l.lang || "de", 0.9); if (!alive()) return;
+    await say(w.fr, "fr", slow ? 0.55 : 0.8); if (!alive()) return;
+    await wait(1200); if (!alive()) return;
+    if (auto && playing) { i++; play(); }
   }
-  loop();
+  const go = d => { i = (i + d + words.length) % words.length; playing = true; $("#pp").textContent = t("Pause"); sfx.tap(); play(); };
+  $("#nx").onclick = () => go(1);
+  $("#prev").onclick = () => go(-1);
+  $("#pp").onclick = () => {
+    playing = !playing; $("#pp").textContent = playing ? t("Pause") : t("Abspielen");
+    if (playing) play(); else { gen++; window.speechSynthesis?.cancel(); }
+  };
+  $("#sl").onclick = () => { slow = !slow; $("#sl").textContent = slow ? t("Normal") : t("Langsamer"); };
+  play();
 }
 
 // ------------------------------------------------------------------
@@ -1361,7 +1456,7 @@ function matchGame(l) {
   const words = shuffle(l.words).slice(0, Math.min(5, l.words.length));
   const right = shuffle(words);
   let pick = null, done = 0, errors = 0;
-  const t0 = Date.now();
+  const t0 = Date.now(); S.actStart = S.actStart || t0;
   const colors = ["#fff3a8", "#ffd6e7", "#d3f9d8", "#d0ebff", "#ffe8cc"];
   render(`<div class="wrap narrow">
     <div class="ex-top"><button class="icon-btn" id="quit" aria-label="${t("Beenden")}">${ICON.close}</button><b class="ex-title">${t("Post-its zuordnen")}</b>${audioBtn()}<span class="chip" id="pt">0 / ${words.length}</span></div>
@@ -1383,7 +1478,7 @@ function matchGame(l) {
       b.classList.add("done"); b.insertAdjacentHTML("beforeend", `<span class="stuck" style="background:${pb.style.background}">${esc(w.fr)}</span>`);
       pick = null; $("#pt").textContent = `${done} / ${words.length}`;
       if (done === words.length) {
-        const coins = earn("match", Math.max(2, words.length * 2 - errors), 15); logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: words.length + errors, ok: words.length });
+        const coins = earn("match", Math.max(2, words.length * 2 - errors), 15); logAct({ sec: Math.round((Date.now() - t0) / 1000), ans: words.length + errors, ok: words.length });
         save(true);
         setTimeout(() => { sfx.win(); confetti(); modal(`<div class="center stack"><div class="result-art">${art("postit")}</div><h2>${t("Alle Post-its kleben!")}</h2><div class="reward-row"><span class="reward">${art("coin", "ic")} +${coins}</span></div><button class="btn green" data-close="ok">${t("Weiter")}</button></div>`).then(() => islandView(l)); }, 500);
       }
@@ -1404,11 +1499,11 @@ function sortGame(l) {
   const keyOf = w => byArt ? artOf(w.fr) : (stripArticle(w.fr.toLowerCase()).replace(/[^a-zàâçéèêëîïôûùüÿœ]/g, "").length <= 5 ? "short" : "long");
   const shown = w => byArt ? stripArticle(w.fr.toLowerCase()) : w.fr;
   let i = 0, ok = 0;
-  const t0 = Date.now();
+  const t0 = Date.now(); S.actStart = S.actStart || t0;
   const draw = () => {
     if (i >= pool.length) {
       const coins = earn("sort", ok * 2, 15);
-      logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: pool.length, ok }); save(true);
+      logAct({ sec: Math.round((Date.now() - t0) / 1000), ans: pool.length, ok }); save(true);
       sfx.win(); if (ok >= pool.length - 1) confetti();
       return render(`<div class="wrap narrow"><div class="card result"><div class="result-art">${art("baskets")}</div><h1>${t("{ok} von {n} richtig sortiert!", { ok, n: pool.length })}</h1>
         <p class="muted" style="margin:0">${t(byArt ? "Tipp: Lerne jedes Wort immer mit seinem Artikel – le oder la." : "Lange Wörter darfst du in Silben zerlegen.")}</p>
@@ -1444,11 +1539,11 @@ const MOVES = [
 function moveGame(l) {
   const words = shuffle(l.words).slice(0, Math.min(6, l.words.length));
   let i = 0, ok = 0;
-  const t0 = Date.now();
+  const t0 = Date.now(); S.actStart = S.actStart || t0;
   const show = () => {
     if (i >= words.length) {
       const mission = offlineMission(words);
-      const got = earn("move", ok * 2, 15); logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: words.length, ok }); save(true);
+      const got = earn("move", ok * 2, 15); logAct({ sec: Math.round((Date.now() - t0) / 1000), ans: words.length, ok }); save(true);
       sfx.win(); confetti();
       render(`<div class="wrap narrow"><div class="card result"><div class="result-art">${art("jump")}</div><h1>${t("Super bewegt!")}</h1><p class="muted" style="margin:0">${t("{ok} von {n} Wörtern richtig gesagt.", { ok, n: words.length })}</p><p class="small muted" style="margin:0">${t("Bewegung hilft dem Kopf beim Merken.")}</p>
         <div class="reward-row"><span class="reward">${art("coin", "ic")} +${got}</span></div>${mission.html}<button class="btn green big" id="back">${t("Zur Insel")}</button></div></div>`);
@@ -1520,9 +1615,9 @@ function recordShower(l) {
   const words = [...l.words];
   const recs = new Map();
   let i = 0, stream = null, rec = null, stopTimer = null, paid = false, stop = false;
-  const t0 = Date.now();
+  const t0 = Date.now(); S.actStart = S.actStart || t0;
   const cleanup = () => { stop = true; clearTimeout(stopTimer); try { if (rec?.state === "recording") rec.stop(); } catch {} try { stream?.getTracks().forEach(x => x.stop()); } catch {} stream = null; recs.forEach(u => URL.revokeObjectURL(u)); recs.clear(); window.speechSynthesis?.cancel(); };
-  const quit = () => { logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000) }); save(); cleanup(); islandView(l); };
+  const quit = () => { logAct({ sec: Math.round((Date.now() - t0) / 1000) }); save(); cleanup(); islandView(l); };
   const top = sub => `<div class="ex-top"><button class="icon-btn" id="quit" aria-label="${t("Beenden")}">${ICON.close}</button><b class="ex-title">${t("Meine Vokabeldusche")}</b>${sub}</div>`;
 
   async function startRec(btn) {
@@ -1564,7 +1659,7 @@ function recordShower(l) {
   function finale() {
     const n = recs.size;
     let coins = 0;
-    if (!paid && n) { paid = true; coins = earn("rec", n * 2, 12); logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000) }); save(true); sfx.win(); confetti(80); }
+    if (!paid && n) { paid = true; coins = earn("rec", n * 2, 12); logAct({ sec: Math.round((Date.now() - t0) / 1000) }); save(true); sfx.win(); confetti(80); }
     render(`<div class="wrap narrow">${top("")}
       <div class="card result"><div class="result-art">${art("shower")}</div>
         <h1>${n ? tn(n, "Deine Vokabeldusche ist fertig: {n} Wort!", "Deine Vokabeldusche ist fertig: {n} Wörter!") : t("Noch keine Aufnahme")}</h1>
@@ -1630,7 +1725,7 @@ function wordNet(l) {
   const solved = new Map(knownW.map(w => [outer.indexOf(w), "known"]));
   const toWrite = outer.length - knownW.length;
   let sel = outer.findIndex((_, k) => !solved.has(k)), tries = 0, ok = 0;
-  const t0 = Date.now();
+  const t0 = Date.now(); S.actStart = S.actStart || t0;
   const pos = k => { const a = (-90 + (k * 360) / outer.length) * Math.PI / 180; return { x: 50 + 37 * Math.cos(a), y: 50 + 37 * Math.sin(a) }; };
   const nextOpen = from => { for (let d = 1; d <= outer.length; d++) { const k = (from + d) % outer.length; if (!solved.has(k)) return k; } return -1; };
   const node = (x, k) => {
@@ -1655,7 +1750,7 @@ function wordNet(l) {
         <div id="msg" class="small"></div>
       </div>` : ""}
     </div>`);
-    $("#quit").onclick = () => { logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000) }); save(); islandView(l); };
+    $("#quit").onclick = () => { logAct({ sec: Math.round((Date.now() - t0) / 1000) }); save(); islandView(l); };
     $$(".net-node[data-n]").forEach(b => b.onclick = () => { const k = +b.dataset.n; if (solved.has(k)) { autoSay(outer[k].fr); return; } sel = k; tries = 0; draw(); });
     if (sel < 0) return;
     const inp = $("#ans"); inp.focus();
@@ -1686,7 +1781,7 @@ function wordNet(l) {
 
   function finale() {
     const coins = earn("net", Math.max(2, ok * 2), 15);
-    logActivity(S.prog, { sec: Math.round((Date.now() - t0) / 1000), ans: toWrite, ok }); save(true);
+    logAct({ sec: Math.round((Date.now() - t0) / 1000), ans: toWrite, ok }); save(true);
     sfx.win(); confetti(); sel = -1; draw();
     const mission = offlineMission(outer);
     modal(`<div class="center stack"><div class="result-art">${art("bulbArt")}</div><h2>${t("Dein Wortnetz ist fertig!")}</h2>
@@ -1834,3 +1929,409 @@ function showWheel(first) {
   });
 }
 
+
+// ==================================================================
+//  RÄTSEL & WORTSPIELE (Wörter der Insel + schon gelernte Wörter)
+// ==================================================================
+// Wörter für ein Spiel: alle der Insel, dazu gelernte (Fach ≥ 2) aus den anderen Inseln
+function gameWords(l) {
+  const out = l.words.map(w => ({ l, w }));
+  for (const L of S.lessons) if (L.id !== l.id && L.lang === l.lang) for (const w of L.words) if (wstate(S.prog, L.id, w.id).b >= 2) out.push({ l: L, w });
+  return out.filter((x, i, a) => a.findIndex(y => norm(firstForm(y.w.fr)) === norm(firstForm(x.w.fr))) === i);
+}
+const hasArticle = f => stripArticle(norm(f)) !== norm(f);
+// Nomen mit Artikel (Einzahl-Form): „le chat“, „l'oiseau“
+const nounOf = w => { const f = firstForm(w.fr).trim(); return hasArticle(f) ? f : null; };
+// Kernwort ohne Artikel: „oiseau“
+const coreOf = w => { const f = firstForm(w.fr).trim(); const low = f.toLowerCase(), c = stripArticle(low); return c === low ? f : f.slice(f.length - c.length); };
+const lettersOnly = s => /^[a-zà-ÿç]+$/i.test(s) && !/[œæ]/.test(s);
+
+// Sinnvolle Sätze aus den Vokabeln der Lektionen (einfache, immer richtige Satzmuster)
+const SENT1 = ["Je vois {A}.", "Voici {A}.", "Je dessine {A}.", "Je montre {A}.", "Il y a {A}."];
+const SENT2 = ["Je vois {A} et {B}.", "Voici {A} et {B}.", "Je dessine {A} et {B}.", "Il y a {A} et {B}."];
+function makeSentences(pool, n) {
+  const nouns = shuffle(pool.map(x => ({ ...x, np: nounOf(x.w) })).filter(x => x.np));
+  const out = [];
+  for (let k = 0; k < n && nouns.length; k++) {
+    const a = nouns[k % nouns.length], b = nouns[(k + 1) % nouns.length];
+    const two = nouns.length > 1 && Math.random() < 0.5 && a !== b;
+    const tpl = (two ? SENT2 : SENT1)[Math.floor(Math.random() * (two ? SENT2 : SENT1).length)];
+    const text = tpl.replace("{A}", a.np).replace("{B}", b.np);
+    out.push({ text, words: two ? [a, b] : [a] });
+  }
+  return out;
+}
+
+// Gemeinsamer Rahmen für die Spiele
+function gameFrame(title, progress, coins, inner, onQuitFn) {
+  render(`<div class="wrap narrow ex">
+    <div class="ex-top">
+      <button class="icon-btn" id="quit" aria-label="${t("Beenden")}">${ICON.close}</button>
+      <div class="ex-progress"><i style="width:${progress}%"></i></div>
+      ${audioBtn()}${clockChip()}
+      <span class="chip coin">${art("coin", "ic")} ${coins}</span>
+    </div>
+    <div class="card game-card" id="card"><div class="card-tag"><span class="pill green">${esc(title)}</span></div>${inner}</div></div>`);
+  if (!S.actStart) S.actStart = Date.now();
+  $("#quit").onclick = onQuitFn;
+}
+// Kurze Rückmeldung unter der Aufgabe, weiter erst auf Knopfdruck
+function gameFb(ok, html, onNext) {
+  const card = $("#card");
+  card.classList.remove("flash-ok", "flash-no"); void card.offsetWidth; card.classList.add(ok ? "flash-ok" : "flash-no");
+  const fb = document.createElement("div");
+  fb.className = `feedback ${ok ? "ok" : "no"}`;
+  fb.innerHTML = `<div class="fb-head"><span class="fb-icon">${ok ? ICON.check : ICON.cross}</span><span class="fb-title">${esc(t(ok ? "Richtig!" : "Nicht ganz."))}</span></div>
+    <div class="fb-motto">${ok ? "🌟" : "💪"} ${esc(motto(ok, false))}</div>${html || ""}`;
+  const btn = document.createElement("button");
+  btn.className = `btn ${ok ? "green" : "coral"} big`; btn.textContent = t("Weiter");
+  let gone = false; btn.onclick = () => { if (gone) return; gone = true; onNext(); };
+  fb.appendChild(btn); card.appendChild(fb);
+  ok ? sfx.ok() : sfx.no();
+  fb.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+// Ergebnis am Ende eines Spiels
+function gameEnd(l, kind, ok, total, t0, extraHtml = "") {
+  const coins = earn(kind, ok * 2, 15);
+  logAct({ sec: Math.round((Date.now() - t0) / 1000) });
+  save(true);
+  if (ok) { sfx.win(); confetti(ok === total ? 140 : 60); }
+  render(`<div class="wrap narrow"><div class="card result">
+    <div class="result-art">${art(ok === total ? "trophy" : "star")}</div>
+    <h1>${t(ok === total ? "Perfekt!" : ok >= total / 2 ? "Gut gemacht!" : "Weiter üben!")}</h1>
+    <p class="muted" style="margin:0">${t("{a} von {b} richtig.", { a: ok, b: total })}</p>
+    ${extraHtml}
+    <div class="reward-row"><span class="reward">${art("coin", "ic")} +${coins}</span></div>
+    <button class="btn green big" id="done">${t("Weiter")}</button></div></div>`);
+  $("#done").onclick = () => islandView(l);
+}
+// Spiel ohne Ergebnis verlassen: Übungszeit trotzdem zählen
+function leaveGame(l, t0) { logAct({ sec: Math.round((Date.now() - t0) / 1000) }); save(); islandView(l); }
+const tooFew = (l, n) => { toast(t("Für dieses Spiel braucht die Insel mindestens {n} passende Wörter.", { n })); islandView(l); };
+const wordHint = (w, l) => `${picBox(w, l)}<div class="word-tr">${LANG_FLAG[l.lang] || ""} ${esc(w.tr)}</div>`;
+
+// ---------- 1) Schlangensätze: Wörter mit Strichen trennen ----------
+function snakeGame(l) {
+  const sents = makeSentences(gameWords(l), 5);
+  if (sents.length < 3) return tooFew(l, 2);
+  const t0 = Date.now(); let k = 0, ok = 0;
+  const quit = () => (k ? gameEnd(l, "snake", ok, k, t0) : leaveGame(l, t0));
+  const next = () => {
+    if (k >= sents.length) return gameEnd(l, "snake", ok, sents.length, t0);
+    const s = sents[k];
+    const chars = [], cuts = new Set();
+    for (const c of s.text) { if (c === " ") cuts.add(chars.length - 1); else chars.push(c); }
+    const marks = new Set();
+    gameFrame(t("Schlangensätze"), Math.round(k / sents.length * 100), ok, `
+      <span class="task-q">${t("Wo hört ein Wort auf? Tippe zwischen die Buchstaben, um einen Strich zu setzen.")}</span>
+      <div class="snake" id="snake"></div>
+      <div class="row center-row"><button class="btn ghost" id="hearS">${ICON.speaker} ${t("Satz anhören")}</button><button class="btn green" id="chk">${t("Prüfen")}</button></div>`, quit);
+    const draw = (sol = false) => {
+      $("#snake").innerHTML = chars.map((c, i) => `<span class="sn-c">${esc(c)}</span>${i < chars.length - 1 ? `<button class="sn-gap ${marks.has(i) ? "on" : ""} ${sol ? (cuts.has(i) ? (marks.has(i) ? "good" : "miss") : marks.has(i) ? "bad" : "") : ""}" data-i="${i}" aria-label="${t("Strich")}">${marks.has(i) || (sol && cuts.has(i)) ? "|" : ""}</button>` : ""}`).join("");
+      if (!sol) $$("#snake .sn-gap").forEach(b => b.onclick = () => { const i = +b.dataset.i; marks.has(i) ? marks.delete(i) : marks.add(i); sfx.tap(); draw(); });
+    };
+    draw();
+    $("#hearS").onclick = () => say(s.text, "fr", 0.8);
+    $("#chk").onclick = () => {
+      $("#chk").disabled = true;
+      const right = marks.size === cuts.size && [...cuts].every(i => marks.has(i));
+      if (right) ok++;
+      draw(true);
+      gameFb(right, `<div class="fb-sol"><span class="small">${t("So ist es richtig:")}</span><span class="sol">${esc(s.text.split(" ").join(" | "))}</span></div>`, () => { k++; next(); });
+    };
+  };
+  next();
+}
+
+// ---------- 2) Buchstabenwirrwarr ----------
+function jumbleGame(l) {
+  const items = shuffle(gameWords(l).filter(x => coreOf(x.w).replace(/[\s'-]/g, "").length >= 3)).slice(0, 8);
+  if (items.length < 3) return tooFew(l, 3);
+  const t0 = Date.now(); let k = 0, ok = 0;
+  const quit = () => (k ? gameEnd(l, "jumble", ok, k, t0) : leaveGame(l, t0));
+  const next = () => {
+    if (k >= items.length) return gameEnd(l, "jumble", ok, items.length, t0);
+    const { w, l: L } = items[k], core = coreOf(w);
+    let mix = shuffle([...core.replace(/\s/g, "")]);
+    if (mix.join("") === core.replace(/\s/g, "") && mix.length > 1) mix = mix.reverse();
+    gameFrame(t("Buchstabenwirrwarr"), Math.round(k / items.length * 100), ok, `
+      <span class="task-q">${t("Die Buchstaben sind durcheinander. Welches Wort ist das?")}</span>
+      <div class="jumble">${mix.map(c => `<span class="tile static">${esc(c.toUpperCase())}</span>`).join("")}</div>
+      <div id="hintBox" hidden>${wordHint(w, L)}</div>
+      <div class="write-row">${fieldsHtml(null)}</div>${accentsHtml()}
+      <div class="row center-row"><button class="btn ghost" id="hint">${ICON.bulb} ${t("Hilfe")}</button><button class="btn green" id="chk">${t("Prüfen")}</button></div>`, quit);
+    const ins = bindFields($("#card")); ins[0].focus();
+    $("#hint").onclick = () => { $("#hintBox").hidden = false; $("#hint").disabled = true; };
+    const check = () => {
+      if (!ins[0].value.trim()) return;
+      $("#chk").disabled = true; ins[0].disabled = true;
+      const typed = stripArticle(norm(ins[0].value)), right = norm(core);
+      const good = typed === right || stripAccents(typed) === stripAccents(right);
+      if (good) ok++;
+      gameFb(good, `<div class="fb-sol"><span class="small">${t("Das Wort heißt:")}</span><span class="sol">${esc(firstForm(w.fr))}</span></div>${good ? "" : diffBlock({ typed: ins[0].value.trim() }, core)}`, () => { k++; next(); });
+      sayWord(firstForm(w.fr));
+    };
+    $("#chk").onclick = check;
+    ins[0].onkeydown = e => { if (e.key === "Enter") check(); };
+  };
+  next();
+}
+
+// ---------- 3) Finde den Fehler (manchmal ist das Wort auch richtig) ----------
+function mistake(word) {
+  const a = [...word], idx = a.map((c, i) => (/[a-zà-ÿ]/i.test(c) ? i : -1)).filter(i => i >= 0);
+  if (idx.length < 3) return null;
+  const pickI = () => idx[1 + Math.floor(Math.random() * (idx.length - 1))];
+  const kinds = shuffle(["swap", "drop", "double", "accent", "vowel"]);
+  for (const kind of kinds) {
+    const b = [...a], i = pickI();
+    if (kind === "swap" && i + 1 < b.length && /[a-zà-ÿ]/i.test(b[i + 1]) && b[i] !== b[i + 1]) [b[i], b[i + 1]] = [b[i + 1], b[i]];
+    else if (kind === "drop") b.splice(i, 1);
+    else if (kind === "double" && !/[aeiouy]/i.test(b[i])) b.splice(i, 0, b[i]);
+    else if (kind === "accent") { const j = b.findIndex(c => /[éèêàçôîûë]/.test(c)); if (j < 0) continue; b[j] = stripAccents(b[j]); }
+    else if (kind === "vowel" && /[aeiou]/.test(b[i])) b[i] = { a: "e", e: "a", i: "e", o: "u", u: "o" }[b[i]];
+    else continue;
+    const s = b.join("");
+    if (s !== word) return s;
+  }
+  return null;
+}
+function typoGame(l) {
+  const items = shuffle(gameWords(l).filter(x => coreOf(x.w).length >= 4)).slice(0, 8)
+    .map(x => { const f = firstForm(x.w.fr).trim(), bad = Math.random() < 0.6 ? mistake(f) : null; return { ...x, f, shown: bad || f, bad: !!bad }; });
+  if (items.length < 3) return tooFew(l, 3);
+  const t0 = Date.now(); let k = 0, ok = 0;
+  const quit = () => (k ? gameEnd(l, "typo", ok, k, t0) : leaveGame(l, t0));
+  const next = () => {
+    if (k >= items.length) return gameEnd(l, "typo", ok, items.length, t0);
+    const it = items[k];
+    gameFrame(t("Finde den Fehler"), Math.round(k / items.length * 100), ok, `
+      <span class="task-q">${t("Ist das Wort richtig geschrieben?")}</span>
+      ${wordHint(it.w, it.l)}
+      <div class="typo-word">${esc(it.shown)}</div>
+      <div class="row center-row" id="pick"><button class="btn green big" id="yes">✓ ${t("Richtig")}</button><button class="btn coral big" id="no">✗ ${t("Falsch")}</button></div>
+      <div id="fix" hidden><span class="small"><b>${t("Schreib das Wort richtig:")}</b></span><div class="write-row">${fieldsHtml(null)}</div>${accentsHtml()}<div class="row center-row"><button class="btn green" id="chk">${t("Prüfen")}</button></div></div>`, quit);
+    const sol = () => `<div class="fb-sol"><span class="small">${t("So schreibt man es:")}</span><span class="sol">${esc(it.f)}</span></div>`;
+    $("#yes").onclick = () => {
+      $("#pick").hidden = true;
+      if (!it.bad) { ok++; gameFb(true, sol(), () => { k++; next(); }); }
+      else gameFb(false, `<p style="margin:0">${t("Hier war ein Fehler versteckt!")}</p>${diffBlock({ typed: it.shown }, it.f)}`, () => { k++; next(); });
+    };
+    $("#no").onclick = () => {
+      $("#pick").hidden = true;
+      if (!it.bad) return gameFb(false, `<p style="margin:0">${t("Dieses Wort war richtig geschrieben.")}</p>${sol()}`, () => { k++; next(); });
+      $("#fix").hidden = false;
+      const ins = bindFields($("#fix")); ins[0].value = it.shown; ins[0].focus();
+      const check = () => {
+        $("#chk").disabled = true; ins[0].disabled = true;
+        const r = checkWritten(ins[0].value, it.f), good = r === "perfect" || r === "accent";
+        if (good) ok++;
+        gameFb(good, sol() + (good ? "" : diffBlock({ typed: ins[0].value }, it.f)), () => { k++; next(); });
+      };
+      $("#chk").onclick = check;
+      ins[0].onkeydown = e => { if (e.key === "Enter") check(); };
+    };
+  };
+  next();
+}
+
+// ---------- 4) Ein fremdes Wort hat sich in den Satz geschlichen ----------
+function intruderGame(l) {
+  const pool = gameWords(l);
+  const sents = makeSentences(pool, 6);
+  const fillers = shuffle(pool.map(x => coreOf(x.w)).filter(c => c && !/\s/.test(c)));
+  if (sents.length < 3 || fillers.length < 3) return tooFew(l, 3);
+  const t0 = Date.now(); let k = 0, ok = 0;
+  const quit = () => (k ? gameEnd(l, "intruder", ok, k, t0) : leaveGame(l, t0));
+  const next = () => {
+    if (k >= sents.length) return gameEnd(l, "intruder", ok, sents.length, t0);
+    const s = sents[k], words = s.text.split(" ");
+    const used = new Set(s.text.toLowerCase().split(/[\s'.]+/));
+    const intr = fillers.find(f => !used.has(f.toLowerCase())) || fillers[0];
+    const pos = 1 + Math.floor(Math.random() * (words.length - 1));
+    const shown = [...words.slice(0, pos), intr, ...words.slice(pos)];
+    gameFrame(t("Fremdes Wort"), Math.round(k / sents.length * 100), ok, `
+      <span class="task-q">${t("Ein Wort gehört nicht in den Satz. Tippe es an!")}</span>
+      <div class="intr" id="intr">${shown.map((x, i) => `<button class="intr-w" data-i="${i}">${esc(x)}</button>`).join("")}</div>`, quit);
+    $$("#intr .intr-w").forEach(b => b.onclick = () => {
+      const good = +b.dataset.i === pos;
+      $$("#intr .intr-w").forEach(x => { x.disabled = true; if (+x.dataset.i === pos) x.classList.add("found"); });
+      if (!good) b.classList.add("wrongpick");
+      if (good) ok++;
+      gameFb(good, `<div class="fb-sol"><span class="small">${t("Der Satz heißt richtig:")}</span><span class="sol">${esc(s.text)}</span><button class="round-btn blue" id="solHear" aria-label="${t("Anhören")}">${ICON.speaker}</button></div>`, () => { k++; next(); });
+      $("#solHear").onclick = () => say(s.text, "fr", 0.8);
+    });
+  };
+  next();
+}
+
+// ---------- 5) Löcher im Wort: Blätter verdecken Buchstaben ----------
+function leafGame(l) {
+  const items = shuffle(gameWords(l).filter(x => coreOf(x.w).replace(/[\s'-]/g, "").length >= 3)).slice(0, 8);
+  if (items.length < 3) return tooFew(l, 3);
+  const t0 = Date.now(); let k = 0, ok = 0;
+  const quit = () => (k ? gameEnd(l, "leaf", ok, k, t0) : leaveGame(l, t0));
+  const next = () => {
+    if (k >= items.length) return gameEnd(l, "leaf", ok, items.length, t0);
+    const { w, l: L } = items[k], f = firstForm(w.fr).trim();
+    const letterIdx = [...f].map((c, i) => (/[a-zà-ÿœ]/i.test(c) ? i : -1)).filter(i => i >= 0);
+    const n = Math.max(1, Math.min(letterIdx.length - 1, Math.round(letterIdx.length * 0.35)));
+    const hide = new Set(shuffle(letterIdx).slice(0, n));
+    gameFrame(t("Löcher im Wort"), Math.round(k / items.length * 100), ok, `
+      <span class="task-q">${t("Blätter verdecken Buchstaben. Schreib das ganze Wort!")}</span>
+      ${wordHint(w, L)}
+      <div class="leafword">${[...f].map((c, i) => c === " " ? `<span class="lw-sp"></span>` : hide.has(i) ? `<span class="lw-leaf" aria-label="${t("versteckter Buchstabe")}">🍃</span>` : `<span class="lw-c">${esc(c)}</span>`).join("")}</div>
+      <div class="write-row">${fieldsHtml(null)}</div>${accentsHtml()}
+      <div class="row center-row"><button class="btn green" id="chk">${t("Prüfen")}</button></div>`, quit);
+    const ins = bindFields($("#card")); ins[0].focus();
+    const check = () => {
+      if (!ins[0].value.trim()) return;
+      $("#chk").disabled = true; ins[0].disabled = true;
+      const r = checkWritten(ins[0].value, f), good = r === "perfect" || r === "accent";
+      if (good) ok++;
+      gameFb(good, `<div class="fb-sol"><span class="small">${t("So schreibt man es:")}</span><span class="sol">${esc(f)}</span></div>${good ? "" : diffBlock({ typed: ins[0].value }, f)}`, () => { k++; next(); });
+      sayWord(f);
+    };
+    $("#chk").onclick = check;
+    ins[0].onkeydown = e => { if (e.key === "Enter") check(); };
+  };
+  next();
+}
+
+// ---------- 6) Kreuzworträtsel ----------
+function buildCrossword(cands) {
+  const words = cands.sort((a, b) => b.ans.length - a.ans.length);
+  const grid = new Map(), placed = [];
+  const key = (r, c) => r + "," + c;
+  const base = ch => stripAccents(ch).toUpperCase();
+  const canPlace = (ans, r, c, dir) => {
+    let cross = 0;
+    for (let i = 0; i < ans.length; i++) {
+      const rr = r + (dir ? i : 0), cc = c + (dir ? 0 : i), cell = grid.get(key(rr, cc));
+      if (cell) { if (base(cell.ch) !== base(ans[i])) return -1; cross++; continue; }
+      // keine Nachbarn quer zur Richtung (sonst entstehen falsche Wörter)
+      const n1 = dir ? key(rr, cc - 1) : key(rr - 1, cc), n2 = dir ? key(rr, cc + 1) : key(rr + 1, cc);
+      if (grid.has(n1) || grid.has(n2)) return -1;
+    }
+    const before = dir ? key(r - 1, c) : key(r, c - 1), after = dir ? key(r + ans.length, c) : key(r, c + ans.length);
+    if (grid.has(before) || grid.has(after)) return -1;
+    return cross;
+  };
+  const put = (wd, r, c, dir) => { for (let i = 0; i < wd.ans.length; i++) { const rr = r + (dir ? i : 0), cc = c + (dir ? 0 : i); grid.set(key(rr, cc), { ch: wd.ans[i] }); } placed.push({ ...wd, r, c, dir }); };
+  if (!words.length) return null;
+  put(words[0], 0, 0, 0);
+  for (const wd of words.slice(1)) {
+    let best = null;
+    for (const p of placed) for (let i = 0; i < p.ans.length; i++) for (let j = 0; j < wd.ans.length; j++) {
+      if (base(p.ans[i]) !== base(wd.ans[j])) continue;
+      const dir = p.dir ? 0 : 1;
+      const r = p.dir ? p.r + i : p.r - j, c = p.dir ? p.c - j : p.c + i;
+      const cr = canPlace(wd.ans, r, c, dir);
+      if (cr > 0 && (!best || cr > best.cr)) best = { r, c, dir, cr };
+    }
+    if (best) put(wd, best.r, best.c, best.dir);
+    if (placed.length >= 7) break;
+  }
+  const rs = [...grid.keys()].map(k => +k.split(",")[0]), cs = [...grid.keys()].map(k => +k.split(",")[1]);
+  const r0 = Math.min(...rs), c0 = Math.min(...cs);
+  placed.forEach(p => { p.r -= r0; p.c -= c0; });
+  return { placed, rows: Math.max(...rs) - r0 + 1, cols: Math.max(...cs) - c0 + 1 };
+}
+function crossGame(l) {
+  const cands = shuffle(gameWords(l).map(x => ({ ...x, ans: coreOf(x.w).toLowerCase() })).filter(x => lettersOnly(x.ans) && x.ans.length >= 3 && x.ans.length <= 11)).slice(0, 12);
+  let cw = null;
+  for (let tries = 0; tries < 6 && (!cw || cw.placed.length < 4); tries++) { const c = buildCrossword(shuffle(cands)); if (c && (!cw || c.placed.length > cw.placed.length)) cw = c; }
+  if (!cw || cw.placed.length < 3) return tooFew(l, 4);
+  const t0 = Date.now();
+  // Nummern vergeben (Lesereihenfolge)
+  const starts = [...new Set(cw.placed.map(p => p.r * 100 + p.c))].sort((a, b) => a - b);
+  cw.placed.forEach(p => { p.num = starts.indexOf(p.r * 100 + p.c) + 1; });
+  const cells = new Map();
+  cw.placed.forEach((p, wi) => { for (let i = 0; i < p.ans.length; i++) { const r = p.r + (p.dir ? i : 0), c = p.c + (p.dir ? 0 : i), k = r + "," + c; const cell = cells.get(k) || { r, c, ch: p.ans[i], words: [] }; cell.words.push({ wi, i }); cells.set(k, cell); } });
+  const numAt = new Map(cw.placed.map(p => [p.r + "," + p.c, p.num]));
+  const clue = p => `<li data-wi="${cw.placed.indexOf(p)}"><b>${p.num}</b> ${p.w.emoji ? `<span class="cl-emo">${esc(p.w.emoji)}</span>` : ""}${esc(p.w.tr)} <small class="muted">(${p.ans.length})</small></li>`;
+  const across = cw.placed.filter(p => !p.dir).sort((a, b) => a.num - b.num), down = cw.placed.filter(p => p.dir).sort((a, b) => a.num - b.num);
+  const size = Math.min(40, Math.floor(Math.min(560, window.innerWidth - 60) / cw.cols));
+  gameFrame(t("Kreuzworträtsel"), 0, 0, `
+    <span class="task-q">${t("Schreib die französischen Wörter ohne Artikel ins Rätsel.")}</span>
+    <div class="cw-wrap"><div class="cw" style="grid-template-columns:repeat(${cw.cols},${size}px);grid-template-rows:repeat(${cw.rows},${size}px)">
+      ${[...cells.values()].map(cell => `<div class="cw-cell" style="grid-row:${cell.r + 1};grid-column:${cell.c + 1}">${numAt.has(cell.r + "," + cell.c) ? `<span class="cw-n">${numAt.get(cell.r + "," + cell.c)}</span>` : ""}<input maxlength="1" data-k="${cell.r},${cell.c}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="${t("Buchstabe")}"></div>`).join("")}
+    </div></div>
+    <div class="cw-clues">${across.length ? `<div><h3>➡ ${t("Waagrecht")}</h3><ol>${across.map(clue).join("")}</ol></div>` : ""}${down.length ? `<div><h3>⬇ ${t("Senkrecht")}</h3><ol>${down.map(clue).join("")}</ol></div>` : ""}</div>
+    <div class="row center-row"><button class="btn ghost" id="solve">${t("Lösung zeigen")}</button><button class="btn green" id="chk">${t("Prüfen")}</button></div>`,
+    () => gameEnd(l, "cross", 0, cw.placed.length, t0));
+  let dir = 0;
+  const inputAt = (r, c) => $(`.cw input[data-k="${r},${c}"]`);
+  $$(".cw input").forEach(inp => {
+    const [r, c] = inp.dataset.k.split(",").map(Number), cell = cells.get(inp.dataset.k);
+    inp.onfocus = () => { if (!cell.words.some(x => cw.placed[x.wi].dir === dir)) dir = cw.placed[cell.words[0].wi].dir; };
+    inp.onclick = () => { if (cell.words.length > 1) dir = dir ? 0 : 1; };
+    inp.oninput = () => {
+      inp.value = inp.value.slice(-1); inp.parentElement.classList.remove("good", "bad");
+      if (inp.value) { const n = inputAt(r + (dir ? 1 : 0), c + (dir ? 0 : 1)); if (n) n.focus(); }
+    };
+    inp.onkeydown = e => { if (e.key === "Backspace" && !inp.value) { const p = inputAt(r - (dir ? 1 : 0), c - (dir ? 0 : 1)); if (p) { p.focus(); p.value = ""; e.preventDefault(); } } };
+  });
+  $$(".cw-clues li").forEach(li => li.onclick = () => { const p = cw.placed[+li.dataset.wi]; dir = p.dir; inputAt(p.r, p.c)?.focus(); });
+  const solvedWords = () => cw.placed.filter(p => [...p.ans].every((ch, i) => { const v = inputAt(p.r + (p.dir ? i : 0), p.c + (p.dir ? 0 : i)).value; return v && stripAccents(v).toLowerCase() === stripAccents(ch); })).length;
+  $("#chk").onclick = () => {
+    let wrong = 0, empty = 0;
+    cells.forEach(cell => {
+      const inp = inputAt(cell.r, cell.c), v = inp.value;
+      if (!v) { empty++; return; }
+      const good = stripAccents(v).toLowerCase() === stripAccents(cell.ch);
+      inp.parentElement.classList.toggle("good", good); inp.parentElement.classList.toggle("bad", !good);
+      if (good) inp.value = cell.ch;            // richtige Akzente zeigen
+      else wrong++;
+    });
+    const n = solvedWords();
+    if (!wrong && !empty) { sfx.win(); return gameEnd(l, "cross", n, cw.placed.length, t0); }
+    sfx.no(); toast(wrong ? t("Rote Felder stimmen noch nicht.") : t("Es fehlen noch Buchstaben."), 2600);
+  };
+  $("#solve").onclick = () => {
+    const n = solvedWords();
+    cells.forEach(cell => { const inp = inputAt(cell.r, cell.c); if (stripAccents(inp.value).toLowerCase() !== stripAccents(cell.ch)) { inp.value = cell.ch; inp.parentElement.classList.add("shown"); } inp.disabled = true; });
+    $("#solve").disabled = true;
+    $("#chk").textContent = t("Fertig"); $("#chk").onclick = () => gameEnd(l, "cross", n, cw.placed.length, t0);
+  };
+}
+
+// ---------- 7) Ballon-Raten (Buchstaben raten, jeder Fehler lässt einen Ballon platzen) ----------
+function hangGame(l) {
+  const items = shuffle(gameWords(l).filter(x => coreOf(x.w).replace(/[\s'-]/g, "").length >= 3)).slice(0, 5);
+  if (items.length < 2) return tooFew(l, 2);
+  const t0 = Date.now(); let k = 0, ok = 0;
+  const LIVES = 8, COL = ["#ff6b6b", "#ffd43b", "#69db7c", "#4dabf7", "#b197fc", "#ff922b", "#f783ac", "#38d9a9"];
+  const quit = () => (k ? gameEnd(l, "hang", ok, k, t0) : leaveGame(l, t0));
+  const next = () => {
+    if (k >= items.length) return gameEnd(l, "hang", ok, items.length, t0);
+    const { w, l: L } = items[k], word = coreOf(w);
+    const guessed = new Set(); let lives = LIVES, over = false;
+    const isLetter = c => /[a-zà-ÿœæç]/i.test(c);
+    const hidden = () => [...word].map(c => !isLetter(c) ? `<span class="hm-sp">${c === " " ? "&nbsp;" : esc(c)}</span>` : guessed.has(stripAccents(c).toLowerCase()) || over ? `<span class="hm-c">${esc(c)}</span>` : `<span class="hm-c empty">_</span>`).join("");
+    const balloons = () => COL.map((c, i) => `<span class="balloon ${i >= lives ? "pop" : ""}" style="--c:${c}"></span>`).join("");
+    gameFrame(t("Ballon-Raten"), Math.round(k / items.length * 100), ok, `
+      <span class="task-q">${t("Rate das Wort Buchstabe für Buchstabe. Bei jedem Fehler platzt ein Ballon!")}</span>
+      <div class="balloons" id="bal">${balloons()}</div>
+      ${wordHint(w, L)}
+      <div class="hm-word" id="hw">${hidden()}</div>
+      <div class="hm-keys" id="keys">${"abcdefghijklmnopqrstuvwxyz".split("").map(c => `<button data-c="${c}">${c.toUpperCase()}</button>`).join("")}</div>`, quit);
+    const solved = () => [...word].every(c => !isLetter(c) || guessed.has(stripAccents(c).toLowerCase()));
+    const end = good => {
+      over = true; $("#hw").innerHTML = hidden(); $$("#keys button").forEach(b => { b.disabled = true; });
+      if (good) ok++;
+      gameFb(good, `<div class="fb-sol"><span class="small">${t("Das Wort heißt:")}</span><span class="sol">${esc(firstForm(w.fr))}</span></div>`, () => { k++; next(); });
+      sayWord(firstForm(w.fr));
+    };
+    $$("#keys button").forEach(b => b.onclick = () => {
+      const c = b.dataset.c; if (guessed.has(c) || over) return;
+      guessed.add(c); b.disabled = true;
+      const hit = [...word].some(x => stripAccents(x).toLowerCase() === c || (c === "o" && x === "œ"));
+      if (hit) { b.classList.add("hit"); sfx.tap(); if ([...word].includes("œ") && c === "o") guessed.add("œ"); }
+      else { b.classList.add("miss"); lives--; sfx.no(); $("#bal").innerHTML = balloons(); }
+      $("#hw").innerHTML = hidden();
+      if (solved()) end(true); else if (lives <= 0) end(false);
+    });
+  };
+  next();
+}

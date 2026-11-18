@@ -199,7 +199,7 @@ export function countDueToday(prog, lessons) { return planLearn(prog, lessons).l
 // ---- Antwort prüfen (kindgerecht tolerant) ---------------------
 export function stripAccents(s) { return s.normalize("NFD").replace(/[̀-ͯ]/g, ""); }
 export function norm(s) {
-  return String(s || "").toLowerCase().replace(/[’`´]/g, "'").replace(/[.!?,;:¿¡"«»()]/g, " ").replace(/\s+/g, " ").trim();
+  return String(s || "").toLowerCase().replace(/œ/g, "oe").replace(/æ/g, "ae").replace(/[’`´]/g, "'").replace(/[.!?,;:¿¡"«»()]/g, " ").replace(/\s+/g, " ").trim();
 }
 const ARTICLES = /^(le |la |les |l'|l |un |une |des |du |de la |de l'|o |a |os |as |um |uma |der |die |das |ein |eine )/;
 export function stripArticle(s) { return s.replace(ARTICLES, "").trim(); }
@@ -212,7 +212,18 @@ export function forms(target) {
   }).map(x => x.trim()).filter(Boolean);
 }
 export const firstForm = target => forms(target)[0] || String(target ?? "");
-export function variants(target) { return forms(target).map(norm).filter(Boolean); }
+// Einzahl + Mehrzahl in einem Eintrag („la dent, les dents“) → ["la dent", "les dents"], sonst null
+export function pairForms(target) {
+  const s = String(target ?? "");
+  if (/[\/;|]/.test(s)) return null;
+  const bits = s.split(/\s*,\s*/).map(x => x.trim()).filter(Boolean);
+  return bits.length === 2 && bits.every(b => ARTICLES.test(norm(b) + " ")) ? bits : null;
+}
+export function variants(target) {
+  const v = forms(target).map(norm).filter(Boolean);
+  if (pairForms(target)) v.push(norm(target));          // beide Formen in einem Feld zählen auch
+  return v;
+}
 
 export function lev(a, b) {
   if (a === b) return 0;
@@ -241,17 +252,64 @@ export function checkWritten(input, target) {
 }
 
 // Spracherkennung: großzügig, Artikel und Akzente egal
+// Französische Aussprache grob vereinfachen („le visage“ ≈ „visaj“), damit die
+// Spracherkennung auch passt, wenn sie ein gleich klingendes Wort versteht
+export function frPhon(str) {
+  const words = stripAccents(stripArticle(norm(str))).replace(/['-]/g, " ").split(" ").filter(Boolean);
+  return words.map(w => {
+    w = w.replace(/^h/, "").replace(/(eaux|eau|aux|au)/g, "o").replace(/(ai|ei)/g, "e").replace(/(er|ez|et)$/, "e")
+      .replace(/qu/g, "k").replace(/c(?=[eiy])/g, "s").replace(/c/g, "k").replace(/ph/g, "f").replace(/gn/g, "n").replace(/g(?=[eiy])/g, "j")
+      .replace(/oi/g, "wa").replace(/ou/g, "u").replace(/ill/g, "y").replace(/y/g, "i")
+      .replace(/(an|en|am|em)(?![aeiou])/g, "A").replace(/(on|om)(?![aeiou])/g, "O").replace(/(ain|ein|in|im|un)(?![aeiou])/g, "I")
+      .replace(/h/g, "").replace(/([a-z])\1+/g, "$1");
+    return w.replace(/[esxtdp]+$/, "") || w;            // stumme Endungen
+  }).join("");
+}
+
+// Spracherkennung: großzügig, Artikel und Akzente egal, gleich klingende Wörter zählen
 export function checkSpoken(alternatives, target) {
   const targets = variants(target).map(t => stripAccents(stripArticle(t)));
+  const ptargets = forms(target).map(frPhon).filter(Boolean);
   for (const alt of alternatives) {
     const a = stripAccents(stripArticle(norm(alt)));
+    if (!a) continue;
     for (const t of targets) {
-      if (!a) continue;
       if (a === t || a.endsWith(" " + t) || (t.length >= 3 && a.includes(t))) return true;
       if (lev(a, t) <= Math.max(1, Math.floor(t.length * 0.25))) return true;
     }
+    const pa = frPhon(alt);
+    for (const pt of ptargets) {
+      if (!pa) continue;
+      if (pa === pt || (pt.length >= 3 && pa.includes(pt))) return true;
+      if (lev(pa, pt) <= Math.max(1, Math.floor(pt.length * 0.3))) return true;
+    }
   }
   return false;
+}
+
+// Rechtschreib-Vergleich für die Fehleranzeige: welche Buchstaben stimmen, fehlen, sind zu viel?
+// Liefert [{t:"ok"|"sub"|"del"|"ins", c: getippt, r: richtig}]
+export function spellDiff(typed, target) {
+  const a = [...String(typed || "").trim()], b = [...String(target || "").trim()];
+  const eq = (x, y) => x.toLowerCase() === y.toLowerCase();
+  const m = a.length, n = b.length;
+  const D = Array.from({ length: m + 1 }, (_, i) => Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)));
+  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++)
+    D[i][j] = Math.min(D[i - 1][j] + 1, D[i][j - 1] + 1, D[i - 1][j - 1] + (eq(a[i - 1], b[j - 1]) ? 0 : 1));
+  const out = [];
+  let i = m, j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && D[i][j] === D[i - 1][j - 1] + (eq(a[i - 1], b[j - 1]) ? 0 : 1)) {
+      out.push(eq(a[i - 1], b[j - 1]) ? { t: "ok", c: a[i - 1], r: b[j - 1] } : { t: "sub", c: a[i - 1], r: b[j - 1] }); i--; j--;
+    } else if (j > 0 && D[i][j] === D[i][j - 1] + 1) { out.push({ t: "ins", r: b[j - 1] }); j--; }
+    else { out.push({ t: "del", c: a[i - 1] }); i--; }
+  }
+  return out.reverse();
+}
+// Die Form, die am besten zur Eingabe passt (für die Fehleranzeige)
+export function closestForm(typed, target) {
+  const fs = forms(target), a = norm(typed);
+  return fs.reduce((best, f) => (lev(a, norm(f)) < lev(a, norm(best)) ? f : best), fs[0] || String(target || ""));
 }
 
 // ---- Tagebuch & Belohnungen ------------------------------------

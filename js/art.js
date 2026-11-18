@@ -220,3 +220,59 @@ export function hatStyle(animal, hatKey) {
 export function hat(key) { return HATS[key] || (key ? `<span aria-hidden="true">${key}</span>` : ""); }
 export const ANIMAL_KEYS = ["🦊", "🐈", "😺", "😸", "🐺", "🐢", "🐻", "🐬", "🦋", "🐧", "🐸", "🐙", "🦜", "🐼", "🦄", "🦖"];
 export const HAT_KEYS = Object.keys(HATS);
+
+// ---------- Avatar mit Körper und Kleidung (im Shop wechselbar) ----------
+// Fellfarbe für Arme, Beine und Bauch – passend zum Tierkopf
+const FUR = { "🦊": "#e8763a", "🐈": "#d9d4cc", "😺": "#cfc8bd", "😸": "#e6e1d8", "🐺": "#eeeae3", "🐢": "#8ce99a", "🐻": "#a0673a", "🐬": "#4dabf7", "🦋": "#4a4a4a", "🐧": "#343a40", "🐸": "#69db7c", "🐙": "#f783ac", "🦜": "#40c057", "🐼": "#f8f9fa", "🦄": "#ffffff", "🦖": "#51cf66" };
+const shoeR = s => `${s}<g transform="translate(18 0)">${s}</g>`;   // linker Schuh + gespiegelt rechts
+export const OUTFIT = {
+  top: {
+    tshirt: { price: 0, sleeve: "short", draw: c => `<path d="M29 8 Q50 2 71 8 L72 52 Q50 57 28 52Z" fill="${c}" ${o(3)}/><path d="M42 6 Q50 14 58 6" fill="none" ${o(2.5)}/>` },
+    stripes: { price: 20, sleeve: "long", draw: c => `<path d="M29 8 Q50 2 71 8 L72 56 Q50 61 28 56Z" fill="${c}" ${o(3)}/><path d="M30 20 H70 M29 32 H71 M28 44 H72" fill="none" stroke="#fff" stroke-width="5"/><path d="M42 6 Q50 12 58 6" fill="none" ${o(2.5)}/>` },
+    hoodie: { price: 30, sleeve: "long", draw: c => `<path d="M29 8 Q50 2 71 8 L72 58 Q50 63 28 58Z" fill="${c}" ${o(3)}/><path d="M36 6 Q50 18 64 6" fill="${c}" ${o(3)}/><path d="M38 40 H62 L60 52 H40Z" fill="none" ${o(2.5)}/><path d="M46 12 V24 M54 12 V24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>` },
+    dress: { price: 30, sleeve: "short", draw: c => `<path d="M30 8 Q50 2 70 8 L71 34 L82 80 Q50 88 18 80 L29 34Z" fill="${c}" ${o(3)}/><path d="M29 34 Q50 39 71 34" fill="none" stroke="#fff" stroke-width="4"/><circle cx="40" cy="58" r="2.5" fill="#fff"/><circle cx="58" cy="66" r="2.5" fill="#fff"/><circle cx="48" cy="74" r="2.5" fill="#fff"/><path d="M42 6 Q50 13 58 6" fill="none" ${o(2.5)}/>` },
+    jersey: { price: 40, sleeve: "short", draw: c => `<path d="M29 8 Q50 2 71 8 L72 54 Q50 59 28 54Z" fill="${c}" ${o(3)}/><path d="M44 6 L50 17 L56 6" fill="#fff" ${o(2)}/><path d="M33 12 V52 M67 12 V52" fill="none" stroke="#fff" stroke-width="4"/><path d="M50 28 l3 6 6.5 .6 -5 4.3 1.5 6.4 -6 -3.4 -6 3.4 1.5 -6.4 -5 -4.3 6.5 -.6Z" fill="#fff" ${o(1.5)}/>` },
+    jacket: { price: 50, sleeve: "long", draw: c => `<path d="M29 8 Q50 2 71 8 L72 60 Q50 65 28 60Z" fill="${c}" ${o(3)}/><path d="M50 8 V62" fill="none" ${o(2.5)}/><path d="M40 6 L50 18 L44 22Z M60 6 L50 18 L56 22Z" fill="${c}" ${o(2.5)}/><path d="M34 44 H44 M56 44 H66" fill="none" ${o(2.5)}/><circle cx="50" cy="30" r="1.6" fill="${K}"/><circle cx="50" cy="42" r="1.6" fill="${K}"/>` },
+  },
+  bottom: {
+    jeans: { price: 0, draw: () => `<path d="M28 52 H72 L66 98 H53 L50 66 L47 98 H34Z" fill="#4263eb" ${o(3)}/><path d="M50 56 V66 M38 60 Q40 64 44 62" fill="none" stroke="#91a7ff" stroke-width="2"/>` },
+    shorts: { price: 15, draw: () => `<path d="M28 52 H72 L69 77 H53 L50 64 L47 77 H31Z" fill="#495057" ${o(3)}/>` },
+    skirt: { price: 20, draw: () => `<path d="M28 52 H72 L80 80 Q50 87 20 80Z" fill="#e64980" ${o(3)}/><path d="M40 56 L36 82 M50 56 V84 M60 56 L64 82" fill="none" stroke="#a61e4d" stroke-width="2"/>` },
+    jogger: { price: 25, draw: () => `<path d="M28 52 H72 L66 98 H53 L50 66 L47 98 H34Z" fill="#adb5bd" ${o(3)}/><path d="M31 56 L35 94 M69 56 L65 94" fill="none" stroke="#fff" stroke-width="3"/><path d="M34 92 H47 M53 92 H66" fill="none" ${o(2.5)}/>` },
+  },
+  shoes: {
+    sneakers: { price: 0, draw: () => shoeR(`<path d="M33 95 H47 Q52 95 52 100 Q52 104 48 104 H30 Q28 99 33 95Z" fill="#fff" ${o(3)}/><path d="M36 100 Q42 97 48 100" fill="none" stroke="#e03131" stroke-width="2.5"/>`) },
+    boots: { price: 20, draw: () => shoeR(`<path d="M34 82 H48 V98 Q53 98 53 102 Q53 105 49 105 H32Z" fill="#8d5524" ${o(3)}/><path d="M34 88 H48" fill="none" stroke="#5c3a17" stroke-width="2.5"/>`) },
+    sandals: { price: 15, draw: () => shoeR(`<ellipse cx="41" cy="101" rx="9" ry="4.5" fill="#ffe8cc" ${o(3)}/><path d="M33 99 L49 99 M37 96 L45 103" fill="none" stroke="#a0673a" stroke-width="3" stroke-linecap="round"/>`) },
+    rain: { price: 25, draw: () => shoeR(`<path d="M34 80 H48 V98 Q53 98 53 102 Q53 105 49 105 H32Z" fill="#fcc419" ${o(3)}/><path d="M34 84 H48" fill="none" stroke="#f08c00" stroke-width="2.5"/>`) },
+  },
+  extra: {
+    scarf: { price: 20, draw: () => `<path d="M35 7 Q50 15 65 7 L65 14 Q50 22 35 14Z" fill="#e03131" ${o(3)}/><path d="M57 15 L59 36 L66 34 L63 13Z" fill="#e03131" ${o(2.5)}/><path d="M58 30 L65 29" fill="none" stroke="#fff" stroke-width="2"/>` },
+    bowtie: { price: 15, draw: () => `<path d="M41 7 L50 11 L41 16Z M59 7 L50 11 L59 16Z" fill="#1c7ed6" ${o(2.5)}/><circle cx="50" cy="11.5" r="2.6" fill="#1c7ed6" ${o(2)}/>` },
+    backpack: { price: 30, back: () => `<rect x="21" y="12" width="58" height="42" rx="10" fill="#f08c00" ${o(3)}/>`, draw: () => `<path d="M38 8 L36 48 M62 8 L64 48" fill="none" stroke="${K}" stroke-width="7" stroke-linecap="round"/><path d="M38 8 L36 48 M62 8 L64 48" fill="none" stroke="#d9480f" stroke-width="4" stroke-linecap="round"/>` },
+    cape: { price: 60, back: () => `<path d="M30 8 Q50 3 70 8 L88 94 Q50 102 12 94Z" fill="#7048e8" ${o(3)}/><path d="M30 8 Q50 3 70 8 L72 14 Q50 9 28 14Z" fill="#e03131" ${o(2.5)}/>` },
+    medal: { price: 80, draw: () => `<path d="M43 6 L50 26 L57 6" fill="none" stroke="${K}" stroke-width="6"/><path d="M43 6 L50 26 L57 6" fill="none" stroke="#1c7ed6" stroke-width="3"/><circle cx="50" cy="31" r="7" fill="#ffd43b" ${o(2.5)}/><path d="M50 26.5 l1.6 3.2 3.4 .4 -2.5 2.3 .7 3.4 -3.2 -1.7 -3.2 1.7 .7 -3.4 -2.5 -2.3 3.4 -.4Z" fill="#f08c00"/>` },
+  },
+};
+export const OUTFIT_DEFAULT = { top: "tshirt", bottom: "jeans", shoes: "sneakers", extra: "" };
+// Körper unter dem Tierkopf. only = [Gruppe, Teil] zeigt nur ein Kleidungsstück (Shop-Vorschau)
+export function bodySvg(av = {}, only = null) {
+  const fur = only ? "#e9ecef" : (FUR[av.animal] || "#d9d4cc"), c = av.color || "#2b9ad1";
+  const pick = g => (only ? (only[0] === g ? only[1] : "") : (av[g] ?? OUTFIT_DEFAULT[g] ?? ""));
+  const top = OUTFIT.top[pick("top")], bot = OUTFIT.bottom[pick("bottom")], sh = OUTFIT.shoes[pick("shoes")], ex = OUTFIT.extra[pick("extra")];
+  const sleeve = top?.sleeve || "none", armCol = sleeve === "long" ? c : fur;
+  const limb = (d, col, w = 7) => `<path d="${d}" fill="none" stroke="${K}" stroke-width="${w + 5}" stroke-linecap="round"/><path d="${d}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round"/>`;
+  const L = "M31 12 Q19 30 17 50", R = "M69 12 Q81 30 83 50";
+  const body = (ex?.back ? ex.back(c) : "")
+    + `<rect x="36" y="54" width="12" height="44" rx="5" fill="${fur}" ${o(3)}/><rect x="52" y="54" width="12" height="44" rx="5" fill="${fur}" ${o(3)}/>`
+    + (bot ? bot.draw(c) : "")
+    + (sh ? sh.draw(c) : `<ellipse cx="41" cy="100" rx="9" ry="5" fill="${fur}" ${o(3)}/><ellipse cx="59" cy="100" rx="9" ry="5" fill="${fur}" ${o(3)}/>`)
+    + (top?.draw && top === OUTFIT.top.dress ? "" : `<path d="M30 8 Q50 2 70 8 L73 58 Q50 65 27 58Z" fill="${fur}" ${o(3)}/>`)
+    + (top ? top.draw(c) : "")
+    + limb(L, armCol) + limb(R, armCol)
+    + (sleeve === "short" ? limb("M31 12 Q27 19 25 26", c, 9) + limb("M69 12 Q73 19 75 26", c, 9) : "")
+    + `<circle cx="17" cy="52" r="5.5" fill="${fur}" ${o(3)}/><circle cx="83" cy="52" r="5.5" fill="${fur}" ${o(3)}/>`
+    + (ex?.draw ? ex.draw(c) : "");
+  return svg("0 0 100 110", body);
+}
+export const outfitPreview = (kind, key, color) => bodySvg({ color }, [kind, key]);

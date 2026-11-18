@@ -65,6 +65,7 @@ export function listen(lang = "fr", { onStart, onInterim } = {}) {
     };
     rec.onerror = e => { err = e.error || "error"; if (err !== "no-speech") finish(); };
     rec.onend = () => finish();
+    rec.onspeechend = () => setTimeout(finish, 700);    // nach dem Sprechen nicht unnötig warten
     const timer = setTimeout(finish, 7000);
     try { rec.start(); } catch (e) { err = "start"; finish(); }
   });
