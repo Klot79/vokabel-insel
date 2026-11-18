@@ -798,3 +798,8 @@ html.big-text .task-q { font-size: 1.15em; }
 /* Rahmen um den ganzen Avatar + Farbwahl beim Kleidungsstück */
 .avfull { border-radius: 28px; padding: 8px 10px 12px; }
 .color-pick { display: grid; gap: 6px; padding-top: 8px; border-top: 2px dashed var(--line); }
+
+/* Buchstaben ordnen: Wörter getrennt */
+.slots { align-items: center; column-gap: 22px; }
+.slot-word { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.slots .tile.empty { display: inline-block; min-width: 40px; width: 40px; height: 52px; background: transparent; border: 2px dashed #adb5bd; box-shadow: none; }

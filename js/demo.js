@@ -1,6 +1,6 @@
 // Beispielklasse "DEMO" für den Demo-Modus (Lehrer-PIN: 1234)
-import { sha, pinHash } from "./util.js?v=20261118k";
-import { emptyProgress, todayStr, checkBadges, mondayOf, DAY, INTERVALS } from "./srs.js?v=20261118k";
+import { sha, pinHash } from "./util.js?v=20261118l";
+import { emptyProgress, todayStr, checkBadges, mondayOf, DAY, INTERVALS } from "./srs.js?v=20261118l";
 
 const W = (fr, tr, emoji) => ({ fr, tr, emoji });
 

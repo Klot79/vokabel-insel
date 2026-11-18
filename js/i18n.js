@@ -3,7 +3,7 @@
 //  t("deutscher Text {x}", {x}) liefert den Text in der gewählten Sprache.
 //  Fehlt eine Übersetzung, bleibt der deutsche Text stehen.
 // ---------------------------------------------------------------
-import { Device } from "./store.js?v=20261118k";
+import { Device } from "./store.js?v=20261118l";
 
 export const UI_LANGS = [
   { k: "de", flag: "🇩🇪", name: "Deutsch" },
@@ -613,4 +613,5 @@ const D = {
   "Farbe vom Hut": ["Couleur du chapeau", "Cor do chapéu"],
   "Farbe der Schuhe": ["Couleur des chaussures", "Cor dos sapatos"],
   "Farbe vom Extra": ["Couleur de l'extra", "Cor do extra"],
+  "Ich schreibe selbst": ["J'écris moi-même", "Escrevo sozinho"],
 };

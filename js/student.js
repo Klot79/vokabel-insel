@@ -1,19 +1,19 @@
-import { Store, Device, isCloud } from "./store.js?v=20261118k";
-import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261118k";
-import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, avatarFull, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261118k";
-import { art, hat, ANIMAL_KEYS, HAT_KEYS, OUTFIT, OUTFIT_DEFAULT, outfitPreview } from "./art.js?v=20261118k";
-import { currentGoal, der, unser, zum } from "./goal.js?v=20261118k";
-import { buildingSvg } from "./buildings.js?v=20261118k";
-import { uid } from "./util.js?v=20261118k";
-import { say, listen, canListen } from "./speech.js?v=20261118k";
-import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261118k";
+import { Store, Device, isCloud } from "./store.js?v=20261118l";
+import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261118l";
+import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, avatarFull, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261118l";
+import { art, hat, ANIMAL_KEYS, HAT_KEYS, OUTFIT, OUTFIT_DEFAULT, outfitPreview } from "./art.js?v=20261118l";
+import { currentGoal, der, unser, zum } from "./goal.js?v=20261118l";
+import { buildingSvg } from "./buildings.js?v=20261118l";
+import { uid } from "./util.js?v=20261118l";
+import { say, listen, canListen } from "./speech.js?v=20261118l";
+import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261118l";
 import {
   emptyProgress, lessonStats, overallStats, unlockedLessons, planLearn, markSeen, countAnswer, fallBack, promote,
   checkWritten, checkSpoken, logActivity, currentStreak, weekSummary, checkBadges, BADGES, wstate, shuffle,
   stripArticle, todayStr, DAY, NEEDED_TODAY, MIN_GAP, BOX_NAMES, wkey,
   weekState, weekLabel, schoolDay, perDayFor, newAllowed, sortLessons, DAILY_GOAL_SEC, todaySeconds, mondayOf,
   writePoint, WRITES_FOR_POINT, countCard, firstForm, forms, pairForms, spellDiff, closestForm, stripAccents, lev,
-} from "./srs.js?v=20261118k";
+} from "./srs.js?v=20261118l";
 
 // ---- Lernzeit heute: läuft während einer Übung live mit ----
 const liveSec = () => (S.prog ? todaySeconds(S.prog) : 0) + (S.actStart ? Math.round((Date.now() - S.actStart) / 1000) : 0);
@@ -698,8 +698,9 @@ function feedbackBox(ok, w, msg, onNext, auto, memo, x = {}) {
 // Eine Abruf-Aufgabe (Schreiben / Sprechen / Buchstabensalat).
 // cb({ok, helped, how}) – helped = 🔊 benutzt
 function recallTask(item, type, ctx, cb, { test = false } = {}) {
+  const viaTiles = type === "write" && tilesOn() && !S.typeSelf;
   const { w, l } = item;
-  if (type === "write" && tilesOn()) type = "scramble";     // Lese-Schreib-Hilfe: Kacheln statt Tippen
+  if (viaTiles) type = "scramble";     // Lese-Schreib-Hilfe: Kacheln statt Tippen (das Kind kann auf Tippen umschalten)
   let helped = false;
   const help = () => { helped = true; sayWord(w.fr); if (test) toast(t("Notfall-Hilfe: zählt im Test nur halb."), 2200); };
 
@@ -736,19 +737,23 @@ function recallTask(item, type, ctx, cb, { test = false } = {}) {
     const core = stripArticle(low) === low ? full : full.slice(full.length - stripArticle(low).length);
     const art_ = full.slice(0, full.length - core.length);
     const letters = [...core].filter(c => c !== " ");
+    const wordLens = core.trim().split(/\s+/).map(x => [...x].length);   // mehrere Wörter: getrennte Felder
     let order = shuffle(letters.map((c, i) => ({ c, i })));
     if (order.map(o => o.c).join("") === letters.join("") && letters.length > 1) order.reverse();
     const placed = [];
     exFrame(ctx, `<span class="task-q">${t("Ordne die Buchstaben")}</span>${picBox(w, l)}<div class="word-tr">${esc(w.tr)}</div>
       <div class="row center-row">${art_ ? `<span class="word-fr small-fr">${esc(art_.trim())}</span>` : ""}<div class="slots" id="slots"></div>${speakerBtn("hear")}</div>
-      <div class="tiles" id="tiles"></div>`);
+      <div class="tiles" id="tiles"></div>
+      ${viaTiles ? `<div class="row center-row"><button class="btn ghost small" id="selfType">⌨️ ${t("Ich schreibe selbst")}</button></div>` : ""}`);
+    if ($("#selfType")) $("#selfType").onclick = () => { S.typeSelf = true; sfx.tap(); recallTask(item, "write", ctx, cb, { test }); };
     $("#hear").onclick = help;
     let tries = 0;
     const draw = () => {
-      $("#slots").innerHTML = placed.map((o, k) => `<button class="tile" data-k="${k}">${esc(o.c)}</button>`).join("") || `<span class="muted" style="align-self:center">${t("tippe die Buchstaben")}</span>`;
+      let g = 0;
+      $("#slots").innerHTML = wordLens.map(n => `<span class="slot-word">${Array.from({ length: n }, () => { const k = g++, o = placed[k]; return o ? `<button class="tile" data-k="${k}">${esc(o.c)}</button>` : `<span class="tile empty"></span>`; }).join("")}</span>`).join("");
       $("#tiles").innerHTML = order.map((o, k) => `<button class="tile ${placed.includes(o) ? "used" : ""}" data-k="${k}">${esc(o.c)}</button>`).join("");
       $$("#tiles .tile").forEach(b => b.onclick = () => { const o = order[+b.dataset.k]; if (placed.includes(o)) return; placed.push(o); sfx.tap(); draw(); if (placed.length === letters.length) done(); });
-      $$("#slots .tile").forEach(b => b.onclick = () => { placed.splice(+b.dataset.k, 1); draw(); });
+      $$("#slots button.tile").forEach(b => b.onclick = () => { placed.splice(+b.dataset.k, 1); draw(); });
     };
     const done = () => {
       const ok = placed.map(o => o.c).join("").toLowerCase() === letters.join("").toLowerCase();
@@ -897,6 +902,7 @@ function flashCard(item, ctx, cb) {
 //  LERNEN – Einheit nach „2× richtig mit Abstand“
 // ------------------------------------------------------------------
 function runLearn(items, opts) {
+  S.typeSelf = false;
   // dasselbe Wort (z. B. in zwei Lektionen) nur einmal pro Runde
   items = items.filter((it, i, a) => a.findIndex(x => norm(firstForm(x.w.fr)) === norm(firstForm(it.w.fr))) === i);
   const extra = items.every(i => i.kind === "extra");
@@ -1071,6 +1077,7 @@ function runLearn(items, opts) {
 //  TESTEN – jedes Wort einmal, ohne Hilfen
 // ------------------------------------------------------------------
 function runTest(l, mode) {
+  S.typeSelf = false;
   const words = shuffle(l.words).slice(0, 25);
   const skipped = new Set();
   const res = [];
