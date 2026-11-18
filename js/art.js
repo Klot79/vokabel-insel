@@ -235,10 +235,10 @@ export const OUTFIT = {
     jacket: { price: 50, sleeve: "long", draw: c => `<path d="M29 8 Q50 2 71 8 L72 60 Q50 65 28 60Z" fill="${c}" ${o(3)}/><path d="M50 8 V62" fill="none" ${o(2.5)}/><path d="M40 6 L50 18 L44 22Z M60 6 L50 18 L56 22Z" fill="${c}" ${o(2.5)}/><path d="M34 44 H44 M56 44 H66" fill="none" ${o(2.5)}/><circle cx="50" cy="30" r="1.6" fill="${K}"/><circle cx="50" cy="42" r="1.6" fill="${K}"/>` },
   },
   bottom: {
-    jeans: { price: 0, draw: () => `<path d="M28 52 H72 L66 98 H53 L50 66 L47 98 H34Z" fill="#4263eb" ${o(3)}/><path d="M50 56 V66 M38 60 Q40 64 44 62" fill="none" stroke="#91a7ff" stroke-width="2"/>` },
-    shorts: { price: 15, draw: () => `<path d="M28 52 H72 L69 77 H53 L50 64 L47 77 H31Z" fill="#495057" ${o(3)}/>` },
-    skirt: { price: 20, draw: () => `<path d="M28 52 H72 L80 80 Q50 87 20 80Z" fill="#e64980" ${o(3)}/><path d="M40 56 L36 82 M50 56 V84 M60 56 L64 82" fill="none" stroke="#a61e4d" stroke-width="2"/>` },
-    jogger: { price: 25, draw: () => `<path d="M28 52 H72 L66 98 H53 L50 66 L47 98 H34Z" fill="#adb5bd" ${o(3)}/><path d="M31 56 L35 94 M69 56 L65 94" fill="none" stroke="#fff" stroke-width="3"/><path d="M34 92 H47 M53 92 H66" fill="none" ${o(2.5)}/>` },
+    jeans: { price: 0, draw: c => `<path d="M28 52 H72 L66 98 H53 L50 66 L47 98 H34Z" fill="${c || "#4263eb"}" ${o(3)}/><path d="M50 56 V66 M38 60 Q40 64 44 62" fill="none" stroke="#91a7ff" stroke-width="2"/>` },
+    shorts: { price: 15, draw: c => `<path d="M28 52 H72 L69 77 H53 L50 64 L47 77 H31Z" fill="${c || "#495057"}" ${o(3)}/>` },
+    skirt: { price: 20, draw: c => `<path d="M28 52 H72 L80 80 Q50 87 20 80Z" fill="${c || "#e64980"}" ${o(3)}/><path d="M40 56 L36 82 M50 56 V84 M60 56 L64 82" fill="none" stroke="${K}" stroke-width="1.5" opacity=".45"/>` },
+    jogger: { price: 25, draw: c => `<path d="M28 52 H72 L66 98 H53 L50 66 L47 98 H34Z" fill="${c || "#adb5bd"}" ${o(3)}/><path d="M31 56 L35 94 M69 56 L65 94" fill="none" stroke="#fff" stroke-width="3"/><path d="M34 92 H47 M53 92 H66" fill="none" ${o(2.5)}/>` },
   },
   shoes: {
     sneakers: { price: 0, draw: () => shoeR(`<path d="M33 95 H47 Q52 95 52 100 Q52 104 48 104 H30 Q28 99 33 95Z" fill="#fff" ${o(3)}/><path d="M36 100 Q42 97 48 100" fill="none" stroke="#e03131" stroke-width="2.5"/>`) },
@@ -257,7 +257,7 @@ export const OUTFIT = {
 export const OUTFIT_DEFAULT = { top: "tshirt", bottom: "jeans", shoes: "sneakers", extra: "" };
 // Körper unter dem Tierkopf. only = [Gruppe, Teil] zeigt nur ein Kleidungsstück (Shop-Vorschau)
 export function bodySvg(av = {}, only = null) {
-  const fur = only ? "#e9ecef" : (FUR[av.animal] || "#d9d4cc"), c = av.color || "#2b9ad1";
+  const fur = only ? "#e9ecef" : (FUR[av.animal] || "#d9d4cc"), c = av.topColor || av.color || "#2b9ad1", bc = av.bottomColor || "";
   const pick = g => (only ? (only[0] === g ? only[1] : "") : (av[g] ?? OUTFIT_DEFAULT[g] ?? ""));
   const top = OUTFIT.top[pick("top")], bot = OUTFIT.bottom[pick("bottom")], sh = OUTFIT.shoes[pick("shoes")], ex = OUTFIT.extra[pick("extra")];
   const sleeve = top?.sleeve || "none", armCol = sleeve === "long" ? c : fur;
@@ -265,7 +265,7 @@ export function bodySvg(av = {}, only = null) {
   const L = "M31 12 Q19 30 17 50", R = "M69 12 Q81 30 83 50";
   const body = (ex?.back ? ex.back(c) : "")
     + `<rect x="36" y="54" width="12" height="44" rx="5" fill="${fur}" ${o(3)}/><rect x="52" y="54" width="12" height="44" rx="5" fill="${fur}" ${o(3)}/>`
-    + (bot ? bot.draw(c) : "")
+    + (bot ? bot.draw(bc) : "")
     + (sh ? sh.draw(c) : `<ellipse cx="41" cy="100" rx="9" ry="5" fill="${fur}" ${o(3)}/><ellipse cx="59" cy="100" rx="9" ry="5" fill="${fur}" ${o(3)}/>`)
     + (top?.draw && top === OUTFIT.top.dress ? "" : `<path d="M30 8 Q50 2 70 8 L73 58 Q50 65 27 58Z" fill="${fur}" ${o(3)}/>`)
     + (top ? top.draw(c) : "")
@@ -275,4 +275,4 @@ export function bodySvg(av = {}, only = null) {
     + (ex?.draw ? ex.draw(c) : "");
   return svg("0 0 100 110", body);
 }
-export const outfitPreview = (kind, key, color) => bodySvg({ color }, [kind, key]);
+export const outfitPreview = (kind, key, av = {}) => bodySvg({ topColor: av.topColor || av.color, bottomColor: av.bottomColor }, [kind, key]);

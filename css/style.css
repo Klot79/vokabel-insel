@@ -788,3 +788,9 @@ html.big-text .task-q { font-size: 1.15em; }
   .ex-top .icon-btn { width: 40px; height: 40px; flex: none; }
   .pf { grid-template-columns: 72px 1fr; }
 }
+
+/* Kleiderfarben */
+.wrap-row { flex-wrap: wrap; }
+.color-dot.sel { outline: 4px solid #ffc531; outline-offset: 2px; }
+.color-dot[data-c="#f8f9fa"] { box-shadow: inset 0 0 0 2px #ced4da; }
+.color-dot.std { background: #fff; border: 2px dashed #adb5bd; font-weight: 800; color: var(--ink-soft); }

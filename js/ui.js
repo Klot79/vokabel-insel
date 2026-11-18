@@ -1,5 +1,5 @@
-import { esc } from "./util.js?v=20261118g";
-import { art, hat, hatStyle, bodySvg } from "./art.js?v=20261118g";
+import { esc } from "./util.js?v=20261118h";
+import { art, hat, hatStyle, bodySvg } from "./art.js?v=20261118h";
 
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];

@@ -1,19 +1,19 @@
-import { Store, Device, isCloud } from "./store.js?v=20261118g";
-import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261118g";
-import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, avatarFull, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261118g";
-import { art, hat, ANIMAL_KEYS, HAT_KEYS, OUTFIT, OUTFIT_DEFAULT, outfitPreview } from "./art.js?v=20261118g";
-import { currentGoal, der, unser, zum } from "./goal.js?v=20261118g";
-import { buildingSvg } from "./buildings.js?v=20261118g";
-import { uid } from "./util.js?v=20261118g";
-import { say, listen, canListen } from "./speech.js?v=20261118g";
-import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261118g";
+import { Store, Device, isCloud } from "./store.js?v=20261118h";
+import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261118h";
+import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, avatarFull, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261118h";
+import { art, hat, ANIMAL_KEYS, HAT_KEYS, OUTFIT, OUTFIT_DEFAULT, outfitPreview } from "./art.js?v=20261118h";
+import { currentGoal, der, unser, zum } from "./goal.js?v=20261118h";
+import { buildingSvg } from "./buildings.js?v=20261118h";
+import { uid } from "./util.js?v=20261118h";
+import { say, listen, canListen } from "./speech.js?v=20261118h";
+import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261118h";
 import {
   emptyProgress, lessonStats, overallStats, unlockedLessons, planLearn, markSeen, countAnswer, fallBack, promote,
   checkWritten, checkSpoken, logActivity, currentStreak, weekSummary, checkBadges, BADGES, wstate, shuffle,
   stripArticle, todayStr, DAY, NEEDED_TODAY, MIN_GAP, BOX_NAMES, wkey,
   weekState, weekLabel, schoolDay, perDayFor, newAllowed, sortLessons, DAILY_GOAL_SEC, todaySeconds, mondayOf,
   writePoint, WRITES_FOR_POINT, countCard, firstForm, forms, pairForms, spellDiff, closestForm, stripAccents, lev,
-} from "./srs.js?v=20261118g";
+} from "./srs.js?v=20261118h";
 
 // ---- Lernzeit heute: läuft während einer Übung live mit ----
 const liveSec = () => (S.prog ? todaySeconds(S.prog) : 0) + (S.actStart ? Math.round((Date.now() - S.actStart) / 1000) : 0);
@@ -508,9 +508,7 @@ function actsHtml(l) {
       ["blitz", "flame", "Blitzrunde", "60 Sekunden"]]],
     ["🧩", "Rätsel & Wortspiele", [
       ["snake", "🐍", "Schlangensätze", "Wörter trennen"],
-      ["jumble", "🔀", "Buchstabenwirrwarr", "Welches Wort ist das?"],
       ["typo", "🔍", "Finde den Fehler", "richtig oder falsch?"],
-      ["intruder", "🕵️", "Fremdes Wort", "Wer gehört nicht in den Satz?"],
       ["leaf", "🍃", "Löcher im Wort", "Blätter verdecken Buchstaben"],
       ["cross", "✏️", "Kreuzworträtsel", "Wörter eintragen"],
       ["hang", "🎈", "Ballon-Raten", "Buchstaben raten"]]],
@@ -523,7 +521,7 @@ function actsHtml(l) {
 }
 function bindActs(l) {
   const F = { words: wordList, memory: memoryGame, blitz, shower: vocabShower, match: matchGame, sort: sortGame, rec: recordShower, net: wordNet, paper: homeTest,
-    snake: snakeGame, jumble: jumbleGame, typo: typoGame, intruder: intruderGame, leaf: leafGame, cross: crossGame, hang: hangGame };
+    snake: snakeGame, typo: typoGame, leaf: leafGame, cross: crossGame, hang: hangGame };
   $$(".act[data-k]").forEach(b => b.onclick = () => F[b.dataset.k](l));
 }
 function starHint(st) {
@@ -1314,6 +1312,7 @@ function myProgress() {
 const PRICES_A = { "🦊": 0, "🐈": 0, "😺": 0, "😸": 20, "🐺": 30, "🐢": 0, "🐻": 0, "🐬": 0, "🦋": 20, "🐧": 30, "🐸": 30, "🐙": 40, "🦜": 40, "🐼": 50, "🦄": 80, "🦖": 100 };
 const PRICES_H = { "": 0, "🌸": 10, "🧢": 15, "🎀": 15, "⛑️": 25, "🤠": 30, "🎓": 40, "🎩": 50, "🏴‍☠️": 60, "👑": 80 };
 const OUTFIT_GROUPS = [["top", "Oberteil"], ["bottom", "Hose oder Rock"], ["shoes", "Schuhe"], ["extra", "Extra"]];
+const CLOTH_COLORS = ["#e03131", "#f76707", "#fcc419", "#37b24d", "#1c7ed6", "#4263eb", "#7048e8", "#e64980", "#a0673a", "#868e96", "#212529", "#f8f9fa"];
 const COLORS = ["#2f9e8f", "#1c7ed6", "#7048e8", "#d6336c", "#e8590c", "#f08c00", "#2b8a3e", "#495057"];
 
 function shop() {
@@ -1322,7 +1321,7 @@ function shop() {
   const item = (kind, key, price) => {
     const has = price === 0 || owned.has(kind + key);
     const sel = (av[kind] ?? OUTFIT_DEFAULT[kind] ?? "") === key;
-    const look = kind === "animal" ? art(key) : !key ? `<span class="none">${t("ohne")}</span>` : kind === "hat" ? hat(key) : outfitPreview(kind, key, av.color);
+    const look = kind === "animal" ? art(key) : !key ? `<span class="none">${t("ohne")}</span>` : kind === "hat" ? hat(key) : outfitPreview(kind, key, av);
     return `<button data-kind="${kind}" data-e="${esc(key)}" data-p="${price}" class="${sel ? "sel" : ""}"><span class="shop-art">${look}</span><small>${sel ? t("ausgewählt") : has ? t("auswählen") : `${art("coin", "ic")} ${price}`}</small></button>`;
   };
   render(`<div class="wrap">
@@ -1334,7 +1333,8 @@ function shop() {
     <div class="panel stack"><h3>${t("Tier")}</h3><div class="shop">${ANIMAL_KEYS.map(k => item("animal", k, PRICES_A[k] ?? 30)).join("")}</div></div>
     <div class="panel stack"><h3>${t("Hut")}</h3><div class="shop">${["", ...HAT_KEYS].map(k => item("hat", k, PRICES_H[k] ?? 30)).join("")}</div></div>
     ${OUTFIT_GROUPS.map(([g, label]) => `<div class="panel stack"><h3>${t(label)}</h3><div class="shop">${["", ...Object.keys(OUTFIT[g])].map(k => item(g, k, k ? OUTFIT[g][k].price : 0)).join("")}</div></div>`).join("")}
-    <div class="panel stack"><h3>${t("Farbe")}</h3><div class="row">${COLORS.map(c => `<button class="color-dot" data-color="${c}" aria-label="${t("Farbe")}" style="background:${c};${av.color === c ? "outline:4px solid #ffc531;outline-offset:2px" : ""}"></button>`).join("")}</div></div>
+    ${[["topColor", "Farbe vom Oberteil", av.topColor || av.color], ["bottomColor", "Farbe von Hose oder Rock", av.bottomColor || ""]].map(([k, label, cur]) => `<div class="panel stack"><h3>${t(label)}</h3><div class="row wrap-row">${k === "bottomColor" ? `<button class="color-dot std ${!cur ? "sel" : ""}" data-ck="${k}" data-c="" aria-label="${t("Standard")}" title="${t("Standard")}">↺</button>` : ""}${CLOTH_COLORS.map(c => `<button class="color-dot ${cur === c ? "sel" : ""}" data-ck="${k}" data-c="${c}" aria-label="${t("Farbe")}" style="background:${c}"></button>`).join("")}</div></div>`).join("")}
+    <div class="panel stack"><h3>${t("Farbe vom Rahmen")}</h3><div class="row">${COLORS.map(c => `<button class="color-dot" data-color="${c}" aria-label="${t("Farbe")}" style="background:${c};${av.color === c ? "outline:4px solid #ffc531;outline-offset:2px" : ""}"></button>`).join("")}</div></div>
   </div>`);
   bindTop();
   $$(".shop button").forEach(b => b.onclick = () => {
@@ -1348,6 +1348,7 @@ function shop() {
     save(); shop();
   });
   $$("[data-color]").forEach(b => b.onclick = () => { S.prog.avatar = { ...S.prog.avatar, color: b.dataset.color }; save(); shop(); });
+  $$("[data-ck]").forEach(b => b.onclick = () => { S.prog.avatar = { ...S.prog.avatar, [b.dataset.ck]: b.dataset.c }; sfx.tap(); save(); shop(); });
 }
 
 // ------------------------------------------------------------------
@@ -2043,40 +2044,6 @@ function snakeGame(l) {
   next();
 }
 
-// ---------- 2) Buchstabenwirrwarr ----------
-function jumbleGame(l) {
-  const items = shuffle(gameWords(l).filter(x => coreOf(x.w).replace(/[\s'-]/g, "").length >= 3)).slice(0, 8);
-  if (items.length < 3) return tooFew(l, 3);
-  const t0 = Date.now(); let k = 0, ok = 0;
-  const quit = () => (k ? gameEnd(l, "jumble", ok, k, t0) : leaveGame(l, t0));
-  const next = () => {
-    if (k >= items.length) return gameEnd(l, "jumble", ok, items.length, t0);
-    const { w, l: L } = items[k], core = coreOf(w);
-    let mix = shuffle([...core.replace(/\s/g, "")]);
-    if (mix.join("") === core.replace(/\s/g, "") && mix.length > 1) mix = mix.reverse();
-    gameFrame(t("Buchstabenwirrwarr"), Math.round(k / items.length * 100), ok, `
-      <span class="task-q">${t("Die Buchstaben sind durcheinander. Welches Wort ist das?")}</span>
-      <div class="jumble">${mix.map(c => `<span class="tile static">${esc(c.toUpperCase())}</span>`).join("")}</div>
-      <div id="hintBox" hidden>${wordHint(w, L)}</div>
-      <div class="write-row">${fieldsHtml(null)}</div>${accentsHtml()}
-      <div class="row center-row"><button class="btn ghost" id="hint">${ICON.bulb} ${t("Hilfe")}</button><button class="btn green" id="chk">${t("Prüfen")}</button></div>`, quit);
-    const ins = bindFields($("#card")); ins[0].focus();
-    $("#hint").onclick = () => { $("#hintBox").hidden = false; $("#hint").disabled = true; };
-    const check = () => {
-      if (!ins[0].value.trim()) return;
-      $("#chk").disabled = true; ins[0].disabled = true;
-      const typed = stripArticle(norm(ins[0].value)), right = norm(core);
-      const good = typed === right || stripAccents(typed) === stripAccents(right);
-      if (good) ok++;
-      gameFb(good, `<div class="fb-sol"><span class="small">${t("Das Wort heißt:")}</span><span class="sol">${esc(firstForm(w.fr))}</span></div>${good ? "" : diffBlock({ typed: ins[0].value.trim() }, core)}`, () => { k++; next(); });
-      sayWord(firstForm(w.fr));
-    };
-    $("#chk").onclick = check;
-    ins[0].onkeydown = e => { if (e.key === "Enter") check(); };
-  };
-  next();
-}
-
 // ---------- 3) Finde den Fehler (manchmal ist das Wort auch richtig) ----------
 function mistake(word) {
   const a = [...word], idx = a.map((c, i) => (/[a-zà-ÿ]/i.test(c) ? i : -1)).filter(i => i >= 0);
@@ -2131,36 +2098,6 @@ function typoGame(l) {
       $("#chk").onclick = check;
       ins[0].onkeydown = e => { if (e.key === "Enter") check(); };
     };
-  };
-  next();
-}
-
-// ---------- 4) Ein fremdes Wort hat sich in den Satz geschlichen ----------
-function intruderGame(l) {
-  const pool = gameWords(l);
-  const sents = makeSentences(pool, 6);
-  const fillers = shuffle(pool.map(x => coreOf(x.w)).filter(c => c && !/\s/.test(c)));
-  if (sents.length < 3 || fillers.length < 3) return tooFew(l, 3);
-  const t0 = Date.now(); let k = 0, ok = 0;
-  const quit = () => (k ? gameEnd(l, "intruder", ok, k, t0) : leaveGame(l, t0));
-  const next = () => {
-    if (k >= sents.length) return gameEnd(l, "intruder", ok, sents.length, t0);
-    const s = sents[k], words = s.text.split(" ");
-    const used = new Set(s.text.toLowerCase().split(/[\s'.]+/));
-    const intr = fillers.find(f => !used.has(f.toLowerCase())) || fillers[0];
-    const pos = 1 + Math.floor(Math.random() * (words.length - 1));
-    const shown = [...words.slice(0, pos), intr, ...words.slice(pos)];
-    gameFrame(t("Fremdes Wort"), Math.round(k / sents.length * 100), ok, `
-      <span class="task-q">${t("Ein Wort gehört nicht in den Satz. Tippe es an!")}</span>
-      <div class="intr" id="intr">${shown.map((x, i) => `<button class="intr-w" data-i="${i}">${esc(x)}</button>`).join("")}</div>`, quit);
-    $$("#intr .intr-w").forEach(b => b.onclick = () => {
-      const good = +b.dataset.i === pos;
-      $$("#intr .intr-w").forEach(x => { x.disabled = true; if (+x.dataset.i === pos) x.classList.add("found"); });
-      if (!good) b.classList.add("wrongpick");
-      if (good) ok++;
-      gameFb(good, `<div class="fb-sol"><span class="small">${t("Der Satz heißt richtig:")}</span><span class="sol">${esc(s.text)}</span><button class="round-btn blue" id="solHear" aria-label="${t("Anhören")}">${ICON.speaker}</button></div>`, () => { k++; next(); });
-      $("#solHear").onclick = () => say(s.text, "fr", 0.8);
-    });
   };
   next();
 }
@@ -2313,7 +2250,7 @@ function hangGame(l) {
     gameFrame(t("Ballon-Raten"), Math.round(k / items.length * 100), ok, `
       <span class="task-q">${t("Rate das Wort Buchstabe für Buchstabe. Bei jedem Fehler platzt ein Ballon!")}</span>
       <div class="balloons" id="bal">${balloons()}</div>
-      ${wordHint(w, L)}
+      ${picBox(w, L)}
       <div class="hm-word" id="hw">${hidden()}</div>
       <div class="hm-keys" id="keys">${"abcdefghijklmnopqrstuvwxyz".split("").map(c => `<button data-c="${c}">${c.toUpperCase()}</button>`).join("")}</div>`, quit);
     const solved = () => [...word].every(c => !isLetter(c) || guessed.has(stripAccents(c).toLowerCase()));
