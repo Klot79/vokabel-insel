@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMax slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d8eff9"/>
+      <stop offset="1" stop-color="#eef9f8"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#bfe9e3"/>
+      <stop offset="1" stop-color="#8fd8cf"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#sky)"/>
+  <!-- Sonne -->
+  <circle cx="1280" cy="180" r="92" fill="#fff4cf"/>
+  <circle cx="1280" cy="180" r="62" fill="#ffe9a8"/>
+  <!-- Wolken -->
+  <g fill="#ffffff" opacity=".9">
+    <path d="M180 200 q20 -46 70 -34 q26 -40 78 -14 q52 -10 60 40 q34 8 26 40 H170 q-34 -6 10 -32z"/>
+    <path d="M760 120 q16 -34 54 -26 q22 -30 60 -10 q40 -6 46 30 q26 6 20 30 H752 q-26 -6 8 -24z"/>
+    <path d="M1420 330 q14 -28 44 -22 q18 -26 50 -8 q34 -6 38 24 q22 6 16 26 H1412 q-22 -4 8 -20z"/>
+  </g>
+  <!-- Möwen -->
+  <path d="M560 250 q12 -10 24 0 q12 -10 24 0 M640 220 q9 -8 18 0 q9 -8 18 0 M1040 300 q10 -9 20 0 q10 -9 20 0" fill="none" stroke="#7b97a6" stroke-width="3" stroke-linecap="round"/>
+  <!-- Meer -->
+  <rect y="560" width="1600" height="440" fill="url(#sea)"/>
+  <path d="M0 560 H1600" stroke="#a9ddd8" stroke-width="4"/>
+  <!-- ferne Inseln am Horizont -->
+  <g>
+    <path d="M250 562 q60 -34 130 0z" fill="#9fcf8e"/><path d="M314 548 q2 -26 10 -38" stroke="#8a6a4a" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M324 510 q-22 -4 -30 8 M324 510 q22 -6 28 6 M324 510 q-4 -16 -16 -18" stroke="#6fb267" stroke-width="8" fill="none" stroke-linecap="round"/>
+    <path d="M980 562 q50 -26 104 0z" fill="#a9d39c"/>
+    <path d="M1360 562 q70 -40 150 0z" fill="#9fcf8e"/><path d="M1432 546 q2 -30 12 -42" stroke="#8a6a4a" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M1444 504 q-24 -4 -32 8 M1444 504 q24 -6 30 6 M1444 504 q-4 -18 -18 -20" stroke="#6fb267" stroke-width="8" fill="none" stroke-linecap="round"/>
+  </g>
+  <!-- kleines Segelboot in der Ferne -->
+  <g>
+    <path d="M700 600 h56 l-10 14 h-36z" fill="#a68462"/>
+    <path d="M728 600 v-56 l26 50z" fill="#ffffff"/><path d="M726 600 v-44 l-20 40z" fill="#ffd1dc"/>
+  </g>
+  <!-- Wellen -->
+  <g fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity=".75">
+    <path d="M120 640 q20 -12 40 0 t40 0"/><path d="M520 680 q20 -12 40 0 t40 0"/><path d="M900 650 q20 -12 40 0 t40 0"/>
+    <path d="M1220 700 q20 -12 40 0 t40 0"/><path d="M300 760 q24 -14 48 0 t48 0"/><path d="M760 790 q24 -14 48 0 t48 0"/>
+    <path d="M1100 820 q24 -14 48 0 t48 0"/><path d="M1460 780 q24 -14 48 0 t48 0"/>
+  </g>
+  <!-- Vordergrund: Wellenband -->
+  <path d="M0 880 q80 -36 160 0 t160 0 t160 0 t160 0 t160 0 t160 0 t160 0 t160 0 t160 0 t160 0 V1000 H0Z" fill="#6ccbbf"/>
+  <path d="M0 880 q80 -36 160 0 t160 0 t160 0 t160 0 t160 0 t160 0 t160 0 t160 0 t160 0 t160 0" fill="none" stroke="#ffffff" stroke-width="6" opacity=".6"/>
+  <!-- Strandinsel links -->
+  <g>
+    <path d="M-40 900 q170 -90 340 0 Z" fill="#f6dfa6"/>
+    <path d="M110 850 q-4 -80 24 -124" stroke="#a68462" stroke-width="12" fill="none" stroke-linecap="round"/>
+    <path d="M134 726 q-60 -10 -84 24 M134 726 q60 -16 82 18 M134 726 q-12 -46 -50 -52 M134 726 q20 -44 60 -42" stroke="#5fae5a" stroke-width="18" fill="none" stroke-linecap="round"/>
+    <circle cx="140" cy="740" r="8" fill="#8a6a4a"/><circle cx="126" cy="744" r="7" fill="#8a6a4a"/>
+  </g>
+  <!-- kleine Insel rechts -->
+  <g>
+    <path d="M1360 900 q120 -64 240 0 Z" fill="#f6dfa6"/>
+    <path d="M1484 868 q-2 -56 18 -88" stroke="#a68462" stroke-width="10" fill="none" stroke-linecap="round"/>
+    <path d="M1502 780 q-44 -8 -62 18 M1502 780 q44 -12 60 14 M1502 780 q-8 -34 -36 -38" stroke="#5fae5a" stroke-width="14" fill="none" stroke-linecap="round"/>
+  </g>
+</svg>

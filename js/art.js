@@ -182,6 +182,13 @@ ART["🐈"] = pic("katze1-kopf.png");
 ART["😺"] = pic("katze2-kopf.png");
 ART["😸"] = pic("katze3-kopf.png");
 ART["🐺"] = pic("fuchs-weiss-kopf.png");
+// Startseite: der Fuchs segelt von Insel zu Insel (Segel + Rumpf handgezeichnet, Fuchskopf als Bild dazwischen)
+{
+  const nest = str => str.replace("<svg ", '<svg x="0" y="0" width="100" height="100" ');
+  const sail = svg("0 0 100 100", `<path d="M70 8 V70" fill="none" ${o(3.5)}/><path d="M72 12 L72 64 L95 60Z" fill="#fff" ${o(3)}/><path d="M70 8 L84 12 L70 16Z" fill="#e03131" ${o(2)}/><path d="M78 30 l1.8 3.6 4 .5 -2.9 2.7 .7 4 -3.6 -1.9 -3.6 1.9 .7 -4 -2.9 -2.7 4 -.5Z" fill="#ffd43b" ${o(1.5)}/>`);
+  const hull = svg("0 0 100 100", `<path d="M6 64 H94 L83 84 H18Z" fill="#c97b3f" ${o(3)}/><path d="M12 72 H88" fill="none" stroke="#7a4b20" stroke-width="2.5"/><path d="M2 90 q8 -6 16 0 t16 0 t16 0 t16 0 t16 0 t16 0" fill="none" stroke="#4dabf7" stroke-width="4" stroke-linecap="round"/>`);
+  ART.foxBoat = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">${nest(sail)}<image href="img/tiere/fuchs-kopf.png" x="16" y="20" width="50" height="50" preserveAspectRatio="xMidYMid meet"/>${nest(hull)}</svg>`;
+}
 
 // ---------- Hüte (über dem Avatar) ----------
 const HATS = {

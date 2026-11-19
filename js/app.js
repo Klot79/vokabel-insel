@@ -1,10 +1,10 @@
-import { Store, Device, isCloud } from "./store.js?v=20261118m";
-import { render, $, toast } from "./ui.js?v=20261118m";
-import { esc } from "./util.js?v=20261118m";
-import { art } from "./art.js?v=20261118m";
-import { studentLogin } from "./student.js?v=20261118m";
-import { teacherLogin } from "./teacher.js?v=20261118m";
-import { t, setLang, getLang, UI_LANGS } from "./i18n.js?v=20261118m";
+import { Store, Device, isCloud } from "./store.js?v=20261119a";
+import { render, $, toast } from "./ui.js?v=20261119a";
+import { esc } from "./util.js?v=20261119a";
+import { art } from "./art.js?v=20261119a";
+import { studentLogin } from "./student.js?v=20261119a";
+import { teacherLogin } from "./teacher.js?v=20261119a";
+import { t, setLang, getLang, UI_LANGS } from "./i18n.js?v=20261119a";
 
 const langRow = () => `<div class="lang-pick">${UI_LANGS.map(x => `<button class="lang-btn ${getLang() === x.k ? "on" : ""}" data-lang="${x.k}"><span class="flag-big">${x.flag}</span>${x.name}</button>`).join("")}</div>`;
 const bindLang = redraw => document.querySelectorAll("[data-lang]").forEach(b => b.onclick = () => { setLang(b.dataset.lang); document.documentElement.lang = getLang(); redraw(); });
@@ -27,7 +27,7 @@ function start() {
   render(`<div class="wrap narrow">
     <div class="start-top"><button class="teacher-link" id="teacher" aria-label="${t("Lehrkraft")}">${art("clipboard")}<span>${t("Lehrkraft")}</span></button></div>
     <div class="hero"><span class="mascot">${art("parrot")}</span><h1>Plapperlapapp</h1><p>${t("Französisch üben, Sterne sammeln, von Insel zu Insel segeln.")}</p></div>
-    <button class="role-card kid start-kid" id="kid"><span class="art-bg">${art("book")}</span><b>${t("Los geht's!")}</b><span>${code ? t("Klasse {c}", { c: esc(code) }) : t("Ich bin ein Kind")}</span></button>
+    <button class="role-card kid start-kid" id="kid"><span class="art-bg">${art("foxBoat")}</span><b>${t("Los geht's!")}</b><span>${code ? t("Klasse {c}", { c: esc(code) }) : t("Ich bin ein Kind")}</span></button>
     ${langRow()}
     ${!isCloud ? `<p class="center small muted">Demo-Modus · zum Ausprobieren Klassencode <b>DEMO</b> (Kinder-PIN Hund, Apfel, Stern · Lehrer-PIN 1234)</p>` : ""}
   </div>`);

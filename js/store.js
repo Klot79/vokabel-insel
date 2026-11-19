@@ -7,8 +7,8 @@
 //  • Lehrer-PIN und Bild-PINs der Kinder sind für Kinder-Geräte unsichtbar.
 //  Ohne das Update funktioniert die App wie vorher („alter Modus“).
 // ------------------------------------------------------------------
-import { seedDemo } from "./demo.js?v=20261118m";
-import { uid, sha } from "./util.js?v=20261118m";
+import { seedDemo } from "./demo.js?v=20261119a";
+import { uid, sha } from "./util.js?v=20261119a";
 
 const cfg = window.VOKABEL_CONFIG || {};
 export const isCloud = !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY);
@@ -314,4 +314,4 @@ export const Device = {
   del(k) { try { localStorage.removeItem("vi-dev:" + k); } catch {} },
 };
 
-export { uid, sha } from "./util.js?v=20261118m";
+export { uid, sha } from "./util.js?v=20261119a";

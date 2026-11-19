@@ -348,7 +348,7 @@ textarea.input { min-height: 140px; font-family: ui-monospace, Menlo, monospace;
 .tray-item.sel { border-color: var(--blue); background: var(--blue-l); }
 
 /* ---------- Naturbild im Hintergrund (Kinder & Start) ---------- */
-body:not(.teacher-mode)::before { content: ""; position: fixed; inset: 0; z-index: -1; background: #eef8f6 url("../img/natur.svg") center bottom / cover no-repeat; }
+body:not(.teacher-mode)::before { content: ""; position: fixed; inset: 0; z-index: -1; background: #eef9f8 url("../img/meer.svg") center bottom / cover no-repeat; }
 body:not(.teacher-mode) { background: transparent; }
 body:not(.teacher-mode) .hero h1, body:not(.teacher-mode) .section-title { text-shadow: 0 2px 0 rgba(255,255,255,.8); }
 .panel, .card, .topbar, .isle, .act, .kid-btn, .kpi, .word-card { background: rgba(255,255,255,.96); }
@@ -803,3 +803,7 @@ html.big-text .task-q { font-size: 1.15em; }
 .slots { align-items: center; column-gap: 22px; }
 .slot-word { display: inline-flex; gap: 4px; flex-wrap: wrap; }
 .slots .tile.empty { display: inline-block; min-width: 40px; width: 40px; height: 52px; background: transparent; border: 2px dashed #adb5bd; box-shadow: none; }
+
+/* Startseite: Fuchs im Boot etwas größer */
+.start-kid .art-bg { background: #e7f8f5; }
+.start-kid .art-bg svg { width: 112px; height: 112px; }
