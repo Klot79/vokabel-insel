@@ -807,3 +807,19 @@ html.big-text .task-q { font-size: 1.15em; }
 /* Startseite: Fuchs im Boot etwas größer */
 .start-kid .art-bg { background: #e7f8f5; }
 .start-kid .art-bg svg { width: 112px; height: 112px; }
+
+/* Statistik */
+.seg { display: inline-flex; border: 2px solid var(--line); border-radius: 12px; overflow: hidden; }
+.seg button { border: 0; background: #fff; padding: 6px 12px; font-weight: 700; font-size: .9rem; color: var(--ink-soft); }
+.seg button.on { background: var(--blue); color: #fff; }
+.sbar { display: inline-block; width: 90px; height: 10px; background: #edf1f4; border-radius: 99px; overflow: hidden; vertical-align: middle; }
+.sbar i { display: block; height: 100%; background: var(--blue); border-radius: 99px; }
+.sbar.oral i { background: #f08c00; } .sbar.written i { background: #2f9e44; }
+.bar-cell { width: 100px; }
+.split { display: inline-flex; width: 120px; height: 12px; border-radius: 99px; overflow: hidden; vertical-align: middle; margin-right: 6px; background: #edf1f4; }
+.split i { display: block; height: 100%; } .split i.written { background: #2f9e44; } .split i.oral { background: #f08c00; }
+.pill.oral { background: #fff4e6; color: #d9480f; } .pill.written { background: #ebfbee; color: #2b8a3e; }
+.kpi .small-v { font-size: 1rem; display: grid; gap: 4px; }
+.stat-tbl td { white-space: nowrap; }
+.modal:has(.stat-modal) { max-width: 760px; width: calc(100vw - 24px); }
+.stat-modal .kpis { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }

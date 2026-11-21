@@ -1,19 +1,19 @@
-import { Store, Device, isCloud } from "./store.js?v=20261119a";
-import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261119a";
-import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, avatarFull, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261119a";
-import { art, hat, ANIMAL_KEYS, HAT_KEYS, OUTFIT, OUTFIT_DEFAULT, outfitPreview } from "./art.js?v=20261119a";
-import { currentGoal, der, unser, zum } from "./goal.js?v=20261119a";
-import { buildingSvg } from "./buildings.js?v=20261119a";
-import { uid } from "./util.js?v=20261119a";
-import { say, listen, canListen } from "./speech.js?v=20261119a";
-import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261119a";
+import { Store, Device, isCloud } from "./store.js?v=20261121a";
+import { esc, pinHash, PIN_EMOJI, LANG_FLAG } from "./util.js?v=20261121a";
+import { render, $, $$, toast, modal, pic, hasPic, avatarHtml, avatarFull, sfx, confetti, ICON, stars, setSound, isSound } from "./ui.js?v=20261121a";
+import { art, hat, ANIMAL_KEYS, HAT_KEYS, OUTFIT, OUTFIT_DEFAULT, outfitPreview } from "./art.js?v=20261121a";
+import { currentGoal, der, unser, zum } from "./goal.js?v=20261121a";
+import { buildingSvg } from "./buildings.js?v=20261121a";
+import { uid } from "./util.js?v=20261121a";
+import { say, listen, canListen } from "./speech.js?v=20261121a";
+import { t, tn, setLang, getLang, UI_LANGS, bForms } from "./i18n.js?v=20261121a";
 import {
   emptyProgress, lessonStats, overallStats, unlockedLessons, planLearn, markSeen, countAnswer, fallBack, promote,
   checkWritten, checkSpoken, logActivity, currentStreak, weekSummary, checkBadges, BADGES, wstate, shuffle,
   stripArticle, todayStr, DAY, NEEDED_TODAY, MIN_GAP, BOX_NAMES, wkey,
   weekState, weekLabel, schoolDay, perDayFor, newAllowed, sortLessons, DAILY_GOAL_SEC, todaySeconds, mondayOf,
   writePoint, WRITES_FOR_POINT, countCard, firstForm, forms, pairForms, spellDiff, closestForm, stripAccents, lev,
-} from "./srs.js?v=20261119a";
+} from "./srs.js?v=20261121a";
 
 // ---- Lernzeit heute: läuft während einer Übung live mit ----
 const liveSec = () => (S.prog ? todaySeconds(S.prog) : 0) + (S.actStart ? Math.round((Date.now() - S.actStart) / 1000) : 0);
@@ -21,7 +21,25 @@ const fmtClock = () => { const x = liveSec(); return `${Math.floor(x / 60)}:${St
 const clockChip = () => `<span class="chip clock" title="${t("Heute gelernt")}">⏱ <b class="clock-v">${fmtClock()}</b></span>`;
 setInterval(() => { const v = fmtClock(); document.querySelectorAll(".clock-v").forEach(e => { e.textContent = v; }); }, 1000);
 // Übungszeit eintragen und die laufende Uhr zurücksetzen
-function logAct(o) { S.actStart = null; return logActivity(S.prog, o); }
+function logAct(o) {
+  S.actStart = null;
+  const r = logActivity(S.prog, o);
+  const d = S.prog.days[todayStr()];
+  if (d) {
+    const k = S.actKind || "other";
+    d.act = d.act || {};
+    const a = d.act[k] || (d.act[k] = { n: 0, sec: 0, ans: 0, ok: 0 });
+    a.n++; a.sec += o.sec || 0; a.ans += o.ans || 0; a.ok += o.ok || 0;
+  }
+  return r;
+}
+// Antwortart zählen: write (aus dem Kopf), copy, scramble, speak, cards, choice
+function trackHow(how, ok) {
+  const k = todayStr(), d = S.prog.days[k] || (S.prog.days[k] = { sec: 0, ans: 0, ok: 0 });
+  d.how = d.how || {};
+  const h = d.how[how] || (d.how[how] = { n: 0, ok: 0 });
+  h.n++; if (ok) h.ok++;
+}
 
 // ---- Ton an/aus (gilt auf diesem Gerät, überall) ----
 setSound(!Device.get("audioOff", false));
@@ -522,7 +540,7 @@ function actsHtml(l) {
 function bindActs(l) {
   const F = { words: wordList, memory: memoryGame, blitz, shower: vocabShower, match: matchGame, sort: sortGame, rec: recordShower, net: wordNet, paper: homeTest,
     snake: snakeGame, typo: typoGame, leaf: leafGame, cross: crossGame, hang: hangGame };
-  $$(".act[data-k]").forEach(b => b.onclick = () => F[b.dataset.k](l));
+  $$(".act[data-k]").forEach(b => b.onclick = () => { S.actKind = b.dataset.k; F[b.dataset.k](l); });
 }
 function starHint(st) {
   if (st.stars === 0) return t("Stern 1: Lerne alle Wörter einmal kennen.");
@@ -858,6 +876,7 @@ function introCard(item, ctx, cb, writeMode = false, copyOnly = false) {
     if (checked) return cb();
     if (!ins.some(i => i.value.trim())) { toast(t("Schreib das Wort zuerst ab.")); inp.focus(); return; }
     const res = checkFields(ins, w.fr), r = res.r;
+    trackHow("copy", r === "perfect");
     if (r === "perfect") {
       checked = true; ins.forEach(i => { i.disabled = true; }); sfx.ok();
       $(".copy-box").classList.add("ok");
@@ -902,6 +921,7 @@ function flashCard(item, ctx, cb) {
 //  LERNEN – Einheit nach „2× richtig mit Abstand“
 // ------------------------------------------------------------------
 function runLearn(items, opts) {
+  S.actKind = "learn";
   // dasselbe Wort (z. B. in zwei Lektionen) nur einmal pro Runde
   items = items.filter((it, i, a) => a.findIndex(x => norm(firstForm(x.w.fr)) === norm(firstForm(it.w.fr))) === i);
   const extra = items.every(i => i.kind === "extra");
@@ -969,6 +989,7 @@ function runLearn(items, opts) {
         if (!extra && it.kind === "new") markSeen(S.prog, it.l, it.w);
         st.ans++;
         countCard(S.prog, it.l, it.w, knew);            // eigene Zählung: Selbsteinschätzung, nicht „Treffer“
+        trackHow("cards", knew);
         if (knew) {
           st.ok++; st.coins += 1; sfx.ok(); it.recalls++; it.need--; bonus(true);
           if (it.need <= 0) {
@@ -1000,14 +1021,14 @@ function runLearn(items, opts) {
     if (it.phase === "recog") {
       return recogTask(it, ctx, ok => {
         st.ans++; if (ok) st.ok++; bonus(ok);
-        countAnswer(S.prog, it.l, it.w, ok);
+        countAnswer(S.prog, it.l, it.w, ok); trackHow("choice", ok);
         if (ok) { it.phase = "recall"; after(); feedbackBox(true, it.w, "", next, 900); }
         else { after(); feedbackBox(false, it.w, "", next); }
       });
     }
     recallTask(it, recallType(it), ctx, ({ ok, helped, how, note, heard, typed, pairs }) => {
       st.ans++;
-      countAnswer(S.prog, it.l, it.w, ok);
+      countAnswer(S.prog, it.l, it.w, ok); trackHow(how, ok);
       const fx = { heard: how === "speak" ? heard : "", typed, pairs, how };
       let keepMsg = "";
       if (ok) {
@@ -1076,6 +1097,7 @@ function runLearn(items, opts) {
 //  TESTEN – jedes Wort einmal, ohne Hilfen
 // ------------------------------------------------------------------
 function runTest(l, mode) {
+  S.actKind = "test";
   const words = shuffle(l.words).slice(0, 25);
   const skipped = new Set();
   const res = [];
@@ -1094,7 +1116,7 @@ function runTest(l, mode) {
     recallTask({ l, w }, typeFor(i), ctx, ({ ok, helped, how, spelling, heard, typed, pairs }) => {
       if (ok && spelling) helped = true; // Rechtschreibung: Akzent/Artikel fehlt = halber Punkt
       res.push({ w, ok, helped, spelling });
-      countAnswer(S.prog, l, w, ok);
+      countAnswer(S.prog, l, w, ok); trackHow(how, ok);
       const fx = { heard: how === "speak" ? heard : "", typed, pairs, how };
       if (ok && !helped) {
         coins += 2;
@@ -2001,7 +2023,7 @@ function gameFb(ok, html, onNext) {
 // Ergebnis am Ende eines Spiels
 function gameEnd(l, kind, ok, total, t0, extraHtml = "") {
   const coins = earn(kind, ok * 2, 15);
-  logAct({ sec: Math.round((Date.now() - t0) / 1000) });
+  logAct({ sec: Math.round((Date.now() - t0) / 1000), ans: total, ok });
   save(true);
   if (ok) { sfx.win(); confetti(ok === total ? 140 : 60); }
   render(`<div class="wrap narrow"><div class="card result">

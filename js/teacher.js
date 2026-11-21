@@ -1,10 +1,10 @@
-import { Store, Device, isCloud } from "./store.js?v=20261119a";
-import { esc, uid, sha, pinHash, randomPin, LANG_FLAG, LANG_NAME, PIN_NAMES } from "./util.js?v=20261119a";
-import { art, hat } from "./art.js?v=20261119a";
-import { currentGoal, DEFAULT_REWARDS, START_TARGET, START_PER_KID, rewardsOf, BUILDINGS } from "./goal.js?v=20261119a";
-import { render, $, $$, toast, modal, confirmBox, pic, avatarHtml, fmtMin, relDay } from "./ui.js?v=20261119a";
-import { lessonStats, weekSummary, currentStreak, emptyProgress, todayStr, DAY, wstate, stripArticle, norm, mondayOf, weekLabel, weekState, sortLessons, perDayFor } from "./srs.js?v=20261119a";
-import { fileToLines, splitLines, linesToPairs, prepareImage, matchImages, searchOpenverse, fetchImageBlob } from "./import.js?v=20261119a";
+import { Store, Device, isCloud } from "./store.js?v=20261121a";
+import { esc, uid, sha, pinHash, randomPin, LANG_FLAG, LANG_NAME, PIN_NAMES } from "./util.js?v=20261121a";
+import { art, hat } from "./art.js?v=20261121a";
+import { currentGoal, DEFAULT_REWARDS, START_TARGET, START_PER_KID, rewardsOf, BUILDINGS } from "./goal.js?v=20261121a";
+import { render, $, $$, toast, modal, confirmBox, pic, avatarHtml, fmtMin, relDay } from "./ui.js?v=20261121a";
+import { lessonStats, weekSummary, currentStreak, emptyProgress, todayStr, DAY, wstate, stripArticle, norm, mondayOf, weekLabel, weekState, sortLessons, perDayFor } from "./srs.js?v=20261121a";
+import { fileToLines, splitLines, linesToPairs, prepareImage, matchImages, searchOpenverse, fetchImageBlob } from "./import.js?v=20261121a";
 
 // ---- Bilder speichern (hohe Auflösung, wenn der Online-Bildspeicher eingerichtet ist) ----
 async function storeImageFile(fileOrBlob) {
@@ -51,7 +51,7 @@ function searchImage(query, { title = "Bild suchen", alt = [], series = false } 
   });
 }
 const searchTerm = s => stripArticle(norm(String(s || "").split(/[\/;]/)[0]));
-import { say } from "./speech.js?v=20261119a";
+import { say } from "./speech.js?v=20261121a";
 
 const T = { cls: null, tab: "overview", students: [], lessons: [], progs: {}, back: null };
 // Fortschritt zurücksetzen: neuer Stand mit neuer Kennung – ein noch angemeldetes Kinder-Gerät
@@ -201,7 +201,7 @@ async function dashboard() {
   }
   try { T.goal = await currentGoal(T.cls, Object.values(T.progs), T.students.length); } catch { T.goal = null; }
   const fresh = await autoWeekReport();
-  const tabs = [["overview", "📊 Übersicht"], ["lessons", "📚 Lektionen"], ["reports", "📅 Wochenberichte"], ["students", "👧 Kinder"], ["diploma", "🏅 Diplome"], ["settings", "⚙️ Einstellungen"]];
+  const tabs = [["overview", "📊 Übersicht"], ["stats", "📈 Statistik"], ["lessons", "📚 Lektionen"], ["reports", "📅 Wochenberichte"], ["students", "👧 Kinder"], ["diploma", "🏅 Diplome"], ["settings", "⚙️ Einstellungen"]];
   render(`<div class="wrap">
     <div class="t-head"><span class="logo">${art("mascotHead")}</span><h1>${esc(T.cls.name)} <span class="pill">${esc(Store.code)}</span></h1>
       <nav class="tabs">${tabs.map(([k, n]) => `<button data-t="${k}" class="${T.tab === k ? "on" : ""}">${n}</button>`).join("")}</nav>
@@ -220,7 +220,7 @@ async function dashboard() {
 
 function showTab() {
   const el = $("#tab");
-  ({ overview, lessons: lessonsTab, reports: reportsTab, students: studentsTab, diploma: diplomaTab, settings })[T.tab](el);
+  ({ overview, stats: statsTab, lessons: lessonsTab, reports: reportsTab, students: studentsTab, diploma: diplomaTab, settings })[T.tab](el);
 }
 
 const assignedTo = (l, sid) => l.assigned === "all" || !l.assigned || (Array.isArray(l.assigned) && l.assigned.includes(sid));
@@ -1030,3 +1030,119 @@ function showReport(r, live = false) {
   $("#print").onclick = () => window.print();
 }
 
+
+// ------------------------------------------------------------------
+//  Statistik: welche Lernmöglichkeit wird wie viel genutzt – mündlich oder schriftlich?
+// ------------------------------------------------------------------
+const ACT_INFO = {
+  learn: ["📘", "Lernen"], test: ["📝", "Testen"], shower: ["🚿", "Vokabeldusche"], rec: ["🎙️", "Meine Vokabeldusche"],
+  memory: ["🃏", "Memory"], match: ["📌", "Post-its zuordnen"], sort: ["🧺", "Sortieren"], blitz: ["⚡", "Blitzrunde"],
+  snake: ["🐍", "Schlangensätze"], typo: ["🔍", "Finde den Fehler"], leaf: ["🍃", "Löcher im Wort"], cross: ["✏️", "Kreuzworträtsel"],
+  hang: ["🎈", "Ballon-Raten"], net: ["💡", "Wortnetz"], words: ["🔭", "Wörter ansehen / malen"], paper: ["🖨️", "Test für zu Hause"],
+  move: ["🤸", "Bewegungsrunde"], other: ["•", "Sonstiges"],
+};
+const HOW_INFO = {
+  write: ["✍️", "Aus dem Kopf geschrieben", "schriftlich"], copy: ["📄", "Abgeschrieben", "schriftlich"], scramble: ["🔤", "Buchstaben gelegt", "schriftlich"],
+  speak: ["🗣️", "Gesprochen (Mikrofon)", "mündlich"], cards: ["🃏", "Lernkarten (selbst eingeschätzt)", "Karten"], choice: ["☑️", "Auswahl / Wiedererkennen", "Auswahl"],
+};
+// Übungen, die vor allem mündlich sind (Hören und Sprechen)
+const ORAL_ACTS = new Set(["shower", "rec", "move"]);
+const STAT_START = "2026-11-21";   // ab hier werden Übungen und Antwortarten einzeln gezählt
+
+function statDays(period) {
+  const today = todayStr();
+  if (period === "week") { const m = mondayOf(); return k => k >= m && k <= today; }
+  if (period === "4w") { const from = todayStr(new Date(Date.now() - 27 * DAY)); return k => k >= from && k <= today; }
+  return () => true;
+}
+// Fasst die Tage eines Kindes im Zeitraum zusammen
+function kidStats(p, inRange) {
+  const out = { sec: 0, ans: 0, ok: 0, days: 0, act: {}, how: {} };
+  for (const [k, d] of Object.entries(p.days || {})) {
+    if (!inRange(k)) continue;
+    out.sec += d.sec || 0; out.ans += d.ans || 0; out.ok += d.ok || 0;
+    if ((d.sec || 0) > 0 || (d.ans || 0) > 0) out.days++;
+    for (const [a, v] of Object.entries(d.act || {})) { const t = out.act[a] || (out.act[a] = { n: 0, sec: 0, ans: 0, ok: 0 }); t.n += v.n || 0; t.sec += v.sec || 0; t.ans += v.ans || 0; t.ok += v.ok || 0; }
+    for (const [h, v] of Object.entries(d.how || {})) { const t = out.how[h] || (out.how[h] = { n: 0, ok: 0 }); t.n += v.n || 0; t.ok += v.ok || 0; }
+  }
+  const sum = keys => keys.reduce((a, k) => a + (out.how[k]?.n || 0), 0);
+  out.written = sum(["write", "copy", "scramble"]);
+  out.oral = sum(["speak"]);
+  out.oralMin = Math.round([...ORAL_ACTS].reduce((a, k) => a + (out.act[k]?.sec || 0), 0) / 60);
+  const top = Object.entries(out.act).filter(([k]) => k !== "other").sort((a, b) => b[1].sec - a[1].sec)[0];
+  out.top = top ? top[0] : null;
+  return out;
+}
+const pct = (a, b) => (b ? Math.round(a / b * 100) : null);
+const minOf = sec => Math.round(sec / 60);
+const sbar = (v, max, cls = "") => `<span class="sbar ${cls}"><i style="width:${max ? Math.max(2, Math.round(v / max * 100)) : 0}%"></i></span>`;
+
+function actTable(act, kidsUsing) {
+  const rows = Object.entries(ACT_INFO).map(([k, [ic, name]]) => ({ k, ic, name, ...(act[k] || { n: 0, sec: 0, ans: 0, ok: 0 }), kids: kidsUsing ? kidsUsing[k] || 0 : null }))
+    .filter(r => r.n > 0 || ["learn", "test"].includes(r.k)).sort((a, b) => b.sec - a.sec || b.n - a.n);
+  const max = Math.max(1, ...rows.map(r => r.sec));
+  if (!rows.some(r => r.n)) return `<p class="muted" style="margin:0">Noch keine Daten im gewählten Zeitraum.</p>`;
+  return `<div class="tbl-wrap"><table class="tbl stat-tbl"><thead><tr><th>Lernmöglichkeit</th>${kidsUsing ? "<th>Kinder</th>" : ""}<th>Mal</th><th>Minuten</th><th>Treffer</th><th></th></tr></thead><tbody>
+    ${rows.map(r => `<tr><td>${r.ic} ${esc(r.name)}${ORAL_ACTS.has(r.k) ? ` <span class="pill">mündlich</span>` : ""}</td>${kidsUsing ? `<td>${r.kids}</td>` : ""}<td>${r.n}</td><td>${minOf(r.sec)}</td><td>${r.ans ? pct(r.ok, r.ans) + " %" : "–"}</td><td class="bar-cell">${sbar(r.sec, max)}</td></tr>`).join("")}
+  </tbody></table></div>`;
+}
+function howTable(how) {
+  const rows = Object.entries(HOW_INFO).map(([k, [ic, name, kind]]) => ({ k, ic, name, kind, ...(how[k] || { n: 0, ok: 0 }) }));
+  const max = Math.max(1, ...rows.map(r => r.n));
+  if (!rows.some(r => r.n)) return `<p class="muted" style="margin:0">Noch keine Antworten im gewählten Zeitraum.</p>`;
+  return `<div class="tbl-wrap"><table class="tbl stat-tbl"><thead><tr><th>Antwortart</th><th>Art</th><th>Antworten</th><th>richtig</th><th></th></tr></thead><tbody>
+    ${rows.map(r => `<tr><td>${r.ic} ${esc(r.name)}</td><td><span class="pill ${r.kind === "mündlich" ? "oral" : r.kind === "schriftlich" ? "written" : ""}">${r.kind}</span></td><td>${r.n}</td><td>${r.n ? pct(r.ok, r.n) + " %" : "–"}</td><td class="bar-cell">${sbar(r.n, max, r.kind === "mündlich" ? "oral" : r.kind === "schriftlich" ? "written" : "")}</td></tr>`).join("")}
+  </tbody></table></div>`;
+}
+// Balken: schriftlich vs. mündlich
+const splitBar = (w, o) => { const t = w + o; if (!t) return `<span class="muted small">–</span>`; const pw = Math.round(w / t * 100); return `<span class="split" title="schriftlich ${pw} % · mündlich ${100 - pw} %"><i class="written" style="width:${pw}%"></i><i class="oral" style="width:${100 - pw}%"></i></span><span class="small muted">✍️ ${w} · 🗣️ ${o}</span>`; };
+
+function statsTab(el) {
+  T.statPeriod = T.statPeriod || "week";
+  const inRange = statDays(T.statPeriod);
+  const kids = T.students.map(s => ({ s, st: kidStats(T.progs[s.id] || {}, inRange) }));
+  const tot = { sec: 0, ans: 0, ok: 0, act: {}, how: {}, written: 0, oral: 0, oralMin: 0 }, kidsUsing = {};
+  for (const { st } of kids) {
+    tot.sec += st.sec; tot.ans += st.ans; tot.ok += st.ok; tot.written += st.written; tot.oral += st.oral; tot.oralMin += st.oralMin;
+    for (const [k, v] of Object.entries(st.act)) { const t = tot.act[k] || (tot.act[k] = { n: 0, sec: 0, ans: 0, ok: 0 }); t.n += v.n; t.sec += v.sec; t.ans += v.ans; t.ok += v.ok; if (v.n) kidsUsing[k] = (kidsUsing[k] || 0) + 1; }
+    for (const [k, v] of Object.entries(st.how)) { const t = tot.how[k] || (tot.how[k] = { n: 0, ok: 0 }); t.n += v.n; t.ok += v.ok; }
+  }
+  const active = kids.filter(k => k.st.days > 0).length;
+  const maxMin = Math.max(1, ...kids.map(k => k.st.sec));
+  const P = [["week", "Diese Woche"], ["4w", "Letzte 4 Wochen"], ["all", "Gesamt"]];
+  el.innerHTML = `<div class="stack" style="gap:16px">
+    <div class="t-panel"><div class="row between"><h2>📈 Statistik der Klasse</h2><div class="seg">${P.map(([k, n]) => `<button class="${T.statPeriod === k ? "on" : ""}" data-per="${k}">${n}</button>`).join("")}</div></div>
+      <p class="small muted" style="margin:0">Lernzeit, Antworten und Treffer gibt es für alle Tage. Welche Übung und welche Antwortart (schriftlich / mündlich) genutzt wurde, zählt die App ab dem ${new Date(STAT_START + "T12:00").toLocaleDateString("de")}.</p>
+      <div class="kpis">
+        <div class="kpi"><span class="l">Lernzeit gesamt</span><span class="v">${minOf(tot.sec)} min</span><span class="s">Ø ${minOf(tot.sec / Math.max(1, kids.length))} min pro Kind</span></div>
+        <div class="kpi"><span class="l">Aktive Kinder</span><span class="v">${active} / ${kids.length}</span></div>
+        <div class="kpi"><span class="l">Antworten</span><span class="v">${tot.ans}</span><span class="s">Treffer ${tot.ans ? pct(tot.ok, tot.ans) + " %" : "–"}</span></div>
+        <div class="kpi"><span class="l">Schriftlich / mündlich</span><span class="v small-v">${splitBar(tot.written, tot.oral)}</span><span class="s">dazu ${tot.oralMin} min Hören & Sprechen</span></div>
+      </div>
+    </div>
+    <div class="stack" style="gap:16px">
+      <div class="t-panel"><h2>Lernmöglichkeiten</h2>${actTable(tot.act, kidsUsing)}</div>
+      <div class="t-panel"><h2>Antwortarten</h2>${howTable(tot.how)}<p class="small muted" style="margin:0">Schriftlich = aus dem Kopf, abgeschrieben, Buchstaben gelegt. Mündlich = ins Mikrofon gesprochen.</p></div>
+    </div>
+    <div class="t-panel"><h2>Kinder</h2>
+      <p class="small muted" style="margin:0">Tippe auf ein Kind für seine eigene Statistik.</p>
+      <div class="tbl-wrap"><table class="tbl stat-tbl"><thead><tr><th>Kind</th><th>Tage</th><th>Minuten</th><th>Antworten</th><th>Treffer</th><th>Schriftlich / mündlich</th><th>Am meisten genutzt</th></tr></thead><tbody>
+        ${kids.sort((a, b) => b.st.sec - a.st.sec).map(({ s, st }) => `<tr class="click" data-kid="${esc(s.id)}"><td><b>${esc(s.name)}</b></td><td>${st.days}</td><td>${minOf(st.sec)} ${sbar(st.sec, maxMin)}</td><td>${st.ans}</td><td>${st.ans ? pct(st.ok, st.ans) + " %" : "–"}</td><td>${splitBar(st.written, st.oral)}</td><td>${st.top ? `${ACT_INFO[st.top]?.[0] || ""} ${esc(ACT_INFO[st.top]?.[1] || st.top)}` : "–"}</td></tr>`).join("") || `<tr><td colspan="7" class="muted">Noch keine Kinder.</td></tr>`}
+      </tbody></table></div>
+    </div>
+  </div>`;
+  $$("[data-per]", el).forEach(b => b.onclick = () => { T.statPeriod = b.dataset.per; statsTab(el); });
+  $$("[data-kid]", el).forEach(tr => tr.onclick = () => {
+    const s = T.students.find(x => x.id === tr.dataset.kid), st = kidStats(T.progs[s.id] || {}, inRange);
+    modal(`<div class="stack stat-modal">
+      <div class="row between"><h2 style="margin:0">📈 ${esc(s.name)}</h2><span class="pill">${P.find(x => x[0] === T.statPeriod)[1]}</span></div>
+      <div class="kpis">
+        <div class="kpi"><span class="l">Lernzeit</span><span class="v">${minOf(st.sec)} min</span><span class="s">an ${st.days} Tag${st.days === 1 ? "" : "en"}</span></div>
+        <div class="kpi"><span class="l">Antworten</span><span class="v">${st.ans}</span><span class="s">Treffer ${st.ans ? pct(st.ok, st.ans) + " %" : "–"}</span></div>
+        <div class="kpi"><span class="l">Schriftlich / mündlich</span><span class="v small-v">${splitBar(st.written, st.oral)}</span><span class="s">dazu ${st.oralMin} min Hören & Sprechen</span></div>
+      </div>
+      <h3 style="margin:4px 0 0">Lernmöglichkeiten</h3>${actTable(st.act)}
+      <h3 style="margin:4px 0 0">Antwortarten</h3>${howTable(st.how)}
+      <div class="row" style="justify-content:flex-end"><button class="btn green small" data-close="ok">Schließen</button></div></div>`);
+  });
+}
